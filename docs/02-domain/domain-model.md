@@ -42,6 +42,7 @@
   - title
   - description
   - status (To-Do, In Progress, Done)
+  - priority (Low, Medium, High)
 - Relationships:
   - has many Subtasks
   - assigned to one User
