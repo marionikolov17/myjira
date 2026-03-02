@@ -1,0 +1,14 @@
+.gitignore
+.env.example
+.env.example.local
+.env.example.development.local
+.env.example.test.local
+.env.example.production.local
+.git
+node_modules
+dist
+build
+coverage
+.vscode
+.idea
+.DS_Store
