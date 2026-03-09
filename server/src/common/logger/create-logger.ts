@@ -1,42 +1,62 @@
-import fs from 'fs';
-import winston, { format, transports } from 'winston';
+import winston from 'winston';
 import { WinstonLogger } from './winston-logger';
 import { ILogger } from './logger.interface';
 import { LoggerLevel } from './logger.types';
 
+interface LoggerPaths {
+  errorLog: string;
+  combinedLog: string;
+}
+
+const DEFAULT_LOG_DIR = 'logs';
+const DEFAULT_PATHS: LoggerPaths = {
+  errorLog: `${DEFAULT_LOG_DIR}/errors.log`,
+  combinedLog: `${DEFAULT_LOG_DIR}/combined.log`,
+};
+
 interface LoggerConfig {
   level: LoggerLevel;
   enableConsole: boolean;
+  serviceName?: string;
+  paths?: Partial<LoggerPaths>;
 }
 
-const LOG_DIR = 'logs';
-const ERROR_LOG = `${LOG_DIR}/errors.log`;
-const COMBINED_LOG = `${LOG_DIR}/combined.log`;
+interface CreateLoggerDependencies {
+  winstonLib?: typeof winston;
+  WinstonLoggerClass?: typeof WinstonLogger;
+}
 
-export function createLogger(config: LoggerConfig): ILogger {
-  const winstonLogger = winston.createLogger({
+export function createLogger(config: LoggerConfig, deps: CreateLoggerDependencies = {}): ILogger {
+  const { winstonLib = winston, WinstonLoggerClass = WinstonLogger } = deps;
+  const paths: LoggerPaths = { ...DEFAULT_PATHS, ...config.paths };
+
+  const winstonLogger = winstonLib.createLogger({
     level: config.level,
-    format: format.combine(format.timestamp(), format.errors({ stack: true }), format.json()),
-    defaultMeta: { service: 'api' },
+    defaultMeta: { service: config.serviceName ?? 'api' },
+    format: buildFormat(winstonLib),
+    transports: buildTransports(config, paths, winstonLib),
   });
 
-  createLogsDirectory();
-  configureTransports(winstonLogger, config);
-
-  return new WinstonLogger(winstonLogger);
+  return new WinstonLoggerClass(winstonLogger);
 }
 
-function createLogsDirectory() {
-  fs.mkdirSync(LOG_DIR, { recursive: true });
+function buildFormat(winstonLib: typeof winston) {
+  const { format } = winstonLib;
+  return format.combine(format.timestamp(), format.errors({ stack: true }), format.json());
 }
 
-function configureTransports(winstonLogger: winston.Logger, config: LoggerConfig) {
-  winstonLogger.add(new transports.File({ filename: ERROR_LOG, level: 'error' }));
-  winstonLogger.add(new transports.File({ filename: COMBINED_LOG }));
+function buildTransports(config: LoggerConfig, paths: LoggerPaths, winstonLib: typeof winston) {
+  const { format, transports } = winstonLib;
+  const result: winston.transport[] = [
+    new transports.File({ filename: paths.errorLog, level: 'error' }),
+    new transports.File({ filename: paths.combinedLog }),
+  ];
 
   if (config.enableConsole) {
-    winstonLogger.add(
+    result.push(
       new transports.Console({ format: format.combine(format.colorize(), format.simple()) }),
     );
   }
+
+  return result;
 }
