@@ -4,13 +4,14 @@
   "main": "index.js",
   "scripts": {
     "dev": "cross-env NODE_ENV=development dotenv -e .env.local -- tsx watch src/server.ts",
-    "build": "tsc && tsc-alias && tsc-esm-fix",
+    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json && tsc-esm-fix",
     "compose:up": "docker-compose up -d",
     "start": "node dist/server.js",
     "prettier": "prettier --write .",
     "lint": "eslint .",
-    "test": "jest",
-    "gen:database:types:local": "npx supabase gen types typescript --local > ./src/common/types/database.type.ts"
+    "test": "jest --coverage",
+    "gen:database:types:local": "npx supabase gen types typescript --local > ./src/common/types/database.type.ts",
+    "create:log:path": "mkdir -p logs"
   },
   "keywords": [],
   "author": "",
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@jest/globals": "^30.2.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^25.3.3",
@@ -35,6 +37,7 @@
     "jest": "^30.2.0",
     "prettier": "^3.8.1",
     "supabase": "^2.76.15",
+    "ts-jest": "^29.4.6",
     "tsc-alias": "^1.8.16",
     "tsc-esm-fix": "^3.1.2",
     "tsx": "^4.21.0",
