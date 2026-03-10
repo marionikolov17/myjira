@@ -8,53 +8,43 @@ interface LoggerPaths {
   combinedLog: string;
 }
 
-const DEFAULT_LOG_DIR = 'logs';
-const DEFAULT_PATHS: LoggerPaths = {
-  errorLog: `${DEFAULT_LOG_DIR}/errors.log`,
-  combinedLog: `${DEFAULT_LOG_DIR}/combined.log`,
-};
-
 interface LoggerConfig {
   level: LoggerLevel;
   enableConsole: boolean;
-  serviceName?: string;
-  paths?: Partial<LoggerPaths>;
+  serviceName: string;
+  paths: LoggerPaths;
 }
 
-interface CreateLoggerDependencies {
-  winstonLib?: typeof winston;
-  WinstonLoggerClass?: typeof WinstonLogger;
-}
-
-export function createLogger(config: LoggerConfig, deps: CreateLoggerDependencies = {}): ILogger {
-  const { winstonLib = winston, WinstonLoggerClass = WinstonLogger } = deps;
-  const paths: LoggerPaths = { ...DEFAULT_PATHS, ...config.paths };
-
-  const winstonLogger = winstonLib.createLogger({
+export function createLogger(config: LoggerConfig): ILogger {
+  const winstonLogger = winston.createLogger({
     level: config.level,
-    defaultMeta: { service: config.serviceName ?? 'api' },
-    format: buildFormat(winstonLib),
-    transports: buildTransports(config, paths, winstonLib),
+    defaultMeta: { service: config.serviceName },
+    format: buildFormat(),
+    transports: buildTransports(config),
   });
 
-  return new WinstonLoggerClass(winstonLogger);
+  return new WinstonLogger(winstonLogger);
 }
 
-function buildFormat(winstonLib: typeof winston) {
-  const { format } = winstonLib;
-  return format.combine(format.timestamp(), format.errors({ stack: true }), format.json());
+function buildFormat() {
+  return winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json(),
+  );
 }
 
-function buildTransports(config: LoggerConfig, paths: LoggerPaths, winstonLib: typeof winston) {
-  const { format, transports } = winstonLib;
+function buildTransports(config: LoggerConfig) {
   const result: winston.transport[] = [
-    new transports.File({ filename: paths.errorLog, level: 'error' }),
-    new transports.File({ filename: paths.combinedLog }),
+    new winston.transports.File({ filename: config.paths.errorLog, level: 'error' }),
+    new winston.transports.File({ filename: config.paths.combinedLog }),
   ];
 
   if (config.enableConsole) {
     result.push(
-      new transports.Console({ format: format.combine(format.colorize(), format.simple()) }),
+      new winston.transports.Console({
+        format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
+      }),
     );
   }
 
