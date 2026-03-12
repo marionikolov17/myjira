@@ -55,4 +55,18 @@ describe('logger', () => {
       paths: PATHS,
     });
   });
+
+  it('should use correct logger configuration for test environment', async () => {
+    mockEnv(NodeEnv.TEST);
+
+    const { SERVICE_NAME, PATHS } = await import('@/common/logger/logger');
+    const { createLogger } = await import('@/common/logger/create-logger');
+
+    expect(createLogger).toHaveBeenCalledWith({
+      level: LoggerLevel.HTTP,
+      enableConsole: false,
+      serviceName: SERVICE_NAME,
+      paths: PATHS,
+    });
+  });
 });
