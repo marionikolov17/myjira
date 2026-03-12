@@ -36,7 +36,7 @@ function buildFormat() {
 
 function buildTransports(config: LoggerConfig) {
   const result: winston.transport[] = [
-    new winston.transports.File({ filename: config.paths.errorLog, level: 'error' }),
+    new winston.transports.File({ filename: config.paths.errorLog, level: LoggerLevel.ERROR }),
     new winston.transports.File({ filename: config.paths.combinedLog }),
   ];
 
