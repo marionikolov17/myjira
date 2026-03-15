@@ -9,8 +9,7 @@
     "start": "node dist/server.js",
     "prettier": "prettier --write .",
     "lint": "eslint .",
-    "test": "jest --coverage",
-    "gen:database:types:local": "npx supabase gen types typescript --local > ./src/common/types/database.type.ts",
+    "test": "cross-env NODE_ENV=development dotenv -e .env.local -- jest --coverage",
     "create:log:path": "mkdir -p logs"
   },
   "keywords": [],
