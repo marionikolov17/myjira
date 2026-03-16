@@ -1,18 +1,8 @@
-import { jest } from '@jest/globals';
 import { UserSchema } from '@/modules/users/user.schema';
-import { ILogger } from '@/common/logger';
 
 const FIXED_USER_ID = '550e8400-e29b-41d4-a716-446655440000';
 const FIXED_WORKSPACE_ROLE_ID = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 const FIXED_DATE = new Date('2026-01-01T00:00:00.000Z');
-
-export const mockLogger: jest.Mocked<ILogger> = {
-  error: jest.fn(),
-  info: jest.fn(),
-  warn: jest.fn(),
-  http: jest.fn(),
-  debug: jest.fn(),
-};
 
 export const mockCreateUserParams = {
   name: 'John Doe',
