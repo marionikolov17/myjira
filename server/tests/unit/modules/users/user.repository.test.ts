@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { UserRepository } from '@/modules/users/user.repository';
-import { mockCreateUserParams, mockDatabaseUser, mockUser } from './user.repository.mock';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { ZodError } from 'zod';
+import { UserRepository } from '@/modules/users/user.repository';
+import { mockCreateUserParams, mockDatabaseUser, mockUser } from './user.repository.mock';
 import { createMockSupabaseClient, MockSupabaseClient } from '../../mocks/mockSupabase';
 import { mockLogger } from '../../mocks/mockLogger';
 
