@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { UserSchema } from '@/modules/users';
+import { UserSchema } from '@/modules/users/user.schema';
 import { ILogger } from '@/common/logger';
 
 const FIXED_USER_ID = '550e8400-e29b-41d4-a716-446655440000';
@@ -30,48 +30,3 @@ export const mockDatabaseUser = {
   updated_at: FIXED_DATE,
 };
 export const mockUser = UserSchema.parse(mockDatabaseUser);
-
-interface SupabaseResponse {
-  data: unknown;
-  error: unknown;
-}
-
-export type MockSupabaseClient = Record<string, jest.Mock> & {
-  then: (resolve: (value: SupabaseResponse) => void) => Promise<void>;
-};
-
-export function createMockSupabaseClient(
-  data: unknown = null,
-  error: unknown = null,
-): MockSupabaseClient {
-  const response: SupabaseResponse = { data, error };
-
-  const client = {} as MockSupabaseClient;
-
-  const methods = [
-    'from',
-    'select',
-    'insert',
-    'update',
-    'delete',
-    'eq',
-    'neq',
-    'gt',
-    'lt',
-    'gte',
-    'lte',
-    'single',
-    'maybeSingle',
-    'order',
-    'limit',
-    'range',
-  ];
-
-  for (const method of methods) {
-    client[method] = jest.fn().mockReturnValue(client);
-  }
-
-  client.then = (resolve) => Promise.resolve(response).then(resolve);
-
-  return client;
-}

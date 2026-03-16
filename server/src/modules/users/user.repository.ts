@@ -3,8 +3,9 @@ import { supabase } from '@/common/supabase';
 import { CreateUserParams } from './user.types';
 import { User, UserSchema } from './user.schema';
 import { ILogger, logger } from '@/common/logger';
+import { IUserRepository } from './user.interface';
 
-export class UserRepository {
+export class UserRepository implements IUserRepository {
   private readonly supabase: SupabaseClient;
   private readonly logger: ILogger;
   private readonly tableName: string = 'users';

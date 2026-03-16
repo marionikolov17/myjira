@@ -1,15 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { UserRepository } from '@/modules/users';
-import {
-  createMockSupabaseClient,
-  mockCreateUserParams,
-  mockDatabaseUser,
-  mockLogger,
-  MockSupabaseClient,
-  mockUser,
-} from './user.repository.mock';
+import { UserRepository } from '@/modules/users/user.repository';
+import { mockCreateUserParams, mockDatabaseUser, mockUser } from './user.repository.mock';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { ZodError } from 'zod';
+import { createMockSupabaseClient, MockSupabaseClient } from '../../mocks/mockSupabase';
+import { mockLogger } from '../../mocks/mockLogger';
 
 describe('UserRepository', () => {
   beforeEach(() => {
@@ -45,6 +40,7 @@ describe('UserRepository', () => {
     it('should throw an error if the user creation fails', async () => {
       const cause = { code: '23505', detail: 'Key (email) already exists' };
       const error = new Error('User creation failed', { cause });
+
       const mockSupabase = createMockSupabaseClient(null, error);
       const userRepository = createUserRepository(mockSupabase);
 
