@@ -6,3 +6,4 @@ export const transform = {
 export const moduleNameMapper = {
   '^@/(.*)$': '<rootDir>/src/$1',
 };
+export const setupFiles = ['<rootDir>/tests/setup.ts'];
