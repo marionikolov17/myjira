@@ -20,3 +20,9 @@ export const mockDatabaseUser = {
   updated_at: FIXED_DATE,
 };
 export const mockUser = UserSchema.parse(mockDatabaseUser);
+
+export const errorCause = { code: '23505', detail: 'Key (email) already exists' };
+export const invalidUser = {
+  ...mockDatabaseUser,
+  name: 123,
+};

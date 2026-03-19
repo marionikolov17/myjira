@@ -21,3 +21,9 @@ export const mockDatabaseWorkspaceRoles = [
     updated_at: FIXED_DATE,
   },
 ];
+
+export const errorCause = { code: '500', detail: 'Database error' };
+export const invalidWorkspaceRole = {
+  ...mockDatabaseWorkspaceRoles[0],
+  name: 123,
+};
