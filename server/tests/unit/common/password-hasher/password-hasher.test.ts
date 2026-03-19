@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 const mockPasswordHasherInstance = { mock: true };
-
 jest.mock('@/common/password-hasher/create-password-hasher', () => ({
   createPasswordHasher: jest.fn().mockReturnValue(mockPasswordHasherInstance),
 }));

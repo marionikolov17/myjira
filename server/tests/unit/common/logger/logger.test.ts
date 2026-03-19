@@ -3,7 +3,6 @@ import { LoggerLevel } from '@/common/logger/logger.types';
 import { NodeEnv } from '@/config/env.types';
 
 const mockLoggerInstance = { mock: true };
-
 jest.mock('@/common/logger/create-logger', () => ({
   createLogger: jest.fn().mockReturnValue(mockLoggerInstance),
 }));

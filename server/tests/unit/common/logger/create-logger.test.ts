@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import winston from 'winston';
 import { createLogger, LoggerLevel, WinstonLogger } from '@/common/logger';
+import {
+  mockCommonConfig,
+  mockDevelopmentConfig,
+  mockProductionConfig,
+} from './create-logger.mock';
 
 jest.mock('winston', () => ({
   createLogger: jest.fn(),
@@ -19,36 +24,13 @@ jest.mock('winston', () => ({
 }));
 const mockWinston = jest.mocked(winston);
 
-const serviceName = 'api';
-const errorLogPath = 'logs/error.log';
-const combinedLogPath = 'logs/combined.log';
-const paths = {
-  errorLog: errorLogPath,
-  combinedLog: combinedLogPath,
-};
-
-const commonConfig = {
-  level: LoggerLevel.DEBUG,
-  enableConsole: true,
-  paths,
-  serviceName,
-};
-const developmentConfig = {
-  ...commonConfig,
-};
-const productionConfig = {
-  ...commonConfig,
-  enableConsole: false,
-  level: LoggerLevel.HTTP,
-};
-
 describe('createLogger', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   it('should create a logger for every environment', () => {
-    const logger = createLogger(commonConfig);
+    const logger = createLogger(mockCommonConfig);
 
     expect(logger).toBeInstanceOf(WinstonLogger);
     expect(logger.info).toBeDefined();
@@ -58,20 +40,25 @@ describe('createLogger', () => {
     expect(logger.debug).toBeDefined();
   });
 
-  it('should call winston.createLogger with the correct config for every environment', () => {
-    createLogger(commonConfig);
+  it('should call winston.createLogger', () => {
+    createLogger(mockCommonConfig);
 
     expect(mockWinston.createLogger).toHaveBeenCalled();
+  });
+
+  it('should call winston.createLogger with the correct config for every environment', () => {
+    createLogger(mockCommonConfig);
+
     expect(mockWinston.createLogger).toHaveBeenCalledWith(
       expect.objectContaining({
-        level: commonConfig.level,
-        defaultMeta: { service: commonConfig.serviceName },
+        level: mockCommonConfig.level,
+        defaultMeta: { service: mockCommonConfig.serviceName },
       }),
     );
   });
 
   it('should create a logger with the correct format for every environment', () => {
-    createLogger(commonConfig);
+    createLogger(mockCommonConfig);
 
     expect(mockWinston.format.combine).toHaveBeenCalled();
     expect(mockWinston.format.timestamp).toHaveBeenCalledTimes(1);
@@ -80,42 +67,51 @@ describe('createLogger', () => {
     expect(mockWinston.format.json).toHaveBeenCalledTimes(1);
   });
 
-  it('should use the correct error log and combined log paths for every environment', () => {
-    createLogger(commonConfig);
+  it('should use the correct error log path for every environment', () => {
+    createLogger(mockCommonConfig);
 
     expect(mockWinston.transports.File).toHaveBeenCalledWith({
-      filename: commonConfig.paths.errorLog,
+      filename: mockCommonConfig.paths.errorLog,
       level: LoggerLevel.ERROR,
     });
+  });
+
+  it('should use the correct combined log path for every environment', () => {
+    createLogger(mockCommonConfig);
+
     expect(mockWinston.transports.File).toHaveBeenCalledWith({
-      filename: commonConfig.paths.combinedLog,
+      filename: mockCommonConfig.paths.combinedLog,
     });
+  });
+
+  it('should use two file transports for every environment', () => {
+    createLogger(mockCommonConfig);
+
     expect(mockWinston.transports.File).toHaveBeenCalledTimes(2);
   });
 
   it('should use the console transport when enableConsole is true in development', () => {
-    createLogger(developmentConfig);
+    createLogger(mockDevelopmentConfig);
 
     expect(mockWinston.transports.Console).toHaveBeenCalled();
   });
 
   it('should not use the console transport when enableConsole is false in production', () => {
-    createLogger(productionConfig);
+    createLogger(mockProductionConfig);
 
     expect(mockWinston.transports.Console).not.toHaveBeenCalled();
   });
 
   it('should use the correct format for the console transport when enableConsole is true in development', () => {
-    createLogger(developmentConfig);
+    createLogger(mockDevelopmentConfig);
 
-    expect(mockWinston.transports.Console).toHaveBeenCalled();
     expect(mockWinston.format.combine).toHaveBeenCalledTimes(2);
     expect(mockWinston.format.colorize).toHaveBeenCalled();
     expect(mockWinston.format.simple).toHaveBeenCalled();
   });
 
   it('should not call the extra format functions when enableConsole is false in production', () => {
-    createLogger(productionConfig);
+    createLogger(mockProductionConfig);
 
     expect(mockWinston.format.combine).toHaveBeenCalledTimes(1);
     expect(mockWinston.format.colorize).not.toHaveBeenCalled();
