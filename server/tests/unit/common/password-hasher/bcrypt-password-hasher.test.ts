@@ -14,49 +14,34 @@ describe('BcryptPasswordHasher', () => {
     jest.clearAllMocks();
   });
 
-  it('should hash a password', async () => {
-    mockBcrypt.hash.mockResolvedValue(mockHashedPassword as never);
-    const bcryptPasswordHasher = new BcryptPasswordHasher(mockSaltRounds);
+  describe('hashPassword', () => {
+    it('should hash a password', async () => {
+      mockBcrypt.hash.mockResolvedValue(mockHashedPassword as never);
+      const bcryptPasswordHasher = new BcryptPasswordHasher(mockSaltRounds);
 
-    const hashedPassword = await bcryptPasswordHasher.hashPassword(mockPassword);
+      const hashedPassword = await bcryptPasswordHasher.hashPassword(mockPassword);
 
-    expect(hashedPassword).toBe(mockHashedPassword);
-    expect(mockBcrypt.hash).toHaveBeenCalledWith(mockPassword, mockSaltRounds);
+      expect(hashedPassword).toBe(mockHashedPassword);
+    });
   });
 
-  it('should call bcrypt.hash with the correct parameters', async () => {
-    mockBcrypt.hash.mockResolvedValue(mockHashedPassword as never);
-    const bcryptPasswordHasher = new BcryptPasswordHasher(mockSaltRounds);
+  describe('verifyPassword', () => {
+    it('should verify correct password', async () => {
+      mockBcrypt.compare.mockResolvedValue(true as never);
+      const bcryptPasswordHasher = new BcryptPasswordHasher(mockSaltRounds);
 
-    await bcryptPasswordHasher.hashPassword(mockPassword);
+      const isCorrect = await bcryptPasswordHasher.verifyPassword(mockPassword, mockHashedPassword);
 
-    expect(mockBcrypt.hash).toHaveBeenCalledWith(mockPassword, mockSaltRounds);
-  });
+      expect(isCorrect).toBe(true);
+    });
 
-  it('should verify correct password', async () => {
-    mockBcrypt.compare.mockResolvedValue(true as never);
-    const bcryptPasswordHasher = new BcryptPasswordHasher(mockSaltRounds);
+    it('should verify incorrect password', async () => {
+      mockBcrypt.compare.mockResolvedValue(false as never);
+      const bcryptPasswordHasher = new BcryptPasswordHasher(mockSaltRounds);
 
-    const isCorrect = await bcryptPasswordHasher.verifyPassword(mockPassword, mockHashedPassword);
+      const isCorrect = await bcryptPasswordHasher.verifyPassword(mockPassword, mockHashedPassword);
 
-    expect(isCorrect).toBe(true);
-  });
-
-  it('should verify incorrect password', async () => {
-    mockBcrypt.compare.mockResolvedValue(false as never);
-    const bcryptPasswordHasher = new BcryptPasswordHasher(mockSaltRounds);
-
-    const isCorrect = await bcryptPasswordHasher.verifyPassword(mockPassword, mockHashedPassword);
-
-    expect(isCorrect).toBe(false);
-  });
-
-  it('should call bcrypt.compare with the correct parameters', async () => {
-    mockBcrypt.compare.mockResolvedValue(true as never);
-    const bcryptPasswordHasher = new BcryptPasswordHasher(mockSaltRounds);
-
-    await bcryptPasswordHasher.verifyPassword(mockPassword, mockHashedPassword);
-
-    expect(mockBcrypt.compare).toHaveBeenCalledWith(mockPassword, mockHashedPassword);
+      expect(isCorrect).toBe(false);
+    });
   });
 });

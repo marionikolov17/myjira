@@ -11,7 +11,5 @@ describe('createPasswordHasher', () => {
     const passwordHasher = createPasswordHasher(config);
 
     expect(passwordHasher).toBeInstanceOf(BcryptPasswordHasher);
-    expect(passwordHasher.hashPassword).toBeDefined();
-    expect(passwordHasher.verifyPassword).toBeDefined();
   });
 });

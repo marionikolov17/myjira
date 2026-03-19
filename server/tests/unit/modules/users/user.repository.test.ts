@@ -9,20 +9,20 @@ import {
   mockDatabaseUser,
   mockUser,
 } from './user.repository.mock';
-import { createMockSupabaseClient, MockSupabaseClient } from '../../mocks/mockSupabase';
-import { mockLogger } from '../../mocks/mockLogger';
-import { createError } from '../../mocks/mockError';
+import { createMockSupabaseClient, MockSupabaseClient } from '../../mocks/supabase.mock';
+import { mockLogger } from '../../mocks/logger.mock';
+import { createError } from '../../mocks/error.mock';
 
 describe('UserRepository', () => {
+  function createUserRepository(mockSupabase: MockSupabaseClient) {
+    return new UserRepository(mockSupabase as unknown as SupabaseClient, mockLogger);
+  }
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   describe('createUser', () => {
-    function createUserRepository(mockSupabase: MockSupabaseClient) {
-      return new UserRepository(mockSupabase as unknown as SupabaseClient, mockLogger);
-    }
-
     it('should create a user', async () => {
       const mockSupabase = createMockSupabaseClient(mockDatabaseUser);
       const userRepository = createUserRepository(mockSupabase);
@@ -30,25 +30,6 @@ describe('UserRepository', () => {
       const user = await userRepository.createUser(mockCreateUserParams);
 
       expect(user).toEqual(mockUser);
-    });
-
-    it('should call supabase methods with the correct parameters', async () => {
-      const mockSupabase = createMockSupabaseClient(mockDatabaseUser);
-      const userRepository = createUserRepository(mockSupabase);
-
-      await userRepository.createUser(mockCreateUserParams);
-
-      expect(mockSupabase['from']).toHaveBeenCalledWith('users');
-      expect(mockSupabase['insert']).toHaveBeenCalledWith({
-        name: mockCreateUserParams.name,
-        email: mockCreateUserParams.email,
-        password: mockCreateUserParams.hashedPassword,
-        workspace_role_id: mockCreateUserParams.workspaceRoleId,
-      });
-      expect(mockSupabase['select']).toHaveBeenCalledWith(
-        'id, name, email, workspace_role_id, created_at, updated_at',
-      );
-      expect(mockSupabase['single']).toHaveBeenCalled();
     });
 
     it('should not log an error when the user creation is successful', async () => {

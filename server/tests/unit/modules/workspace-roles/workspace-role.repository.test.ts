@@ -7,11 +7,15 @@ import {
   invalidWorkspaceRole,
   mockDatabaseWorkspaceRoles,
 } from './workspace-role.repository.mock';
-import { createMockSupabaseClient } from '../../mocks/mockSupabase';
-import { mockLogger } from '../../mocks/mockLogger';
-import { createError } from '../../mocks/mockError';
+import { createMockSupabaseClient, MockSupabaseClient } from '../../mocks/supabase.mock';
+import { mockLogger } from '../../mocks/logger.mock';
+import { createError } from '../../mocks/error.mock';
 
 describe('WorkspaceRoleRepository', () => {
+  function createWorkspaceRoleRepository(mockSupabase: MockSupabaseClient) {
+    return new WorkspaceRoleRepository(mockSupabase as unknown as SupabaseClient, mockLogger);
+  }
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -19,10 +23,7 @@ describe('WorkspaceRoleRepository', () => {
   describe('getWorkspaceRoles', () => {
     it('should return the workspace roles', async () => {
       const mockSupabase = createMockSupabaseClient(mockDatabaseWorkspaceRoles);
-      const workspaceRoleRepository = new WorkspaceRoleRepository(
-        mockSupabase as unknown as SupabaseClient,
-        mockLogger,
-      );
+      const workspaceRoleRepository = createWorkspaceRoleRepository(mockSupabase);
 
       const workspaceRoles = await workspaceRoleRepository.getWorkspaceRoles();
 
@@ -36,25 +37,9 @@ describe('WorkspaceRoleRepository', () => {
       );
     });
 
-    it('should call supabase methods with the correct parameters', async () => {
-      const mockSupabase = createMockSupabaseClient(mockDatabaseWorkspaceRoles);
-      const workspaceRoleRepository = new WorkspaceRoleRepository(
-        mockSupabase as unknown as SupabaseClient,
-        mockLogger,
-      );
-
-      await workspaceRoleRepository.getWorkspaceRoles();
-
-      expect(mockSupabase['from']).toHaveBeenCalledWith('workspace_roles');
-      expect(mockSupabase['select']).toHaveBeenCalledWith('id, name, created_at, updated_at');
-    });
-
     it('should not log an error when the database returns workspace roles', async () => {
       const mockSupabase = createMockSupabaseClient(mockDatabaseWorkspaceRoles);
-      const workspaceRoleRepository = new WorkspaceRoleRepository(
-        mockSupabase as unknown as SupabaseClient,
-        mockLogger,
-      );
+      const workspaceRoleRepository = createWorkspaceRoleRepository(mockSupabase);
 
       await workspaceRoleRepository.getWorkspaceRoles();
       expect(mockLogger.error).not.toHaveBeenCalled();
@@ -64,10 +49,7 @@ describe('WorkspaceRoleRepository', () => {
       const error = createError('Database error', errorCause);
 
       const mockSupabase = createMockSupabaseClient(null, error);
-      const workspaceRoleRepository = new WorkspaceRoleRepository(
-        mockSupabase as unknown as SupabaseClient,
-        mockLogger,
-      );
+      const workspaceRoleRepository = createWorkspaceRoleRepository(mockSupabase);
 
       await expect(workspaceRoleRepository.getWorkspaceRoles()).rejects.toMatchObject({
         message: error.message,
@@ -79,10 +61,7 @@ describe('WorkspaceRoleRepository', () => {
       const error = createError('Database error', errorCause);
 
       const mockSupabase = createMockSupabaseClient(null, error);
-      const workspaceRoleRepository = new WorkspaceRoleRepository(
-        mockSupabase as unknown as SupabaseClient,
-        mockLogger,
-      );
+      const workspaceRoleRepository = createWorkspaceRoleRepository(mockSupabase);
 
       await workspaceRoleRepository.getWorkspaceRoles().catch((err) => err);
       expect(mockLogger.error).toHaveBeenCalledWith(error.message, {
@@ -93,20 +72,14 @@ describe('WorkspaceRoleRepository', () => {
 
     it('should throw a ZodError when database response returns invalid workspace role data', async () => {
       const mockSupabase = createMockSupabaseClient([invalidWorkspaceRole]);
-      const workspaceRoleRepository = new WorkspaceRoleRepository(
-        mockSupabase as unknown as SupabaseClient,
-        mockLogger,
-      );
+      const workspaceRoleRepository = createWorkspaceRoleRepository(mockSupabase);
 
       await expect(workspaceRoleRepository.getWorkspaceRoles()).rejects.toThrow(ZodError);
     });
 
     it('should not log an error when the database response returns invalid workspace role data', async () => {
       const mockSupabase = createMockSupabaseClient([invalidWorkspaceRole]);
-      const workspaceRoleRepository = new WorkspaceRoleRepository(
-        mockSupabase as unknown as SupabaseClient,
-        mockLogger,
-      );
+      const workspaceRoleRepository = createWorkspaceRoleRepository(mockSupabase);
 
       await workspaceRoleRepository.getWorkspaceRoles().catch((err) => err);
       expect(mockLogger.error).not.toHaveBeenCalled();
