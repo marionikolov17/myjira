@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { ZodError } from 'zod';
 import { WorkspaceRoleRepository } from '@/modules/workspace-roles/workspace-role.repository';
-import { WorkspaceRoleSchema } from '@/modules/workspace-roles/workspace-role.schema';
 import {
   errorCause,
   invalidWorkspaceRole,
@@ -28,7 +27,12 @@ describe('WorkspaceRoleRepository', () => {
       const workspaceRoles = await workspaceRoleRepository.getWorkspaceRoles();
 
       expect(workspaceRoles).toEqual(
-        mockDatabaseWorkspaceRoles.map((role) => WorkspaceRoleSchema.parse(role)),
+        mockDatabaseWorkspaceRoles.map((role) => ({
+          id: role.id,
+          name: role.name,
+          createdAt: role.created_at,
+          updatedAt: role.updated_at,
+        })),
       );
     });
 
