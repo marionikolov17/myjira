@@ -1,4 +1,7 @@
-import { WorkspaceRoleName } from '@/modules/workspace-roles/workspace-role.schema';
+import {
+  WorkspaceRoleName,
+  WorkspaceRoleSchema,
+} from '@/modules/workspace-roles/workspace-role.schema';
 
 const FIXED_DATE = new Date('2026-01-01T00:00:00.000Z');
 export const mockDatabaseWorkspaceRoles = [
@@ -21,6 +24,9 @@ export const mockDatabaseWorkspaceRoles = [
     updated_at: FIXED_DATE,
   },
 ];
+export const mockWorkspaceRoles = mockDatabaseWorkspaceRoles.map((role) =>
+  WorkspaceRoleSchema.parse(role),
+);
 
 export const errorCause = { code: '500', detail: 'Database error' };
 export const invalidWorkspaceRole = {

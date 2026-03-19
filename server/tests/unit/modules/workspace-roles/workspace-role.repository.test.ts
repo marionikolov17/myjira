@@ -6,6 +6,7 @@ import {
   errorCause,
   invalidWorkspaceRole,
   mockDatabaseWorkspaceRoles,
+  mockWorkspaceRoles,
 } from './workspace-role.repository.mock';
 import { createMockSupabaseClient, MockSupabaseClient } from '../../mocks/supabase.mock';
 import { mockLogger } from '../../mocks/logger.mock';
@@ -27,14 +28,7 @@ describe('WorkspaceRoleRepository', () => {
 
       const workspaceRoles = await workspaceRoleRepository.getWorkspaceRoles();
 
-      expect(workspaceRoles).toEqual(
-        mockDatabaseWorkspaceRoles.map((role) => ({
-          id: role.id,
-          name: role.name,
-          createdAt: role.created_at,
-          updatedAt: role.updated_at,
-        })),
-      );
+      expect(workspaceRoles).toEqual(mockWorkspaceRoles);
     });
 
     it('should not log an error when the database returns workspace roles', async () => {
