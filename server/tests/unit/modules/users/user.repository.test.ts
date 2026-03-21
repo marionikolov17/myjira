@@ -123,7 +123,6 @@ describe('UserRepository', () => {
       const userRepository = createUserRepository(mockSupabase);
 
       await userRepository.bulkUpsertUsers(mockBulkUpsertUsersParams).catch((err) => err);
-      expect(mockLogger.error).toHaveBeenCalled();
       expect(mockLogger.error).toHaveBeenCalledWith(error.message, {
         cause: error.cause,
         stack: error.stack,
