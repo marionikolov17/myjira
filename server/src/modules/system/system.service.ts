@@ -1,6 +1,10 @@
 import { env } from '@/config/env';
 import { CreateUserParams, IUserRepository } from '@/modules/users';
-import { IWorkspaceRoleRepository, WorkspaceRole } from '@/modules/workspace-roles';
+import {
+  IWorkspaceRoleRepository,
+  WorkspaceRole,
+  WorkspaceRoleName,
+} from '@/modules/workspace-roles';
 import { AuthorizationError, ResourceNotFoundError } from '@/common/errors';
 import { IPasswordHasher } from '@/common/password-hasher';
 import { BootstrapSystemUsersParams } from './system.types';
@@ -47,18 +51,29 @@ export class SystemService implements ISystemService {
   }
 
   private async createSystemUsersConfig(workspaceRoles: WorkspaceRole[]) {
-    const usersConfig: CreateUserParams[] = [];
-
-    for (const role of workspaceRoles) {
-      usersConfig.push({
-        email: env[`${role.name.toUpperCase()}_EMAIL` as keyof typeof env] as string,
-        name: env[`${role.name.toUpperCase()}_NAME` as keyof typeof env] as string,
-        hashedPassword: await this.passwordHasher.hashPassword(
-          env[`${role.name.toUpperCase()}_PASSWORD` as keyof typeof env] as string,
-        ),
-        workspaceRoleId: role.id,
-      });
-    }
+    const usersConfig: CreateUserParams[] = [
+      {
+        email: env.ADMIN_EMAIL,
+        name: env.ADMIN_NAME,
+        hashedPassword: await this.passwordHasher.hashPassword(env.ADMIN_PASSWORD),
+        workspaceRoleId: workspaceRoles.find((role) => role.name === WorkspaceRoleName.ADMIN)
+          ?.id as string,
+      },
+      {
+        email: env.OWNER_EMAIL,
+        name: env.OWNER_NAME,
+        hashedPassword: await this.passwordHasher.hashPassword(env.OWNER_PASSWORD),
+        workspaceRoleId: workspaceRoles.find((role) => role.name === WorkspaceRoleName.OWNER)
+          ?.id as string,
+      },
+      {
+        email: env.DEVELOPER_EMAIL,
+        name: env.DEVELOPER_NAME,
+        hashedPassword: await this.passwordHasher.hashPassword(env.DEVELOPER_PASSWORD),
+        workspaceRoleId: workspaceRoles.find((role) => role.name === WorkspaceRoleName.DEVELOPER)
+          ?.id as string,
+      },
+    ];
 
     return usersConfig;
   }
