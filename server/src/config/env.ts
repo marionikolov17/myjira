@@ -13,15 +13,15 @@ const envSchema = z.object({
   // System (Workspace) Configuration
   BOOTSTRAP_TOKEN: z.string().min(1),
   // System (Workspace) Users Configuration
-  OWNER_EMAIL: z.email().optional(),
-  OWNER_NAME: z.string().min(1).optional(),
-  OWNER_PASSWORD: z.string().min(1).optional(),
-  ADMIN_EMAIL: z.email().optional(),
-  ADMIN_NAME: z.string().min(1).optional(),
-  ADMIN_PASSWORD: z.string().min(1).optional(),
-  DEVELOPER_EMAIL: z.email().optional(),
-  DEVELOPER_NAME: z.string().min(1).optional(),
-  DEVELOPER_PASSWORD: z.string().min(1).optional(),
+  OWNER_EMAIL: z.email(),
+  OWNER_NAME: z.string().min(1),
+  OWNER_PASSWORD: z.string().min(1),
+  ADMIN_EMAIL: z.email(),
+  ADMIN_NAME: z.string().min(1),
+  ADMIN_PASSWORD: z.string().min(1),
+  DEVELOPER_EMAIL: z.email(),
+  DEVELOPER_NAME: z.string().min(1),
+  DEVELOPER_PASSWORD: z.string().min(1),
 });
 
 export const env = envSchema.parse(process.env);
