@@ -51,10 +51,7 @@ describe('UserRepository', () => {
       const mockSupabase = createMockSupabaseClient(null, error);
       const userRepository = createUserRepository(mockSupabase);
 
-      await expect(userRepository.createUser(mockCreateUserParams)).rejects.toMatchObject({
-        message: error.message,
-        cause: error.cause,
-      });
+      await expect(userRepository.createUser(mockCreateUserParams)).rejects.toThrow(Error);
     });
 
     it('should log an error when the user creation fails', async () => {
@@ -109,11 +106,8 @@ describe('UserRepository', () => {
       const mockSupabase = createMockSupabaseClient(null, error);
       const userRepository = createUserRepository(mockSupabase);
 
-      await expect(userRepository.bulkUpsertUsers(mockBulkUpsertUsersParams)).rejects.toMatchObject(
-        {
-          message: error.message,
-          cause: error.cause,
-        },
+      await expect(userRepository.bulkUpsertUsers(mockBulkUpsertUsersParams)).rejects.toThrow(
+        Error,
       );
     });
 

@@ -1,8 +1,9 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/common/supabase';
+import { ILogger, logger } from '@/common/logger';
+import { mapSupabaseError } from '@/common/utils/map-supabase-error';
 import { BulkUpsertUsersParams, CreateUserParams } from './user.types';
 import { User, UserSchema } from './user.schema';
-import { ILogger, logger } from '@/common/logger';
 import { IUserRepository } from './user.interface';
 
 export class UserRepository implements IUserRepository {
@@ -32,7 +33,7 @@ export class UserRepository implements IUserRepository {
 
     if (error) {
       this.logger.error(error.message, { cause: error.cause, stack: error.stack });
-      throw new Error(error.message, { cause: error.cause });
+      throw mapSupabaseError(error);
     }
 
     return UserSchema.parse(user);
@@ -54,7 +55,7 @@ export class UserRepository implements IUserRepository {
 
     if (error) {
       this.logger.error(error.message, { cause: error.cause, stack: error.stack });
-      throw new Error(error.message, { cause: error.cause });
+      throw mapSupabaseError(error);
     }
 
     return users.map((user) => UserSchema.parse(user));

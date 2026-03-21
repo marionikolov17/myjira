@@ -1,6 +1,7 @@
+import { SupabaseClient } from '@supabase/supabase-js';
 import { ILogger, logger } from '@/common/logger';
 import { supabase } from '@/common/supabase';
-import { SupabaseClient } from '@supabase/supabase-js';
+import { mapSupabaseError } from '@/common/utils/map-supabase-error';
 import { WorkspaceRole, WorkspaceRoleSchema } from './workspace-role.schema';
 import { IWorkspaceRoleRepository } from './workspace-role.interface';
 
@@ -23,7 +24,7 @@ export class WorkspaceRoleRepository implements IWorkspaceRoleRepository {
 
     if (error) {
       this.logger.error(error.message, { cause: error.cause, stack: error.stack });
-      throw new Error(error.message, { cause: error.cause });
+      throw mapSupabaseError(error);
     }
 
     return roles.map((row) => WorkspaceRoleSchema.parse(row));
