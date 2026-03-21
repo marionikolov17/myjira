@@ -9,6 +9,7 @@ export class WorkspaceRoleRepository implements IWorkspaceRoleRepository {
   private readonly logger: ILogger;
   private readonly tableName: string = 'workspace_roles';
   private readonly selectColumns: string = 'id, name, created_at, updated_at';
+  public readonly resourceName: string = 'workspace_roles';
 
   constructor(supabase: SupabaseClient, logger: ILogger) {
     this.supabase = supabase;

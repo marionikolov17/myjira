@@ -4,3 +4,7 @@ export interface CreateUserParams {
   hashedPassword: string;
   workspaceRoleId: string;
 }
+
+export interface BulkUpsertUsersParams {
+  users: CreateUserParams[];
+}

@@ -10,6 +10,18 @@ const envSchema = z.object({
   // Supabase Configuration
   SUPABASE_URL: z.url(),
   SUPABASE_ANON_KEY: z.string().min(1),
+  // System (Workspace) Configuration
+  BOOTSTRAP_TOKEN: z.string().min(1),
+  // System (Workspace) Users Configuration
+  OWNER_EMAIL: z.email().optional(),
+  OWNER_NAME: z.string().min(1).optional(),
+  OWNER_PASSWORD: z.string().min(1).optional(),
+  ADMIN_EMAIL: z.email().optional(),
+  ADMIN_NAME: z.string().min(1).optional(),
+  ADMIN_PASSWORD: z.string().min(1).optional(),
+  DEVELOPER_EMAIL: z.email().optional(),
+  DEVELOPER_NAME: z.string().min(1).optional(),
+  DEVELOPER_PASSWORD: z.string().min(1).optional(),
 });
 
 export const env = envSchema.parse(process.env);

@@ -17,5 +17,5 @@ export interface IErrorField {
 
 export interface IResource {
   resourceName: string;
-  resourceId: string;
+  resourceId?: string;
 }
