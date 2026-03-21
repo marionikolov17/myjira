@@ -4,8 +4,9 @@ import { IWorkspaceRoleRepository, WorkspaceRole } from '@/modules/workspace-rol
 import { AuthorizationError, ResourceNotFoundError } from '@/common/errors';
 import { IPasswordHasher } from '@/common/password-hasher';
 import { BootstrapSystemUsersParams } from './system.types';
+import { ISystemService } from './system.interface';
 
-export class SystemService {
+export class SystemService implements ISystemService {
   private readonly userRepository: IUserRepository;
   private readonly workspaceRoleRepository: IWorkspaceRoleRepository;
   private readonly passwordHasher: IPasswordHasher;
