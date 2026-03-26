@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { SystemService } from '@/modules/system/system.service';
+import { WorkspaceService } from '@/modules/workspace/workspace.service';
 import { IUserRepository } from '@/modules/users';
 import { IWorkspaceRoleRepository } from '@/modules/workspace-roles';
 import { IPasswordHasher } from '@/common/password-hasher';
@@ -12,33 +12,35 @@ import {
   mockWorkspaceRoles,
   mockHashedPassword,
   mockUsersConfig,
-} from './system.service.mock';
+} from './workspace.service.mock';
 import { AuthorizationError, ResourceNotFoundError } from '@/common/errors';
+import { mockLogger } from '../../mocks/logger.mock';
 
-describe('SystemService', () => {
+describe('WorkspaceService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('bootstrapSystemUsers', () => {
+  describe('bootstrapWorkspaceUsers', () => {
     let mockUserRepository: ReturnType<typeof createMockUserRepository>;
     let mockWorkspaceRoleRepository: ReturnType<typeof createMockWorkspaceRoleRepository>;
     let mockPasswordHasher: ReturnType<typeof createMockPasswordHasher>;
-    let systemService: SystemService;
+    let workspaceService: WorkspaceService;
 
     beforeEach(() => {
       mockUserRepository = createMockUserRepository(mockUsersAfterBulkUpsert);
       mockWorkspaceRoleRepository = createMockWorkspaceRoleRepository(mockWorkspaceRoles);
       mockPasswordHasher = createMockPasswordHasher(mockHashedPassword);
-      systemService = new SystemService(
+      workspaceService = new WorkspaceService(
         mockUserRepository as unknown as IUserRepository,
         mockWorkspaceRoleRepository as unknown as IWorkspaceRoleRepository,
         mockPasswordHasher as unknown as IPasswordHasher,
+        mockLogger,
       );
     });
 
-    it('should bootstrap system users', async () => {
-      const result = await systemService.bootstrapSystemUsers({
+    it('should bootstrap workspace users', async () => {
+      const result = await workspaceService.bootstrapWorkspaceUsers({
         bootstrapToken: env.BOOTSTRAP_TOKEN,
       });
 
@@ -46,13 +48,13 @@ describe('SystemService', () => {
     });
 
     it('should call the user repository bulk upsert users method with correct users config', async () => {
-      await systemService.bootstrapSystemUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN });
+      await workspaceService.bootstrapWorkspaceUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN });
       expect(mockUserRepository.bulkUpsertUsers).toHaveBeenCalledWith({ users: mockUsersConfig });
     });
 
     it('should throw an unauthorized error when bootstrap token is invalid', async () => {
       await expect(
-        systemService.bootstrapSystemUsers({ bootstrapToken: 'invalid-token' }),
+        workspaceService.bootstrapWorkspaceUsers({ bootstrapToken: 'invalid-token' }),
       ).rejects.toThrow(AuthorizationError);
     });
 
@@ -61,8 +63,8 @@ describe('SystemService', () => {
         new Error('Failed to get workspace roles') as never,
       );
 
-      const error = await systemService
-        .bootstrapSystemUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN })
+      const error = await workspaceService
+        .bootstrapWorkspaceUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN })
         .catch((e) => e);
       expect(error).toBeInstanceOf(Error);
       expect(error.message).toBe('Failed to get workspace roles');
@@ -71,8 +73,8 @@ describe('SystemService', () => {
     it('should throw a resource not found error when workspace roles are not found', async () => {
       mockWorkspaceRoleRepository.getWorkspaceRoles.mockResolvedValue([] as never);
 
-      const error = await systemService
-        .bootstrapSystemUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN })
+      const error = await workspaceService
+        .bootstrapWorkspaceUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN })
         .catch((e) => e);
       expect(error).toBeInstanceOf(ResourceNotFoundError);
       expect(error.details?.resource).toEqual({
@@ -85,8 +87,8 @@ describe('SystemService', () => {
         new Error('Failed to hash password') as never,
       );
 
-      const error = await systemService
-        .bootstrapSystemUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN })
+      const error = await workspaceService
+        .bootstrapWorkspaceUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN })
         .catch((e) => e);
       expect(error).toBeInstanceOf(Error);
       expect(error.message).toBe('Failed to hash password');
@@ -97,8 +99,8 @@ describe('SystemService', () => {
         new Error('Failed to bulk upsert users') as never,
       );
 
-      const error = await systemService
-        .bootstrapSystemUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN })
+      const error = await workspaceService
+        .bootstrapWorkspaceUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN })
         .catch((e) => e);
       expect(error).toBeInstanceOf(Error);
       expect(error.message).toBe('Failed to bulk upsert users');

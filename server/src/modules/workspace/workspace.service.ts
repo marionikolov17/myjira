@@ -7,35 +7,32 @@ import {
 } from '@/modules/workspace-roles';
 import { AuthorizationError, ResourceNotFoundError } from '@/common/errors';
 import { IPasswordHasher } from '@/common/password-hasher';
-import { BootstrapSystemUsersParams } from './system.types';
-import { ISystemService } from './system.interface';
+import { BootstrapWorkspaceUsersParams } from './workspace.types';
+import { IWorkspaceService } from './workspace.interface';
+import { ILogger } from '@/common/logger';
 
-export class SystemService implements ISystemService {
-  private readonly userRepository: IUserRepository;
-  private readonly workspaceRoleRepository: IWorkspaceRoleRepository;
-  private readonly passwordHasher: IPasswordHasher;
-
+export class WorkspaceService implements IWorkspaceService {
   constructor(
-    userRepository: IUserRepository,
-    workspaceRoleRepository: IWorkspaceRoleRepository,
-    passwordHasher: IPasswordHasher,
-  ) {
-    this.userRepository = userRepository;
-    this.workspaceRoleRepository = workspaceRoleRepository;
-    this.passwordHasher = passwordHasher;
-  }
+    private readonly userRepository: IUserRepository,
+    private readonly workspaceRoleRepository: IWorkspaceRoleRepository,
+    private readonly passwordHasher: IPasswordHasher,
+    private readonly logger: ILogger,
+  ) {}
 
-  public async bootstrapSystemUsers(params: BootstrapSystemUsersParams) {
+  public async bootstrapWorkspaceUsers(params: BootstrapWorkspaceUsersParams) {
     this.validateBootstrapToken(params.bootstrapToken);
 
     const workspaceRoles = await this.getWorkspaceRoles();
 
     const usersConfig = await this.createSystemUsersConfig(workspaceRoles);
-    return this.userRepository.bulkUpsertUsers({ users: usersConfig });
+    const users = await this.userRepository.bulkUpsertUsers({ users: usersConfig });
+    this.logger.info('Workspace users created', { users });
+    return users;
   }
 
   private validateBootstrapToken(bootstrapToken: string) {
     if (bootstrapToken !== env.BOOTSTRAP_TOKEN) {
+      this.logger.error('Invalid Bootstrap Token');
       throw new AuthorizationError();
     }
   }
@@ -44,6 +41,7 @@ export class SystemService implements ISystemService {
     const workspaceRoles = await this.workspaceRoleRepository.getWorkspaceRoles();
 
     if (!workspaceRoles.length) {
+      this.logger.error('No workspace roles found');
       throw new ResourceNotFoundError({ resourceName: this.workspaceRoleRepository.resourceName });
     }
 
