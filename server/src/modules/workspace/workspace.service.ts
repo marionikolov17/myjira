@@ -24,8 +24,8 @@ export class WorkspaceService implements IWorkspaceService {
 
     const workspaceRoles = await this.getWorkspaceRoles();
 
-    const usersConfig = await this.createSystemUsersConfig(workspaceRoles);
-    const users = await this.userRepository.bulkUpsertUsers({ users: usersConfig });
+    const usersConfig = await this.createWorkspaceUsersConfig(workspaceRoles);
+    const users = await this.userRepository.bulkCreateUsers({ users: usersConfig });
     this.logger.info('Workspace users created', { users });
     return users;
   }
@@ -48,7 +48,7 @@ export class WorkspaceService implements IWorkspaceService {
     return workspaceRoles;
   }
 
-  private async createSystemUsersConfig(workspaceRoles: WorkspaceRole[]) {
+  private async createWorkspaceUsersConfig(workspaceRoles: WorkspaceRole[]) {
     const usersConfig: CreateUserParams[] = [
       {
         email: env.ADMIN_EMAIL,

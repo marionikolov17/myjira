@@ -2,7 +2,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/common/supabase';
 import { ILogger, logger } from '@/common/logger';
 import { mapSupabaseError } from '@/common/utils/map-supabase-error';
-import { BulkUpsertUsersParams, CreateUserParams } from './user.types';
+import { BulkCreateUsersParams, CreateUserParams } from './user.types';
 import { User, UserSchema } from './user.schema';
 import { IUserRepository } from './user.interface';
 
@@ -39,17 +39,16 @@ export class UserRepository implements IUserRepository {
     return UserSchema.parse(user);
   }
 
-  public async bulkUpsertUsers(params: BulkUpsertUsersParams): Promise<User[]> {
+  public async bulkCreateUsers(params: BulkCreateUsersParams): Promise<User[]> {
     const { data: users, error } = await this.supabase
       .from(this.tableName)
-      .upsert(
+      .insert(
         params.users.map((user) => ({
           name: user.name,
           email: user.email,
           password: user.hashedPassword,
           workspace_role_id: user.workspaceRoleId,
         })),
-        { onConflict: 'email' },
       )
       .select(this.selectColumns);
 

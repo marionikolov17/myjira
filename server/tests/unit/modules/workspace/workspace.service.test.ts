@@ -8,7 +8,7 @@ import {
   createMockUserRepository,
   createMockWorkspaceRoleRepository,
   createMockPasswordHasher,
-  mockUsersAfterBulkUpsert,
+  mockUsersAfterBulkCreate,
   mockWorkspaceRoles,
   mockHashedPassword,
   mockUsersConfig,
@@ -28,7 +28,7 @@ describe('WorkspaceService', () => {
     let workspaceService: WorkspaceService;
 
     beforeEach(() => {
-      mockUserRepository = createMockUserRepository(mockUsersAfterBulkUpsert);
+      mockUserRepository = createMockUserRepository(mockUsersAfterBulkCreate);
       mockWorkspaceRoleRepository = createMockWorkspaceRoleRepository(mockWorkspaceRoles);
       mockPasswordHasher = createMockPasswordHasher(mockHashedPassword);
       workspaceService = new WorkspaceService(
@@ -44,12 +44,12 @@ describe('WorkspaceService', () => {
         bootstrapToken: env.BOOTSTRAP_TOKEN,
       });
 
-      expect(result).toEqual(mockUsersAfterBulkUpsert);
+      expect(result).toEqual(mockUsersAfterBulkCreate);
     });
 
-    it('should call the user repository bulk upsert users method with correct users config', async () => {
+    it('should call the user repository bulk create users method with correct users config', async () => {
       await workspaceService.bootstrapWorkspaceUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN });
-      expect(mockUserRepository.bulkUpsertUsers).toHaveBeenCalledWith({ users: mockUsersConfig });
+      expect(mockUserRepository.bulkCreateUsers).toHaveBeenCalledWith({ users: mockUsersConfig });
     });
 
     it('should throw an unauthorized error when bootstrap token is invalid', async () => {
@@ -94,16 +94,16 @@ describe('WorkspaceService', () => {
       expect(error.message).toBe('Failed to hash password');
     });
 
-    it('should propagate an error when bulk upsert users fails', async () => {
-      mockUserRepository.bulkUpsertUsers.mockRejectedValue(
-        new Error('Failed to bulk upsert users') as never,
+    it('should propagate an error when bulk create users fails', async () => {
+      mockUserRepository.bulkCreateUsers.mockRejectedValue(
+        new Error('Failed to bulk create users') as never,
       );
 
       const error = await workspaceService
         .bootstrapWorkspaceUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN })
         .catch((e) => e);
       expect(error).toBeInstanceOf(Error);
-      expect(error.message).toBe('Failed to bulk upsert users');
+      expect(error.message).toBe('Failed to bulk create users');
     });
   });
 });

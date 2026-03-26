@@ -49,7 +49,7 @@ export const mockUsersConfig = [
   },
 ];
 
-export const mockDatabaseUsersAfterBulkUpsert = [
+export const mockDatabaseUsersAfterBulkCreate = [
   {
     id: '7a4021a2-8876-482f-9d19-c344aa302560',
     name: mockUsersConfig[0]?.name,
@@ -75,16 +75,16 @@ export const mockDatabaseUsersAfterBulkUpsert = [
     updated_at: new Date('2026-03-21T00:00:00.000Z'),
   },
 ];
-export const mockUsersAfterBulkUpsert = mockDatabaseUsersAfterBulkUpsert.map((user) =>
+export const mockUsersAfterBulkCreate = mockDatabaseUsersAfterBulkCreate.map((user) =>
   UserSchema.parse(user),
 );
 
-export function createMockUserRepository(bulkUpsertUsersResponse: unknown) {
+export function createMockUserRepository(bulkCreateUsersResponse: unknown) {
   return {
-    bulkUpsertUsers:
-      bulkUpsertUsersResponse instanceof Error
-        ? jest.fn().mockRejectedValue(bulkUpsertUsersResponse as never)
-        : jest.fn().mockResolvedValue(bulkUpsertUsersResponse as never),
+    bulkCreateUsers:
+      bulkCreateUsersResponse instanceof Error
+        ? jest.fn().mockRejectedValue(bulkCreateUsersResponse as never)
+        : jest.fn().mockResolvedValue(bulkCreateUsersResponse as never),
   };
 }
 

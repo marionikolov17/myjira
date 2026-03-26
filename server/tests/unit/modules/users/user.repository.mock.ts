@@ -11,7 +11,7 @@ export const mockCreateUserParams = {
   workspaceRoleId: FIXED_WORKSPACE_ROLE_ID,
 };
 
-export const mockBulkUpsertUsersParams = {
+export const mockBulkCreateUsersParams = {
   users: [mockCreateUserParams],
 };
 
@@ -25,8 +25,8 @@ export const mockDatabaseUser = {
 };
 export const mockUser = UserSchema.parse(mockDatabaseUser);
 
-export const mockBulkUpsertUsersDatabaseUsers = [mockDatabaseUser];
-export const mockBulkUpsertUsersUsers = [mockUser];
+export const mockBulkCreateUsersDatabaseUsers = [mockDatabaseUser];
+export const mockBulkCreateUsersUsers = [mockUser];
 
 export const errorCause = { code: '23505', detail: 'Key (email) already exists' };
 export const invalidUser = {
@@ -34,4 +34,4 @@ export const invalidUser = {
   name: 123,
 };
 
-export const invalidBulkUpsertUsersDatabaseUsers = [invalidUser];
+export const invalidBulkCreateUsersDatabaseUsers = [invalidUser];

@@ -5,6 +5,6 @@ export interface CreateUserParams {
   workspaceRoleId: string;
 }
 
-export interface BulkUpsertUsersParams {
+export interface BulkCreateUsersParams {
   users: CreateUserParams[];
 }
