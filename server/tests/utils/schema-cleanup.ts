@@ -1,12 +1,9 @@
-import { createPgClient } from '../lib/pg-client';
+import { createPgClient } from '../lib';
 import { dropOrphanedSchemas } from '../lib/schema-manager';
 
 export async function cleanupSchemas(): Promise<void> {
   const pgClient = createPgClient();
-
-  try {
-    await dropOrphanedSchemas(pgClient);
-  } finally {
-    await pgClient.end();
-  }
+  await pgClient.connect();
+  await dropOrphanedSchemas(pgClient);
+  await pgClient.end();
 }

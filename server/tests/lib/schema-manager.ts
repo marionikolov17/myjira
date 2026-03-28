@@ -26,78 +26,36 @@ export async function dropOrphanedSchemas(pgClient: IPgClient): Promise<void> {
 }
 
 export class SchemaManager implements ISchemaManager {
-  public readonly schema: string;
+  constructor(private readonly pgClient: IPgClient) {}
 
-  constructor(
-    private readonly pgClient: IPgClient,
-    schema: string,
-  ) {
-    this.schema = schema;
-  }
+  public async recreateSchema(schema: string): Promise<void> {
+    await this.pgClient.query(`DROP SCHEMA IF EXISTS ${quoteIdent(schema)} CASCADE`);
+    await this.pgClient.query(`CREATE SCHEMA ${quoteIdent(schema)}`);
 
-  public async ensureSchema(): Promise<void> {
-    await this.pgClient.query(`DROP SCHEMA IF EXISTS ${quoteIdent(this.schema)} CASCADE`);
-    await this.pgClient.query(`CREATE SCHEMA ${quoteIdent(this.schema)}`);
-
-    const migrationSql = getMigrationSql(this.schema);
+    const migrationSql = getMigrationSql(schema);
     await this.pgClient.query(migrationSql);
 
     await this.pgClient.query(`NOTIFY pgrst, 'reload schema'`);
   }
 
-  public async getProbeTableName(): Promise<string> {
-    const result = await this.pgClient.query<{ tablename: string }>(
-      `SELECT tablename FROM pg_tables WHERE schemaname = $1 LIMIT 1`,
-      [this.schema],
-    );
-
-    const firstRow = result.rows[0];
-
-    if (!firstRow) {
-      throw new Error(`No tables found in schema ${quoteIdent(this.schema)}`);
-    }
-
-    return firstRow.tablename;
-  }
-
-  public async waitForReload(probe: () => Promise<void>, maxWaitMs = 5000): Promise<void> {
-    const interval = 250;
-    const deadline = Date.now() + maxWaitMs;
-
-    while (Date.now() < deadline) {
-      try {
-        await probe();
-        return;
-      } catch {
-        await new Promise((resolve) => setTimeout(resolve, interval));
-      }
-    }
-
-    throw new Error(
-      `PostgREST did not reload schema ${quoteIdent(this.schema)} within ${maxWaitMs}ms`,
-    );
-  }
-
-  public async truncateSchema(): Promise<void> {
+  public async truncateSchema(schema: string): Promise<void> {
     const result = await this.pgClient.query<{ tablename: string }>(
       `SELECT tablename FROM pg_tables WHERE schemaname = $1`,
-      [this.schema],
+      [schema],
     );
 
-    const tables = result.rows.map(
-      (row) => `${quoteIdent(this.schema)}.${quoteIdent(row.tablename)}`,
-    );
+    const tables = result.rows.map((row) => `${quoteIdent(schema)}.${quoteIdent(row.tablename)}`);
 
     if (tables.length > 0) {
       await this.pgClient.query(`TRUNCATE ${tables.join(', ')} CASCADE`);
     }
   }
 
-  public async dropSchema(): Promise<void> {
-    await this.pgClient.query(`DROP SCHEMA IF EXISTS ${quoteIdent(this.schema)} CASCADE`);
+  public async dropSchema(schema: string): Promise<void> {
+    await this.pgClient.query(`DROP SCHEMA IF EXISTS ${quoteIdent(schema)} CASCADE`);
   }
 }
 
-export function createSchemaManager(pgClient: IPgClient, schema: string): ISchemaManager {
-  return new SchemaManager(pgClient, schema);
+export function createSchemaManager(pgClient: IPgClient): ISchemaManager {
+  return new SchemaManager(pgClient);
 }

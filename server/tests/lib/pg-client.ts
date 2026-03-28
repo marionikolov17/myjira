@@ -12,20 +12,15 @@ export class PgClient implements IPgClient {
     sql: string,
     params?: unknown[],
   ): Promise<QueryResult<T>> {
-    await this.connect();
-    return await this.client.query<T>(sql, params);
+    return this.client.query<T>(sql, params);
   }
 
   public async end(): Promise<void> {
-    if (!this.isConnected) {
-      return;
-    }
-
     await this.client.end();
     this.isConnected = false;
   }
 
-  private async connect(): Promise<void> {
+  public async connect(): Promise<void> {
     if (this.isConnected) {
       return;
     }
@@ -38,7 +33,12 @@ export class PgClient implements IPgClient {
         return;
       } catch (error: unknown) {
         retries++;
-        this.handleConnectionError(error, retries);
+
+        console.error(`
+          Failed to connect to the database: ${(error as Error).message} \n
+          Retrying in ${this.retryDelay}ms (attempt ${retries} of ${this.maxRetries})...
+        `);
+
         await this.addRetryDelay();
       }
     }
@@ -52,26 +52,17 @@ export class PgClient implements IPgClient {
     console.info('Connected to the database');
   }
 
-  private handleConnectionError(error: unknown, retries: number): void {
-    console.error(`Failed to connect to the database: ${(error as Error).message}`);
-    console.info(`Retrying in ${this.retryDelay}ms (attempt ${retries} of ${this.maxRetries})...`);
-  }
-
   private async addRetryDelay(): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, this.retryDelay));
   }
 }
 
-export const createPgClient = (): IPgClient => {
+export function createPgClient(): IPgClient {
   const connectionString = process.env['TEST_DATABASE_URL'];
 
   if (!connectionString) {
     throw new Error('TEST_DATABASE_URL is not set');
   }
 
-  const client = new Client({
-    connectionString,
-  });
-
-  return new PgClient(client);
-};
+  return new PgClient(new Client({ connectionString }));
+}
