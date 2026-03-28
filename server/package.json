@@ -10,6 +10,8 @@
     "prettier": "prettier --write .",
     "lint": "eslint .",
     "test": "jest --coverage",
+    "test:unit": "jest --selectProjects unit",
+    "test:integration": "jest --selectProjects integration",
     "create:log:path": "mkdir -p logs"
   },
   "keywords": [],
@@ -22,6 +24,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "pg": "^8.20.0",
     "winston": "^3.19.0",
     "zod": "^4.3.6"
   },
@@ -32,6 +35,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^25.3.3",
+    "@types/pg": "^8.20.0",
     "cross-env": "^10.1.0",
     "dotenv-cli": "^11.0.0",
     "eslint": "^10.0.2",
