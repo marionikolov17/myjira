@@ -10,8 +10,6 @@
     "prettier": "prettier --write .",
     "lint": "eslint .",
     "test": "jest --coverage",
-    "test:unit": "jest --selectProjects unit",
-    "test:integration": "jest --selectProjects integration --detectOpenHandles",
     "create:log:path": "mkdir -p logs"
   },
   "keywords": [],
