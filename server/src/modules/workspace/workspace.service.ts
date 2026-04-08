@@ -47,6 +47,7 @@ export class WorkspaceService implements IWorkspaceService {
         this.logger.error(`Workspace role ${role} not found`);
         throw new ResourceNotFoundError({
           resourceName: this.workspaceRoleRepository.resourceName,
+          resourceId: role,
         });
       }
     }
