@@ -6,16 +6,14 @@ import { WorkspaceRole, WorkspaceRoleSchema } from './workspace-role.schema';
 import { IWorkspaceRoleRepository } from './workspace-role.interface';
 
 export class WorkspaceRoleRepository implements IWorkspaceRoleRepository {
-  private readonly supabase: SupabaseClient;
-  private readonly logger: ILogger;
   private readonly tableName: string = 'workspace_roles';
   private readonly selectColumns: string = 'id, name, created_at, updated_at';
   public readonly resourceName: string = 'workspace_roles';
 
-  constructor(supabase: SupabaseClient, logger: ILogger) {
-    this.supabase = supabase;
-    this.logger = logger;
-  }
+  constructor(
+    private readonly supabase: SupabaseClient,
+    private readonly logger: ILogger,
+  ) {}
 
   public async getWorkspaceRoles(): Promise<WorkspaceRole[]> {
     const { data: roles, error } = await this.supabase
