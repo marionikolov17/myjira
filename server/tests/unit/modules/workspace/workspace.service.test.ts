@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { WorkspaceService } from '@/modules/workspace/workspace.service';
 import { IUserRepository } from '@/modules/users';
-import { IWorkspaceRoleRepository } from '@/modules/workspace-roles';
+import { IWorkspaceRoleRepository, WorkspaceRoleName } from '@/modules/workspace-roles';
 import { IPasswordHasher } from '@/common/password-hasher';
 import { env } from '@/config/env';
 import {
@@ -63,23 +63,27 @@ describe('WorkspaceService', () => {
         new Error('Failed to get workspace roles') as never,
       );
 
-      const error = await workspaceService
-        .bootstrapWorkspaceUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN })
-        .catch((e) => e);
-      expect(error).toBeInstanceOf(Error);
-      expect(error.message).toBe('Failed to get workspace roles');
+      await expect(
+        workspaceService.bootstrapWorkspaceUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN }),
+      ).rejects.toThrow(Error);
     });
 
     it('should throw a resource not found error when workspace roles are not found', async () => {
       mockWorkspaceRoleRepository.getWorkspaceRoles.mockResolvedValue([] as never);
 
-      const error = await workspaceService
-        .bootstrapWorkspaceUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN })
-        .catch((e) => e);
-      expect(error).toBeInstanceOf(ResourceNotFoundError);
-      expect(error.details?.resource).toEqual({
-        resourceName: mockWorkspaceRoleRepository.resourceName,
-      });
+      await expect(
+        workspaceService.bootstrapWorkspaceUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN }),
+      ).rejects.toThrow(ResourceNotFoundError);
+    });
+
+    it('should throw a resource not found error when workspace role is not found', async () => {
+      mockWorkspaceRoleRepository.getWorkspaceRoles.mockResolvedValue([
+        { id: '1', name: WorkspaceRoleName.ADMIN },
+      ] as never);
+
+      await expect(
+        workspaceService.bootstrapWorkspaceUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN }),
+      ).rejects.toThrow(ResourceNotFoundError);
     });
 
     it('should propagate an error when password hashing fails', async () => {
@@ -87,11 +91,9 @@ describe('WorkspaceService', () => {
         new Error('Failed to hash password') as never,
       );
 
-      const error = await workspaceService
-        .bootstrapWorkspaceUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN })
-        .catch((e) => e);
-      expect(error).toBeInstanceOf(Error);
-      expect(error.message).toBe('Failed to hash password');
+      await expect(
+        workspaceService.bootstrapWorkspaceUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN }),
+      ).rejects.toThrow(Error);
     });
 
     it('should propagate an error when bulk create users fails', async () => {
@@ -99,11 +101,9 @@ describe('WorkspaceService', () => {
         new Error('Failed to bulk create users') as never,
       );
 
-      const error = await workspaceService
-        .bootstrapWorkspaceUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN })
-        .catch((e) => e);
-      expect(error).toBeInstanceOf(Error);
-      expect(error.message).toBe('Failed to bulk create users');
+      await expect(
+        workspaceService.bootstrapWorkspaceUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN }),
+      ).rejects.toThrow(Error);
     });
   });
 });

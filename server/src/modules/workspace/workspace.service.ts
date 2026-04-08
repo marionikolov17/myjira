@@ -27,7 +27,7 @@ export class WorkspaceService implements IWorkspaceService {
     const usersConfig = await this.createWorkspaceUsersConfig(workspaceRoles);
     const users = await this.userRepository.bulkCreateUsers({ users: usersConfig });
 
-    this.logger.info('Workspace users created', { users });
+    this.logger.info('Workspace users created');
 
     return users;
   }
@@ -48,11 +48,6 @@ export class WorkspaceService implements IWorkspaceService {
   }
 
   private validateWorkspaceRoles(workspaceRoles: WorkspaceRole[]) {
-    if (!workspaceRoles.length) {
-      this.logger.error('No workspace roles found');
-      throw new ResourceNotFoundError({ resourceName: this.workspaceRoleRepository.resourceName });
-    }
-
     for (const role of Object.values(WorkspaceRoleName)) {
       if (!workspaceRoles.some((r) => r.name === role)) {
         this.logger.error(`Workspace role ${role} not found`);
