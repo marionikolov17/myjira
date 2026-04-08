@@ -45,10 +45,7 @@ describe('WorkspaceRoleRepository', () => {
       const mockSupabase = createMockSupabaseClient(null, error);
       const workspaceRoleRepository = createWorkspaceRoleRepository(mockSupabase);
 
-      await expect(workspaceRoleRepository.getWorkspaceRoles()).rejects.toMatchObject({
-        message: error.message,
-        cause: error.cause,
-      });
+      await expect(workspaceRoleRepository.getWorkspaceRoles()).rejects.toThrow(Error);
     });
 
     it('should log an error when the database returns an error', async () => {

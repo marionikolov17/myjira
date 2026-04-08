@@ -23,6 +23,7 @@ export function createMockSupabaseClient(
     'insert',
     'update',
     'delete',
+    'upsert',
     'eq',
     'neq',
     'gt',

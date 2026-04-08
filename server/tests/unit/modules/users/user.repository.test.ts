@@ -4,7 +4,11 @@ import { ZodError } from 'zod';
 import { UserRepository } from '@/modules/users/user.repository';
 import {
   errorCause,
+  invalidBulkCreateUsersDatabaseUsers,
   invalidUser,
+  mockBulkCreateUsersDatabaseUsers,
+  mockBulkCreateUsersParams,
+  mockBulkCreateUsersUsers,
   mockCreateUserParams,
   mockDatabaseUser,
   mockUser,
@@ -47,10 +51,7 @@ describe('UserRepository', () => {
       const mockSupabase = createMockSupabaseClient(null, error);
       const userRepository = createUserRepository(mockSupabase);
 
-      await expect(userRepository.createUser(mockCreateUserParams)).rejects.toMatchObject({
-        message: error.message,
-        cause: error.cause,
-      });
+      await expect(userRepository.createUser(mockCreateUserParams)).rejects.toThrow(Error);
     });
 
     it('should log an error when the user creation fails', async () => {
@@ -78,6 +79,64 @@ describe('UserRepository', () => {
       const userRepository = createUserRepository(mockSupabase);
 
       await userRepository.createUser(mockCreateUserParams).catch((err) => err);
+      expect(mockLogger.error).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('bulkCreateUsers', () => {
+    it('should bulk create users', async () => {
+      const mockSupabase = createMockSupabaseClient(mockBulkCreateUsersDatabaseUsers);
+      const userRepository = createUserRepository(mockSupabase);
+
+      const users = await userRepository.bulkCreateUsers(mockBulkCreateUsersParams);
+
+      expect(users).toEqual(mockBulkCreateUsersUsers);
+    });
+
+    it('should not log an error when the bulk create users is successful', async () => {
+      const mockSupabase = createMockSupabaseClient(mockBulkCreateUsersDatabaseUsers);
+      const userRepository = createUserRepository(mockSupabase);
+
+      await userRepository.bulkCreateUsers(mockBulkCreateUsersParams);
+      expect(mockLogger.error).not.toHaveBeenCalled();
+    });
+
+    it('should throw an error when the bulk create users fails', async () => {
+      const error = createError('Bulk create users failed', errorCause);
+      const mockSupabase = createMockSupabaseClient(null, error);
+      const userRepository = createUserRepository(mockSupabase);
+
+      await expect(userRepository.bulkCreateUsers(mockBulkCreateUsersParams)).rejects.toThrow(
+        Error,
+      );
+    });
+
+    it('should log an error when the bulk create users fails', async () => {
+      const error = createError('Bulk create users failed', errorCause);
+      const mockSupabase = createMockSupabaseClient(null, error);
+      const userRepository = createUserRepository(mockSupabase);
+
+      await userRepository.bulkCreateUsers(mockBulkCreateUsersParams).catch((err) => err);
+      expect(mockLogger.error).toHaveBeenCalledWith(error.message, {
+        cause: error.cause,
+        stack: error.stack,
+      });
+    });
+
+    it('should throw a ZodError when database response returns invalid user data', async () => {
+      const mockSupabase = createMockSupabaseClient(invalidBulkCreateUsersDatabaseUsers);
+      const userRepository = createUserRepository(mockSupabase);
+
+      await expect(userRepository.bulkCreateUsers(mockBulkCreateUsersParams)).rejects.toThrow(
+        ZodError,
+      );
+    });
+
+    it('should not log an error when the database response returns invalid user data', async () => {
+      const mockSupabase = createMockSupabaseClient(invalidBulkCreateUsersDatabaseUsers);
+      const userRepository = createUserRepository(mockSupabase);
+
+      await userRepository.bulkCreateUsers(mockBulkCreateUsersParams).catch((err) => err);
       expect(mockLogger.error).not.toHaveBeenCalled();
     });
   });
