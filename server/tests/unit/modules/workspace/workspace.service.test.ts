@@ -2,16 +2,16 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { WorkspaceService } from '@/modules/workspace/workspace.service';
 import { IUserRepository } from '@/modules/users';
 import { IWorkspaceRoleRepository, WorkspaceRoleName } from '@/modules/workspace-roles';
-import { IPasswordHasher } from '@/common/password-hasher';
+import { IWorkspaceUsersConfig } from '@/config/workspace-users/workspace-users-config';
 import { env } from '@/config/env';
 import {
   createMockUserRepository,
   createMockWorkspaceRoleRepository,
-  createMockPasswordHasher,
+  createMockWorkspaceUsersConfig,
   mockUsersAfterBulkCreate,
   mockWorkspaceRoles,
-  mockHashedPassword,
   mockUsersConfig,
+  createMockBootstrapWorkspaceConfig,
 } from './workspace.service.mock';
 import { AuthorizationError, ResourceNotFoundError } from '@/common/errors';
 import { mockLogger } from '../../mocks/logger.mock';
@@ -24,18 +24,21 @@ describe('WorkspaceService', () => {
   describe('bootstrapWorkspaceUsers', () => {
     let mockUserRepository: ReturnType<typeof createMockUserRepository>;
     let mockWorkspaceRoleRepository: ReturnType<typeof createMockWorkspaceRoleRepository>;
-    let mockPasswordHasher: ReturnType<typeof createMockPasswordHasher>;
+    let mockWorkspaceUsersConfig: ReturnType<typeof createMockWorkspaceUsersConfig>;
+    let mockBootstrapWorkspaceConfig: ReturnType<typeof createMockBootstrapWorkspaceConfig>;
     let workspaceService: WorkspaceService;
 
     beforeEach(() => {
       mockUserRepository = createMockUserRepository(mockUsersAfterBulkCreate);
       mockWorkspaceRoleRepository = createMockWorkspaceRoleRepository(mockWorkspaceRoles);
-      mockPasswordHasher = createMockPasswordHasher(mockHashedPassword);
+      mockWorkspaceUsersConfig = createMockWorkspaceUsersConfig(mockUsersConfig);
+      mockBootstrapWorkspaceConfig = createMockBootstrapWorkspaceConfig(env.BOOTSTRAP_TOKEN);
       workspaceService = new WorkspaceService(
         mockUserRepository as unknown as IUserRepository,
         mockWorkspaceRoleRepository as unknown as IWorkspaceRoleRepository,
-        mockPasswordHasher as unknown as IPasswordHasher,
+        mockWorkspaceUsersConfig as unknown as IWorkspaceUsersConfig,
         mockLogger,
+        mockBootstrapWorkspaceConfig,
       );
     });
 
@@ -84,16 +87,6 @@ describe('WorkspaceService', () => {
       await expect(
         workspaceService.bootstrapWorkspaceUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN }),
       ).rejects.toThrow(ResourceNotFoundError);
-    });
-
-    it('should propagate an error when password hashing fails', async () => {
-      mockPasswordHasher.hashPassword.mockRejectedValue(
-        new Error('Failed to hash password') as never,
-      );
-
-      await expect(
-        workspaceService.bootstrapWorkspaceUsers({ bootstrapToken: env.BOOTSTRAP_TOKEN }),
-      ).rejects.toThrow(Error);
     });
 
     it('should propagate an error when bulk create users fails', async () => {

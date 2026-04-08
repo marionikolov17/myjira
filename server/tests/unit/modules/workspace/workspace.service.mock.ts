@@ -98,11 +98,17 @@ export function createMockWorkspaceRoleRepository(getWorkspaceRolesResponse: unk
   };
 }
 
-export function createMockPasswordHasher(hashPasswordResponse: unknown) {
+export function createMockWorkspaceUsersConfig(getUsersResponse: unknown) {
   return {
-    hashPassword:
-      hashPasswordResponse instanceof Error
-        ? jest.fn().mockRejectedValue(hashPasswordResponse as never)
-        : jest.fn().mockResolvedValue(hashPasswordResponse as never),
+    getUsers:
+      getUsersResponse instanceof Error
+        ? jest.fn().mockRejectedValue(getUsersResponse as never)
+        : jest.fn().mockResolvedValue(getUsersResponse as never),
+  };
+}
+
+export function createMockBootstrapWorkspaceConfig(bootstrapToken: string) {
+  return {
+    bootstrapToken,
   };
 }
