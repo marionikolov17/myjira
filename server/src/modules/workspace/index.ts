@@ -1,7 +1,7 @@
 import { WorkspaceService } from './workspace.service';
 import { WorkspaceController } from './workspace.controller';
-import { userRepository } from '../users/user.repository';
-import { workspaceRoleRepository } from '../workspace-roles/workspace-role.repository';
+import { userRepository } from '@/modules/users';
+import { workspaceRoleRepository } from '@/modules/workspace-roles';
 import { passwordHasher } from '@/common/password-hasher';
 import { logger } from '@/common/logger';
 
