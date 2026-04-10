@@ -1,0 +1,15 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MyJira API",
+    "version": "1.0.0",
+    "description": "REST API documentation for MyJira"
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "Current server"
+    }
+  ],
+  "paths": {}
+}
