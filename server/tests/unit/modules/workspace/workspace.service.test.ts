@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { WorkspaceService } from '@/modules/workspace/workspace.service';
 import { IUserRepository } from '@/modules/users';
 import { IWorkspaceRoleRepository, WorkspaceRoleName } from '@/modules/workspace-roles';
+import { AuthorizationError, ResourceNotFoundError } from '@/common/errors';
 import { IWorkspaceUsersConfig } from '@/config/workspace-users/workspace-users-config';
 import { env } from '@/config/env';
 import {
@@ -13,8 +14,7 @@ import {
   mockUsersConfig,
   createMockBootstrapWorkspaceConfig,
 } from './workspace.service.mock';
-import { AuthorizationError, ResourceNotFoundError } from '@/common/errors';
-import { mockLogger } from '../../mocks/logger.mock';
+import { createMockLogger } from '../../mocks/logger.mock';
 
 describe('WorkspaceService', () => {
   beforeEach(() => {
@@ -26,6 +26,7 @@ describe('WorkspaceService', () => {
     let mockWorkspaceRoleRepository: ReturnType<typeof createMockWorkspaceRoleRepository>;
     let mockWorkspaceUsersConfig: ReturnType<typeof createMockWorkspaceUsersConfig>;
     let mockBootstrapWorkspaceConfig: ReturnType<typeof createMockBootstrapWorkspaceConfig>;
+    let mockLogger: ReturnType<typeof createMockLogger>;
     let workspaceService: WorkspaceService;
 
     beforeEach(() => {
@@ -33,6 +34,8 @@ describe('WorkspaceService', () => {
       mockWorkspaceRoleRepository = createMockWorkspaceRoleRepository(mockWorkspaceRoles);
       mockWorkspaceUsersConfig = createMockWorkspaceUsersConfig(mockUsersConfig);
       mockBootstrapWorkspaceConfig = createMockBootstrapWorkspaceConfig(env.BOOTSTRAP_TOKEN);
+      mockLogger = createMockLogger();
+
       workspaceService = new WorkspaceService(
         mockUserRepository as unknown as IUserRepository,
         mockWorkspaceRoleRepository as unknown as IWorkspaceRoleRepository,
