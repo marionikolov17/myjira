@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+
 import winston from 'winston';
-import { createLogger, LoggerLevel, WinstonLogger } from '@/common/logger';
-import {
-  mockCommonConfig,
-  mockDevelopmentConfig,
-  mockProductionConfig,
-} from './create-logger.mock';
+
+import { LoggerLevel } from '@/common/logger';
+import { WinstonLogger } from '@/common/logger/winston-logger';
+
+import { mockCommonConfig, mockProductionConfig } from './winston-logger.mock';
 
 jest.mock('winston', () => ({
   createLogger: jest.fn(),
@@ -24,30 +24,17 @@ jest.mock('winston', () => ({
 }));
 const mockWinston = jest.mocked(winston);
 
-describe('createLogger', () => {
+describe('WinstonLogger.create', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('should create a logger for every environment', () => {
-    const logger = createLogger(mockCommonConfig);
-
-    expect(logger).toBeInstanceOf(WinstonLogger);
-    expect(logger.info).toBeDefined();
-    expect(logger.warn).toBeDefined();
-    expect(logger.error).toBeDefined();
-    expect(logger.http).toBeDefined();
-    expect(logger.debug).toBeDefined();
-  });
-
-  it('should call winston.createLogger', () => {
-    createLogger(mockCommonConfig);
-
-    expect(mockWinston.createLogger).toHaveBeenCalled();
+  it('should return a WinstonLogger instance', () => {
+    expect(WinstonLogger.create(mockCommonConfig)).toBeInstanceOf(WinstonLogger);
   });
 
   it('should call winston.createLogger with the correct config for every environment', () => {
-    createLogger(mockCommonConfig);
+    WinstonLogger.create(mockCommonConfig);
 
     expect(mockWinston.createLogger).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -58,7 +45,7 @@ describe('createLogger', () => {
   });
 
   it('should create a logger with the correct format for every environment', () => {
-    createLogger(mockCommonConfig);
+    WinstonLogger.create(mockCommonConfig);
 
     expect(mockWinston.format.combine).toHaveBeenCalled();
     expect(mockWinston.format.timestamp).toHaveBeenCalledTimes(1);
@@ -68,7 +55,7 @@ describe('createLogger', () => {
   });
 
   it('should use the correct error log path for every environment', () => {
-    createLogger(mockCommonConfig);
+    WinstonLogger.create(mockCommonConfig);
 
     expect(mockWinston.transports.File).toHaveBeenCalledWith({
       filename: mockCommonConfig.paths.errorLog,
@@ -77,7 +64,7 @@ describe('createLogger', () => {
   });
 
   it('should use the correct combined log path for every environment', () => {
-    createLogger(mockCommonConfig);
+    WinstonLogger.create(mockCommonConfig);
 
     expect(mockWinston.transports.File).toHaveBeenCalledWith({
       filename: mockCommonConfig.paths.combinedLog,
@@ -85,33 +72,33 @@ describe('createLogger', () => {
   });
 
   it('should use two file transports for every environment', () => {
-    createLogger(mockCommonConfig);
+    WinstonLogger.create(mockCommonConfig);
 
     expect(mockWinston.transports.File).toHaveBeenCalledTimes(2);
   });
 
-  it('should use the console transport when enableConsole is true in development', () => {
-    createLogger(mockDevelopmentConfig);
+  it('should use the console transport when enableConsole is true', () => {
+    WinstonLogger.create(mockCommonConfig);
 
     expect(mockWinston.transports.Console).toHaveBeenCalled();
   });
 
-  it('should not use the console transport when enableConsole is false in production', () => {
-    createLogger(mockProductionConfig);
+  it('should not use the console transport when enableConsole is false', () => {
+    WinstonLogger.create(mockProductionConfig);
 
     expect(mockWinston.transports.Console).not.toHaveBeenCalled();
   });
 
-  it('should use the correct format for the console transport when enableConsole is true in development', () => {
-    createLogger(mockDevelopmentConfig);
+  it('should use the correct format for the console transport when enableConsole is true', () => {
+    WinstonLogger.create(mockCommonConfig);
 
     expect(mockWinston.format.combine).toHaveBeenCalledTimes(2);
     expect(mockWinston.format.colorize).toHaveBeenCalled();
     expect(mockWinston.format.simple).toHaveBeenCalled();
   });
 
-  it('should not call the extra format functions when enableConsole is false in production', () => {
-    createLogger(mockProductionConfig);
+  it('should not call the extra format functions when enableConsole is false', () => {
+    WinstonLogger.create(mockProductionConfig);
 
     expect(mockWinston.format.combine).toHaveBeenCalledTimes(1);
     expect(mockWinston.format.colorize).not.toHaveBeenCalled();

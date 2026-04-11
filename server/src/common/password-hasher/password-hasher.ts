@@ -1,6 +1,6 @@
 import { env } from '@/config/env';
-import { createPasswordHasher } from './create-password-hasher';
+import { BcryptPasswordHasher } from './bcrypt-password-hasher';
 
-export const passwordHasher = createPasswordHasher({
+export const passwordHasher = BcryptPasswordHasher.create({
   saltRounds: env.SALT_ROUNDS,
 });

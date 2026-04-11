@@ -1,18 +1,16 @@
-import { createLogger } from './create-logger';
 import { env } from '@/config/env';
-import { LoggerLevel } from './logger.types';
 import { NodeEnv } from '@/config/env.types';
+import { WinstonLogger } from './winston-logger';
+import { LoggerLevel } from './logger.types';
 
-export const LOG_DIR = 'logs';
-export const PATHS = {
-  errorLog: `${LOG_DIR}/errors.log`,
-  combinedLog: `${LOG_DIR}/combined.log`,
-};
-export const SERVICE_NAME = 'api';
+const LOG_DIR = 'logs';
 
-export const logger = createLogger({
+export const logger = WinstonLogger.create({
   level: env.NODE_ENV === NodeEnv.DEVELOPMENT ? LoggerLevel.DEBUG : LoggerLevel.HTTP,
   enableConsole: env.NODE_ENV === NodeEnv.DEVELOPMENT,
-  serviceName: SERVICE_NAME,
-  paths: PATHS,
+  serviceName: 'api',
+  paths: {
+    errorLog: `${LOG_DIR}/errors.log`,
+    combinedLog: `${LOG_DIR}/combined.log`,
+  },
 });

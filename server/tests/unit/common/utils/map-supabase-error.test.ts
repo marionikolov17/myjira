@@ -25,4 +25,10 @@ describe('mapSupabaseError', () => {
     const result = mapSupabaseError(error);
     expect(result).toBeInstanceOf(BusinessRuleViolationError);
   });
+
+  it('should return an Error when the error code is not in the map', () => {
+    const error = createPostgrestError('12345');
+    const result = mapSupabaseError(error);
+    expect(result).toBeInstanceOf(Error);
+  });
 });
