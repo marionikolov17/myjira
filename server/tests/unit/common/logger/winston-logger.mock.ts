@@ -10,10 +10,6 @@ export const mockCommonConfig = {
   serviceName: 'api',
 };
 
-export const mockDevelopmentConfig = {
-  ...mockCommonConfig,
-};
-
 export const mockProductionConfig = {
   ...mockCommonConfig,
   enableConsole: false,
