@@ -1,15 +1,24 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { WorkspaceService } from '@/modules/workspace/workspace.service';
-import { IUserRepository } from '@/modules/users';
-import { IWorkspaceRoleRepository, WorkspaceRoleName } from '@/modules/workspace-roles';
-import { AuthorizationError, ResourceNotFoundError } from '@/common/errors';
+
 import { IWorkspaceService } from '@/modules/workspace/workspace.interface';
+import { WorkspaceService } from '@/modules/workspace/workspace.service';
+
+import { AuthorizationError, ResourceNotFoundError } from '@/common/errors';
+
 import {
   BootstrapWorkspaceConfigParams,
   BootstrapWorkspaceUsersParams,
 } from '@/modules/workspace/workspace.types';
+
+import { IUserRepository } from '@/modules/users';
+import { IWorkspaceRoleRepository, WorkspaceRoleName } from '@/modules/workspace-roles';
 import { IWorkspaceUsersConfig } from '@/config/workspace-users/workspace-users-config';
 import { ILogger } from '@/common/logger';
+
+import { createMockLogger } from '../../mocks/logger.mock';
+import { createMockUserRepository } from '../../mocks/user.repository.mock';
+import { createMockWorkspaceRoleRepository } from '../../mocks/workspace-role.repository.mock';
+
 import {
   createMockWorkspaceUsersConfig,
   mockUsersAfterBulkCreate,
@@ -17,9 +26,6 @@ import {
   mockUsersConfig,
   createMockBootstrapWorkspaceConfig,
 } from './workspace.service.mock';
-import { createMockLogger } from '../../mocks/logger.mock';
-import { createMockUserRepository } from '../../mocks/user.repository.mock';
-import { createMockWorkspaceRoleRepository } from '../../mocks/workspace-role.repository.mock';
 
 describe('WorkspaceService', () => {
   beforeEach(() => {
