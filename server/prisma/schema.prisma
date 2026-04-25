@@ -1,0 +1,170 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "./generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum WorkspaceRoleName {
+  Owner
+  Admin
+  Developer
+
+  @@map("workspace_role_name")
+}
+
+enum ProjectRoleName {
+  ProjectOwner @map("Project Owner")
+  ProjectAdmin @map("Project Admin")
+  Developer
+
+  @@map("project_role_name")
+}
+
+enum IssueStatus {
+  ToDo       @map("To-Do")
+  InProgress @map("In Progress")
+  Done
+
+  @@map("issue_status")
+}
+
+enum IssuePriority {
+  Low
+  Medium
+  High
+
+  @@map("issue_priority")
+}
+
+model WorkspaceRole {
+  id        String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      WorkspaceRoleName
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+
+  users User[]
+
+  @@map("workspace_roles")
+}
+
+model User {
+  id              String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String
+  email           String @unique
+  password        String
+  workspaceRoleId String @map("workspace_role_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  workspaceRole    WorkspaceRole   @relation(fields: [workspaceRoleId], references: [id])
+  createdProjects  Project[]       @relation("ProjectCreator")
+  projectMembers   ProjectMember[]
+  createdIssues    Issue[]         @relation("IssueCreator")
+  assignedIssues   Issue[]         @relation("IssueAssignee")
+  createdSubtasks  Subtask[]       @relation("SubtaskCreator")
+  assignedSubtasks Subtask[]       @relation("SubtaskAssignee")
+
+  @@index([workspaceRoleId])
+  @@map("users")
+}
+
+model ProjectRole {
+  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      ProjectRoleName
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+
+  projectMembers ProjectMember[]
+
+  @@map("project_roles")
+}
+
+model Project {
+  id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  description String
+  creatorId   String @map("creator_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  creator User            @relation("ProjectCreator", fields: [creatorId], references: [id])
+  members ProjectMember[]
+  issues  Issue[]
+
+  @@index([creatorId])
+  @@map("projects")
+}
+
+model ProjectMember {
+  id            String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId     String @map("project_id") @db.Uuid
+  userId        String @map("user_id") @db.Uuid
+  projectRoleId String @map("project_role_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  project     Project     @relation(fields: [projectId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+  projectRole ProjectRole @relation(fields: [projectRoleId], references: [id])
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+  @@index([projectRoleId])
+  @@map("project_members")
+}
+
+model Issue {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String
+  description String
+  status      IssueStatus
+  priority    IssuePriority
+  creatorId   String        @map("creator_id") @db.Uuid
+  projectId   String        @map("project_id") @db.Uuid
+  assigneeId  String        @map("assignee_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  creator  User      @relation("IssueCreator", fields: [creatorId], references: [id])
+  project  Project   @relation(fields: [projectId], references: [id])
+  assignee User      @relation("IssueAssignee", fields: [assigneeId], references: [id])
+  subtasks Subtask[]
+
+  @@index([projectId])
+  @@index([assigneeId])
+  @@index([status])
+  @@index([priority])
+  @@map("issues")
+}
+
+model Subtask {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String
+  description String
+  status      IssueStatus
+  creatorId   String      @map("creator_id") @db.Uuid
+  issueId     String      @map("issue_id") @db.Uuid
+  assigneeId  String      @map("assignee_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  creator  User  @relation("SubtaskCreator", fields: [creatorId], references: [id])
+  issue    Issue @relation(fields: [issueId], references: [id])
+  assignee User  @relation("SubtaskAssignee", fields: [assigneeId], references: [id])
+
+  @@index([issueId])
+  @@index([assigneeId])
+  @@map("subtasks")
+}

@@ -10,6 +10,8 @@ const envSchema = z.object({
   // Supabase Configuration
   SUPABASE_URL: z.url(),
   SUPABASE_ANON_KEY: z.string().min(1),
+  // Database Configuration
+  DATABASE_URL: z.url(),
   // System (Workspace) Configuration
   BOOTSTRAP_TOKEN: z.string().min(1),
   // System (Workspace) Users Configuration
