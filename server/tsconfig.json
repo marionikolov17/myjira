@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ES2022",
+    "target": "ES2023",
+    "module": "ESNext",
     "moduleResolution": "Bundler",
     "lib": ["ES2023"],
     "outDir": "dist",
@@ -29,6 +29,6 @@
 
     "skipLibCheck": true
   },
-  "include": ["src", "tests"],
+  "include": ["src", "tests", "prisma", "*"],
   "exclude": ["node_modules", "dist"]
 }

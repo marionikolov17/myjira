@@ -1,13 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-import winston from 'winston';
-
-import { LoggerLevel } from '@/common/logger';
-import { WinstonLogger } from '@/common/logger/winston-logger';
-
 import { mockCommonConfig, mockProductionConfig } from './winston-logger.mock';
 
-jest.mock('winston', () => ({
+const mockWinston = {
   createLogger: jest.fn(),
   format: {
     combine: jest.fn(),
@@ -21,8 +16,16 @@ jest.mock('winston', () => ({
     File: jest.fn(),
     Console: jest.fn(),
   },
+};
+
+jest.unstable_mockModule('winston', () => ({
+  __esModule: true,
+  default: mockWinston,
+  ...mockWinston,
 }));
-const mockWinston = jest.mocked(winston);
+
+const { LoggerLevel } = await import('@/common/logger');
+const { WinstonLogger } = await import('@/common/logger/winston-logger');
 
 describe('WinstonLogger.create', () => {
   beforeEach(() => {

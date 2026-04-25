@@ -1,32 +1,44 @@
-import { SupabaseClient } from '@supabase/supabase-js';
+import type { PrismaClient } from '../../../prisma/generated/prisma/client';
 import { ILogger, logger } from '@/common/logger';
-import { supabase } from '@/common/supabase';
-import { mapSupabaseError } from '@/common/utils/map-supabase-error';
+import { prisma } from '@/common/lib/prisma';
+import { mapPrismaError } from '@/common/utils/map-prisma-error';
 import { WorkspaceRole, WorkspaceRoleSchema } from './workspace-role.schema';
 import { IWorkspaceRoleRepository } from './workspace-role.interface';
 
 export class WorkspaceRoleRepository implements IWorkspaceRoleRepository {
-  private readonly tableName: string = 'workspace_roles';
-  private readonly selectColumns: string = 'id, name, created_at, updated_at';
   public readonly resourceName: string = 'workspace_roles';
+  private readonly select = {
+    id: true,
+    name: true,
+    createdAt: true,
+    updatedAt: true,
+  } as const;
 
   constructor(
-    private readonly supabase: SupabaseClient,
+    private readonly prisma: PrismaClient,
     private readonly logger: ILogger,
   ) {}
 
   public async getWorkspaceRoles(): Promise<WorkspaceRole[]> {
-    const { data: roles, error } = await this.supabase
-      .from(this.tableName)
-      .select(this.selectColumns);
+    try {
+      const roles = await this.prisma.workspaceRole.findMany({
+        select: this.select,
+      });
 
-    if (error) {
-      this.logger.error(error.message, { cause: error.cause, stack: error.stack });
-      throw mapSupabaseError(error);
+      return roles.map((role) => WorkspaceRoleSchema.parse(role));
+    } catch (error) {
+      this.logError(error);
+      throw mapPrismaError(error);
     }
+  }
 
-    return roles.map((row) => WorkspaceRoleSchema.parse(row));
+  private logError(error: unknown): void {
+    if (error instanceof Error) {
+      this.logger.error(error.message, { cause: error.cause, stack: error.stack });
+      return;
+    }
+    this.logger.error(String(error));
   }
 }
 
-export const workspaceRoleRepository = new WorkspaceRoleRepository(supabase, logger);
+export const workspaceRoleRepository = new WorkspaceRoleRepository(prisma, logger);
