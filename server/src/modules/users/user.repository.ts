@@ -1,62 +1,72 @@
-import { SupabaseClient } from '@supabase/supabase-js';
-import { supabase } from '@/common/supabase';
+import type { PrismaClient } from '../../../prisma/generated/prisma/client';
 import { ILogger, logger } from '@/common/logger';
-import { mapSupabaseError } from '@/common/utils/map-supabase-error';
+import { prisma } from '@/common/lib/prisma';
+import { mapPrismaError } from '@/common/utils/map-prisma-error';
 import { BulkCreateUsersParams, CreateUserParams } from './user.types';
 import { User, UserSchema } from './user.schema';
 import { IUserRepository } from './user.interface';
 
 export class UserRepository implements IUserRepository {
-  private readonly tableName: string = 'users';
-  private readonly selectColumns: string =
-    'id, name, email, workspace_role_id, created_at, updated_at';
   public readonly resourceName: string = 'users';
+  private readonly select = {
+    id: true,
+    name: true,
+    email: true,
+    workspaceRoleId: true,
+    createdAt: true,
+    updatedAt: true,
+  } as const;
 
   constructor(
-    private readonly supabase: SupabaseClient,
+    private readonly prisma: PrismaClient,
     private readonly logger: ILogger,
   ) {}
 
   public async createUser(params: CreateUserParams): Promise<User> {
-    const { data: user, error } = await this.supabase
-      .from(this.tableName)
-      .insert({
-        name: params.name,
-        email: params.email,
-        password: params.hashedPassword,
-        workspace_role_id: params.workspaceRoleId,
-      })
-      .select(this.selectColumns)
-      .single();
+    try {
+      const user = await this.prisma.user.create({
+        data: {
+          name: params.name,
+          email: params.email,
+          password: params.hashedPassword,
+          workspaceRoleId: params.workspaceRoleId,
+        },
+        select: this.select,
+      });
 
-    if (error) {
-      this.logger.error(error.message, { cause: error.cause, stack: error.stack });
-      throw mapSupabaseError(error);
+      return UserSchema.parse(user);
+    } catch (error) {
+      this.logError(error);
+      throw mapPrismaError(error);
     }
-
-    return UserSchema.parse(user);
   }
 
   public async bulkCreateUsers(params: BulkCreateUsersParams): Promise<User[]> {
-    const { data: users, error } = await this.supabase
-      .from(this.tableName)
-      .insert(
-        params.users.map((user) => ({
+    try {
+      const users = await this.prisma.user.createManyAndReturn({
+        data: params.users.map((user) => ({
           name: user.name,
           email: user.email,
           password: user.hashedPassword,
-          workspace_role_id: user.workspaceRoleId,
+          workspaceRoleId: user.workspaceRoleId,
         })),
-      )
-      .select(this.selectColumns);
+        select: this.select,
+      });
 
-    if (error) {
-      this.logger.error(error.message, { cause: error.cause, stack: error.stack });
-      throw mapSupabaseError(error);
+      return users.map((user) => UserSchema.parse(user));
+    } catch (error) {
+      this.logError(error);
+      throw mapPrismaError(error);
     }
+  }
 
-    return users.map((user) => UserSchema.parse(user));
+  private logError(error: unknown): void {
+    if (error instanceof Error) {
+      this.logger.error(error.message, { cause: error.cause, stack: error.stack });
+      return;
+    }
+    this.logger.error(String(error));
   }
 }
 
-export const userRepository = new UserRepository(supabase, logger);
+export const userRepository = new UserRepository(prisma, logger);
