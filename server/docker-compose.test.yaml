@@ -1,3 +1,5 @@
+name: myjira-test
+
 services:
   postgres:
     container_name: integration-tests-postgres
