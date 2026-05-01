@@ -1,10 +1,28 @@
 /** @type {import("jest").Config} **/
-export const testEnvironment = 'node';
-export const transform = {
-  '^.+\\.tsx?$': ['ts-jest', { tsconfig: 'tsconfig.json', useESM: true }],
+const baseProjectConfig = {
+  testEnvironment: 'node',
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', { tsconfig: 'tsconfig.json', useESM: true }],
+  },
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+  },
+  setupFiles: ['<rootDir>/tests/setup.ts'],
+  extensionsToTreatAsEsm: ['.ts', '.tsx'],
 };
-export const moduleNameMapper = {
-  '^@/(.*)$': '<rootDir>/src/$1',
+
+/** @type {import("jest").Config} **/
+export default {
+  projects: [
+    {
+      ...baseProjectConfig,
+      displayName: 'unit',
+      testMatch: ['<rootDir>/tests/unit/**/*.test.ts'],
+    },
+    {
+      ...baseProjectConfig,
+      displayName: 'integration',
+      testMatch: ['<rootDir>/tests/integration/**/*.test.ts'],
+    },
+  ],
 };
-export const setupFiles = ['<rootDir>/tests/setup.ts'];
-export const extensionsToTreatAsEsm = ['.ts', '.tsx'];
