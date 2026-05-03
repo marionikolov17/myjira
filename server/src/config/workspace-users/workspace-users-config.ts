@@ -8,7 +8,7 @@ export interface IWorkspaceUsersConfig {
   getUsers(workspaceRoles: WorkspaceRole[]): Promise<CreateUserParams[]>;
 }
 
-class WorkspaceUsersConfig implements IWorkspaceUsersConfig {
+export class WorkspaceUsersConfig implements IWorkspaceUsersConfig {
   constructor(private readonly users: WorkspaceUserConfig[]) {}
 
   public async getUsers(workspaceRoles: WorkspaceRole[]): Promise<CreateUserParams[]> {
