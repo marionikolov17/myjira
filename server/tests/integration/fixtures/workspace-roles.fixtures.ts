@@ -10,6 +10,18 @@ export async function ensureWorkspaceRolesSeeded(): Promise<void> {
   await createWorkspaceRoles(missing);
 }
 
+async function findMissingWorkspaceRoles(
+  required: WorkspaceRoleName[],
+): Promise<WorkspaceRoleName[]> {
+  const existing = await fetchExistingWorkspaceRoleNames();
+  return required.filter((name) => !existing.has(name));
+}
+
+async function fetchExistingWorkspaceRoleNames(): Promise<Set<string>> {
+  const roles = await prisma.workspaceRole.findMany({ select: { name: true } });
+  return new Set(roles.map((role) => role.name));
+}
+
 export async function seedOnlyWorkspaceRoles(names: WorkspaceRoleName[]): Promise<void> {
   await deleteAllWorkspaceRoles();
   if (names.length === 0) return;
@@ -24,18 +36,6 @@ export async function deleteAllWorkspaceRoles(): Promise<void> {
 export async function fetchAllWorkspaceRoles(): Promise<WorkspaceRole[]> {
   const roles = await prisma.workspaceRole.findMany();
   return roles.map((role) => WorkspaceRoleSchema.parse(role));
-}
-
-async function findMissingWorkspaceRoles(
-  required: WorkspaceRoleName[],
-): Promise<WorkspaceRoleName[]> {
-  const existing = await fetchExistingWorkspaceRoleNames();
-  return required.filter((name) => !existing.has(name));
-}
-
-async function fetchExistingWorkspaceRoleNames(): Promise<Set<string>> {
-  const roles = await prisma.workspaceRole.findMany({ select: { name: true } });
-  return new Set(roles.map((role) => role.name));
 }
 
 async function createWorkspaceRoles(names: WorkspaceRoleName[]): Promise<void> {
