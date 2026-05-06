@@ -100,7 +100,7 @@ describe('Workspace Controller', () => {
       });
     });
 
-    // TODO: replace with business-rule violation once the service stops
+    // Replace with business-rule violation once the service stops
     // delegating uniqueness enforcement to Prisma's unique constraint.
     describe.skip('on already-bootstrapped workspace', () => {
       it('returns a conflict error when a second bootstrap attempt is made and leaves the original users intact', async () => {
@@ -123,7 +123,7 @@ describe('Workspace Controller', () => {
       });
     });
 
-    // TODO: once schema validation surfaces ValidationError instead of bubbling
+    // Once schema validation surfaces ValidationError instead of bubbling
     // Zod failures, switch these assertions to `expectValidationError`.
     describe.skip('on malformed request body', () => {
       it.each([
