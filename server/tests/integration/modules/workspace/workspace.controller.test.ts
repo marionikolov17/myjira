@@ -137,6 +137,16 @@ describe('Workspace Controller', () => {
         expectValidationError(response);
         await expectNoUsersInDatabase();
       });
+
+      it('returns a validation error when valid bootstrap token but additional fields are present', async () => {
+        const response = await bootstrapWorkspaceUsers({
+          bootstrapToken: ctx.bootstrapToken,
+          additionalField: 'additionalField',
+        });
+
+        expectValidationError(response);
+        await expectNoUsersInDatabase();
+      });
     });
 
     describe('on missing workspace roles', () => {
