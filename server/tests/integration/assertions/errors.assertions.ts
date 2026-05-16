@@ -32,3 +32,9 @@ export function expectBusinessRuleViolationError(response: supertest.Response): 
   expect(response.status).toBe(422);
   expect(response.body.error?.code).toBe(ErrorCodes.BUSINESS_RULE_VIOLATION);
 }
+
+export function expectValidationError(response: supertest.Response): void {
+  expect(response.status).toBe(400);
+  expect(response.body.error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
+  expect(response.body.error?.details?.fields).toBeDefined();
+}
