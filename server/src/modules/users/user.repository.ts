@@ -2,7 +2,11 @@ import type { PrismaClient } from '../../../prisma/generated/prisma/client';
 import { ILogger, logger } from '@/common/logger';
 import { prisma } from '@/common/lib/prisma';
 import { mapPrismaError } from '@/common/utils/map-prisma-error';
-import { BulkCreateUsersParams, CreateUserParams } from './user.types';
+import {
+  BulkCreateUsersParams,
+  CreateUserParams,
+  HasUsersForWorkspaceRoleIdsParams,
+} from './user.types';
 import { User, UserSchema } from './user.schema';
 import { IUserRepository } from './user.interface';
 
@@ -54,6 +58,21 @@ export class UserRepository implements IUserRepository {
       });
 
       return users.map((user) => UserSchema.parse(user));
+    } catch (error) {
+      this.logError(error);
+      throw mapPrismaError(error);
+    }
+  }
+
+  public async hasUsersForWorkspaceRoleIds(
+    params: HasUsersForWorkspaceRoleIdsParams,
+  ): Promise<boolean> {
+    try {
+      const count = await this.prisma.user.count({
+        where: { workspaceRoleId: { in: params.workspaceRoleIds } },
+      });
+
+      return count > 0;
     } catch (error) {
       this.logError(error);
       throw mapPrismaError(error);

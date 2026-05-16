@@ -4,7 +4,11 @@ import {
   WorkspaceRole,
   WorkspaceRoleName,
 } from '@/modules/workspace-roles';
-import { AuthorizationError, ResourceNotFoundError } from '@/common/errors';
+import {
+  AuthorizationError,
+  BusinessRuleViolationError,
+  ResourceNotFoundError,
+} from '@/common/errors';
 import { ILogger } from '@/common/logger';
 import { IWorkspaceUsersConfig } from '@/config/workspace-users/workspace-users-config';
 import { BootstrapWorkspaceConfigParams, BootstrapWorkspaceUsersParams } from './workspace.types';
@@ -23,8 +27,8 @@ export class WorkspaceService implements IWorkspaceService {
     this.validateBootstrapToken(params.bootstrapToken);
 
     const workspaceRoles = await this.workspaceRoleRepository.getWorkspaceRoles();
-
     this.validateWorkspaceRoles(workspaceRoles);
+    await this.validateWorkspaceNotAlreadyBootstrapped(workspaceRoles);
 
     const usersConfig = await this.workspaceUsersConfig.getUsers(workspaceRoles);
     const users = await this.userRepository.bulkCreateUsers({ users: usersConfig });
@@ -50,6 +54,18 @@ export class WorkspaceService implements IWorkspaceService {
           resourceId: role,
         });
       }
+    }
+  }
+
+  private async validateWorkspaceNotAlreadyBootstrapped(workspaceRoles: WorkspaceRole[]) {
+    const workspaceRoleIds = workspaceRoles.map((role) => role.id);
+    const hasUsers = await this.userRepository.hasUsersForWorkspaceRoleIds({
+      workspaceRoleIds,
+    });
+
+    if (hasUsers) {
+      this.logger.warn('Workspace is already bootstrapped');
+      throw new BusinessRuleViolationError('Workspace is already bootstrapped');
     }
   }
 }

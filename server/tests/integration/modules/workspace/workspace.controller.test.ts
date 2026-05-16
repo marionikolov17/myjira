@@ -32,7 +32,7 @@ import {
   WorkspaceTestContext,
 } from './workspace.controller.fixtures';
 import {
-  expectConflictError,
+  expectBusinessRuleViolationError,
   expectForbiddenError,
   expectInternalServerError,
   expectResourceNotFoundError,
@@ -100,15 +100,13 @@ describe('Workspace Controller', () => {
       });
     });
 
-    // Replace with business-rule violation once the service stops
-    // delegating uniqueness enforcement to Prisma's unique constraint.
-    describe.skip('on already-bootstrapped workspace', () => {
-      it('returns a conflict error when a second bootstrap attempt is made and leaves the original users intact', async () => {
+    describe('on already-bootstrapped workspace', () => {
+      it('returns a business rule violation error when a second bootstrap attempt is made and leaves the original users intact', async () => {
         const firstResponse = await validBootstrap();
         expect(firstResponse.status).toBe(201);
 
         const secondResponse = await validBootstrap();
-        expectConflictError(secondResponse);
+        expectBusinessRuleViolationError(secondResponse);
 
         await expectUsersInDatabase(testUsers);
       });

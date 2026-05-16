@@ -3,7 +3,11 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { IWorkspaceService } from '@/modules/workspace/workspace.interface';
 import { WorkspaceService } from '@/modules/workspace/workspace.service';
 
-import { AuthorizationError, ResourceNotFoundError } from '@/common/errors';
+import {
+  AuthorizationError,
+  BusinessRuleViolationError,
+  ResourceNotFoundError,
+} from '@/common/errors';
 
 import {
   BootstrapWorkspaceConfigParams,
@@ -47,6 +51,7 @@ describe('WorkspaceService', () => {
     beforeEach(() => {
       mockUserRepository = createMockUserRepository();
       mockUserRepository.bulkCreateUsers.mockResolvedValue(mockUsersAfterBulkCreate);
+      mockUserRepository.hasUsersForWorkspaceRoleIds.mockResolvedValue(false);
 
       mockWorkspaceRoleRepository = createMockWorkspaceRoleRepository();
       mockWorkspaceRoleRepository.getWorkspaceRoles.mockResolvedValue(mockWorkspaceRoles);
@@ -125,6 +130,14 @@ describe('WorkspaceService', () => {
       await expect(
         workspaceService.bootstrapWorkspaceUsers(mockBootstrapWorkspaceUsersParams),
       ).rejects.toThrow(ResourceNotFoundError);
+    });
+
+    it('should throw a business rule violation error when workspace is already bootstrapped', async () => {
+      mockUserRepository.hasUsersForWorkspaceRoleIds.mockResolvedValue(true);
+
+      await expect(
+        workspaceService.bootstrapWorkspaceUsers(mockBootstrapWorkspaceUsersParams),
+      ).rejects.toThrow(BusinessRuleViolationError);
     });
 
     it('should propagate an error when bulk create users fails', async () => {
