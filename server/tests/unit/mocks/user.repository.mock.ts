@@ -6,5 +6,6 @@ export function createMockUserRepository(): jest.Mocked<IUserRepository> {
     resourceName: 'users',
     createUser: jest.fn(),
     bulkCreateUsers: jest.fn(),
+    hasUsersForWorkspaceRoleIds: jest.fn(),
   };
 }

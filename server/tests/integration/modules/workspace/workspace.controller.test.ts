@@ -32,10 +32,11 @@ import {
   WorkspaceTestContext,
 } from './workspace.controller.fixtures';
 import {
-  expectConflictError,
+  expectBusinessRuleViolationError,
   expectForbiddenError,
   expectInternalServerError,
   expectResourceNotFoundError,
+  expectValidationError,
 } from '../../assertions/errors.assertions';
 import {
   deleteAllWorkspaceRoles,
@@ -100,15 +101,13 @@ describe('Workspace Controller', () => {
       });
     });
 
-    // Replace with business-rule violation once the service stops
-    // delegating uniqueness enforcement to Prisma's unique constraint.
-    describe.skip('on already-bootstrapped workspace', () => {
-      it('returns a conflict error when a second bootstrap attempt is made and leaves the original users intact', async () => {
+    describe('on already-bootstrapped workspace', () => {
+      it('returns a business rule violation error when a second bootstrap attempt is made and leaves the original users intact', async () => {
         const firstResponse = await validBootstrap();
         expect(firstResponse.status).toBe(201);
 
         const secondResponse = await validBootstrap();
-        expectConflictError(secondResponse);
+        expectBusinessRuleViolationError(secondResponse);
 
         await expectUsersInDatabase(testUsers);
       });
@@ -123,9 +122,7 @@ describe('Workspace Controller', () => {
       });
     });
 
-    // Once schema validation surfaces ValidationError instead of bubbling
-    // Zod failures, switch these assertions to `expectValidationError`.
-    describe.skip('on malformed request body', () => {
+    describe('on malformed request body', () => {
       it.each([
         { case: 'bootstrap token is undefined', body: { bootstrapToken: undefined } },
         { case: 'bootstrap token is omitted', body: {} },
@@ -134,10 +131,20 @@ describe('Workspace Controller', () => {
         { case: 'bootstrap token is boolean', body: { bootstrapToken: true } },
         { case: 'bootstrap token is null', body: { bootstrapToken: null } },
         { case: 'bootstrap token is empty', body: { bootstrapToken: '' } },
-      ])(`returns temporarily an internal server error when $case`, async ({ body }) => {
+      ])(`returns a validation error when $case`, async ({ body }) => {
         const response = await bootstrapWorkspaceUsers(body);
 
-        expectInternalServerError(response);
+        expectValidationError(response);
+        await expectNoUsersInDatabase();
+      });
+
+      it('returns a validation error when valid bootstrap token but additional fields are present', async () => {
+        const response = await bootstrapWorkspaceUsers({
+          bootstrapToken: ctx.bootstrapToken,
+          additionalField: 'additionalField',
+        });
+
+        expectValidationError(response);
         await expectNoUsersInDatabase();
       });
     });

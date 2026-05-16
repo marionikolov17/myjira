@@ -8,3 +8,7 @@ export interface CreateUserParams {
 export interface BulkCreateUsersParams {
   users: CreateUserParams[];
 }
+
+export interface HasUsersForWorkspaceRoleIdsParams {
+  workspaceRoleIds: string[];
+}
