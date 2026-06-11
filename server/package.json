@@ -18,6 +18,7 @@
     "lint": "eslint .",
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --selectProjects unit",
+    "test:unit:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --selectProjects unit --coverage",
     "test:integration": "npm run compose:test:down && npm run compose:test:up && npm run db:test:migrate && npm run db:test:seed && cross-env NODE_OPTIONS=--experimental-vm-modules jest --selectProjects integration",
     "create:log:path": "mkdir -p logs"
   },
