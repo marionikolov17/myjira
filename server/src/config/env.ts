@@ -21,6 +21,9 @@ const envSchema = z.object({
   DEVELOPER_EMAIL: z.email(),
   DEVELOPER_NAME: z.string().min(1),
   DEVELOPER_PASSWORD: z.string().min(1),
+  // JWT Configuration
+  JWT_SECRET_KEY: z.string().min(1),
+  JWT_EXPIRES_IN: z.coerce.number().default(3600),
 });
 
 export const env = envSchema.parse(process.env);
