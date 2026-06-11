@@ -2,6 +2,7 @@ import express from 'express';
 import swaggerUi from 'swagger-ui-express';
 import { errorMiddleware, loggerRequestMiddleware } from '@/common/middlewares';
 import { workspaceController } from '@/modules/workspace';
+import { authController } from '@/modules/auth';
 import openapiSpec from '../docs/openapi.json';
 
 const app = express();
@@ -14,6 +15,7 @@ app.use('/docs', swaggerUi.serve);
 app.get('/docs', swaggerUi.setup(openapiSpec));
 
 app.use('/api/v1/workspace', workspaceController.router);
+app.use('/api/v1/auth', authController.router);
 
 app.use(errorMiddleware);
 

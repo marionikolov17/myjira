@@ -5,5 +5,6 @@ export * from './validation-error';
 export * from './resource-not-found-error';
 export * from './conflict-error';
 export * from './business-rule-violation-error';
+export * from './invalid-login-credentials-error';
 export * from './error.interface';
 export * from './error-codes';
