@@ -28,6 +28,7 @@ export const errorMiddleware = (
   return res.status(status).json({
     error: {
       code,
+      status,
       message,
       details,
     },
