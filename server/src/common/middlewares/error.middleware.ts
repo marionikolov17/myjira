@@ -14,6 +14,7 @@ export const errorMiddleware = (
     return res.status(validationError.status).json({
       error: {
         code: validationError.code,
+        status: validationError.status,
         message: validationError.message,
         details: validationError.details,
       },
