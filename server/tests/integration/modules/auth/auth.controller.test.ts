@@ -19,6 +19,8 @@ import {
   AuthTestContext,
   testUsers,
   primaryTestUser,
+  denormalizedEmailVariants,
+  nonMatchingPasswordVariants,
   TOKEN_EXPIRES_IN_SECONDS,
 } from './auth.controller.fixtures';
 import { expectSuccessfulLogin, expectTokenPayload } from './auth.controller.assertions';
@@ -56,6 +58,22 @@ describe('Auth Controller', () => {
       );
     });
 
+    describe('on denormalized email', () => {
+      it.each(denormalizedEmailVariants(primaryTestUser.email))(
+        'normalizes a $case email and returns a token for the matching user',
+        async ({ email }) => {
+          const response = await login({ email, password: primaryTestUser.password });
+
+          expectSuccessfulLogin(response);
+          await expectTokenPayload(
+            ctx.tokenService.verifyToken(response.body.data.token),
+            primaryTestUser,
+            TOKEN_EXPIRES_IN_SECONDS,
+          );
+        },
+      );
+    });
+
     describe('on invalid credentials', () => {
       it.each([
         {
@@ -74,6 +92,17 @@ describe('Auth Controller', () => {
 
         expectInvalidLoginCredentialsError(response);
       });
+    });
+
+    describe('on password that is not an exact match', () => {
+      it.each(nonMatchingPasswordVariants(primaryTestUser.password))(
+        'rejects a $case password because passwords are case- and whitespace-sensitive',
+        async ({ password }) => {
+          const response = await login({ email: primaryTestUser.email, password });
+
+          expectInvalidLoginCredentialsError(response);
+        },
+      );
     });
 
     describe('on malformed request body', () => {

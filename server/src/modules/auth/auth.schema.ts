@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
+const NormalizedEmailSchema = z.string().trim().toLowerCase().pipe(z.email());
+
 export const LoginParamsSchema = z.strictObject({
-  email: z.email(),
+  email: NormalizedEmailSchema,
   password: z.string().min(1),
 });
 

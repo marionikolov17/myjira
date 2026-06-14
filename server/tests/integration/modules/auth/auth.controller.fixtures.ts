@@ -31,6 +31,46 @@ if (!firstTestUser) {
 
 export const primaryTestUser: TestUser = firstTestUser;
 
+/**
+ * Builds denormalized variants of an email that should all normalize (trim +
+ * lowercase) back to the original, canonical address.
+ */
+export function denormalizedEmailVariants(email: string): { case: string; email: string }[] {
+  return [
+    { case: 'uppercased', email: email.toUpperCase() },
+    { case: 'mixed case', email: toMixedCase(email) },
+    { case: 'leading whitespace', email: `   ${email}` },
+    { case: 'trailing whitespace', email: `${email}   ` },
+    { case: 'surrounding whitespace', email: `  ${email}  ` },
+    { case: 'surrounding whitespace and uppercased', email: `  ${email.toUpperCase()}  ` },
+  ];
+}
+
+function toMixedCase(value: string): string {
+  return [...value]
+    .map((char, index) => (index % 2 === 0 ? char.toUpperCase() : char.toLowerCase()))
+    .join('');
+}
+
+/**
+ * Builds variants of a password that differ from the original only by casing or
+ * surrounding whitespace. Passwords are exact-match secrets, so every variant
+ * must FAIL to authenticate. This is the deliberate counterpart to
+ * `denormalizedEmailVariants`: it guards against a password ever being trimmed
+ * or case-folded the way emails are.
+ */
+export function nonMatchingPasswordVariants(
+  password: string,
+): { case: string; password: string }[] {
+  return [
+    { case: 'uppercased', password: password.toUpperCase() },
+    { case: 'mixed case', password: toMixedCase(password) },
+    { case: 'leading whitespace', password: `   ${password}` },
+    { case: 'trailing whitespace', password: `${password}   ` },
+    { case: 'surrounding whitespace', password: `  ${password}  ` },
+  ];
+}
+
 export interface AuthTestContext {
   controller: AuthController;
   userRepository: IUserRepository;
