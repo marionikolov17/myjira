@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, describe, it, jest } from '@jest/globals';
+import { beforeAll, describe, it, jest } from '@jest/globals';
 import supertest from 'supertest';
 
 import { Application } from 'express';
@@ -10,15 +10,18 @@ import { ensureWorkspaceRolesSeeded } from '../../fixtures/workspace-roles.fixtu
 
 import {
   expectInternalServerError,
+  expectInvalidLoginCredentialsError,
   expectValidationError,
 } from '../../assertions/errors.assertions';
 
-import { createAuthTestContext, AuthTestContext, testUsers } from './auth.controller.fixtures';
 import {
-  expectInvalidLoginCredentialsError,
-  expectSuccessfulLogin,
-  expectTokenPayload,
-} from './auth.controller.assertions';
+  createAuthTestContext,
+  AuthTestContext,
+  testUsers,
+  primaryTestUser,
+  TOKEN_EXPIRES_IN_SECONDS,
+} from './auth.controller.fixtures';
+import { expectSuccessfulLogin, expectTokenPayload } from './auth.controller.assertions';
 
 describe('Auth Controller', () => {
   let app: Application;
@@ -44,15 +47,23 @@ describe('Auth Controller', () => {
           const response = await login({ email: user.email, password: user.password });
 
           expectSuccessfulLogin(response);
-          await expectTokenPayload(ctx.tokenService.verifyToken(response.body.data.token), user);
+          await expectTokenPayload(
+            ctx.tokenService.verifyToken(response.body.data.token),
+            user,
+            TOKEN_EXPIRES_IN_SECONDS,
+          );
         },
       );
     });
 
     describe('on invalid credentials', () => {
       it.each([
-        { email: 'wrong-email@example.com', password: testUsers[0]?.password, case: 'wrong email' },
-        { email: testUsers[0]?.email, password: 'wrong-password', case: 'wrong password' },
+        {
+          email: 'wrong-email@example.com',
+          password: primaryTestUser.password,
+          case: 'wrong email',
+        },
+        { email: primaryTestUser.email, password: 'wrong-password', case: 'wrong password' },
         {
           email: 'wrong-email@example.com',
           password: 'wrong-password',
@@ -152,19 +163,35 @@ describe('Auth Controller', () => {
       });
     });
 
-    describe('on repository failure', () => {
-      afterEach(async () => {
-        jest.restoreAllMocks();
-      });
-
-      it('returns an internal server error when the user repository throws an unexpected error', async () => {
-        jest
-          .spyOn(ctx.userRepository, 'getUserByEmailWithPassword')
-          .mockRejectedValue(new Error('database unavailable'));
+    describe('on unexpected dependency failure', () => {
+      it.each([
+        {
+          case: 'the user repository throws',
+          arrange: () =>
+            jest
+              .spyOn(ctx.userRepository, 'getUserByEmailWithPassword')
+              .mockRejectedValue(new Error('database unavailable')),
+        },
+        {
+          case: 'the password hasher throws',
+          arrange: () =>
+            jest
+              .spyOn(ctx.passwordHasher, 'verifyPassword')
+              .mockRejectedValue(new Error('hash comparison failed')),
+        },
+        {
+          case: 'the token service throws',
+          arrange: () =>
+            jest.spyOn(ctx.tokenService, 'generateToken').mockImplementation(() => {
+              throw new Error('token signing failed');
+            }),
+        },
+      ])('returns an internal server error when $case', async ({ arrange }) => {
+        arrange();
 
         const response = await login({
-          email: testUsers[0]?.email,
-          password: testUsers[0]?.password,
+          email: primaryTestUser.email,
+          password: primaryTestUser.password,
         });
 
         expectInternalServerError(response);

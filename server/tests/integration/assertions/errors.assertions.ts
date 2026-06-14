@@ -54,3 +54,9 @@ export function expectValidationError(
     expect(fields).toHaveLength(expectedFields.length);
   }
 }
+
+export function expectInvalidLoginCredentialsError(response: supertest.Response): void {
+  expect(response.status).toBe(401);
+  expect(response.body.error?.code).toBe(ErrorCodes.INVALID_LOGIN_CREDENTIALS);
+  expect(response.body.error?.message).toBe('Invalid login credentials');
+}
