@@ -11,6 +11,7 @@ export function expectConflictError(response: supertest.Response): void {
 export function expectInternalServerError(response: supertest.Response): void {
   expect(response.status).toBe(500);
   expect(response.body.error?.code).toBe(ErrorCodes.INTERNAL_SERVER_ERROR);
+  expect(response.body.error?.message).toBe('Internal server error');
 }
 
 export function expectForbiddenError(response: supertest.Response): void {
