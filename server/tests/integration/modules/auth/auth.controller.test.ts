@@ -38,7 +38,7 @@ describe('Auth Controller', () => {
   });
 
   describe('POST /login', () => {
-    async function login(body: Record<string, unknown> | undefined | string | unknown[]) {
+    async function login(body: Record<string, unknown> | undefined | unknown[]) {
       return supertest(app).post('/login').send(body);
     }
 
