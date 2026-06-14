@@ -23,6 +23,7 @@ export default {
       ...baseProjectConfig,
       displayName: 'integration',
       testMatch: ['<rootDir>/tests/integration/**/*.test.ts'],
+      maxWorkers: 1,
     },
   ],
 };
