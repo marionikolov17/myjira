@@ -38,7 +38,7 @@ describe('Auth Controller', () => {
   });
 
   describe('POST /login', () => {
-    async function login(body: Record<string, unknown> | undefined | string) {
+    async function login(body: Record<string, unknown> | undefined | string | unknown[]) {
       return supertest(app).post('/login').send(body);
     }
 
@@ -174,7 +174,7 @@ describe('Auth Controller', () => {
         },
         {
           case: 'request body is not an object',
-          body: 'not-an-object',
+          body: [],
           expectedFields: ['email', 'password'],
         },
         {

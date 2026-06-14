@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response, Router } from 'express';
+import { isPlainObject } from '@/common/utils/is-plain-object';
 import { IAuthService } from './auth.interface';
 import { LoginParamsSchema } from './auth.schema';
 
@@ -16,7 +17,8 @@ export class AuthController {
 
   private async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const validatedParams = LoginParamsSchema.parse(req.body ?? {});
+      const body = isPlainObject(req.body) ? req.body : {};
+      const validatedParams = LoginParamsSchema.parse(body);
 
       const token = await this.authService.login(validatedParams);
 
