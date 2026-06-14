@@ -33,8 +33,24 @@ export function expectBusinessRuleViolationError(response: supertest.Response): 
   expect(response.body.error?.code).toBe(ErrorCodes.BUSINESS_RULE_VIOLATION);
 }
 
-export function expectValidationError(response: supertest.Response): void {
+export function expectValidationError(
+  response: supertest.Response,
+  expectedFields?: string[],
+): void {
   expect(response.status).toBe(400);
   expect(response.body.error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
-  expect(response.body.error?.details?.fields).toBeDefined();
+
+  const fields = response.body.error?.details?.fields;
+  expect(fields).toBeDefined();
+
+  for (const field of fields) {
+    expect(field).toEqual({ name: expect.any(String), message: expect.any(String) });
+  }
+
+  if (expectedFields) {
+    expect(fields).toEqual(
+      expect.arrayContaining(expectedFields.map((name) => ({ name, message: expect.any(String) }))),
+    );
+    expect(fields).toHaveLength(expectedFields.length);
+  }
 }

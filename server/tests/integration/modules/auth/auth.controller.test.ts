@@ -1,0 +1,174 @@
+import { afterEach, beforeAll, describe, it, jest } from '@jest/globals';
+import supertest from 'supertest';
+
+import { Application } from 'express';
+
+import { createTestApp } from '@/common/utils/create-test-app';
+
+import { createTestUsers } from '../../fixtures/users.fixtures';
+import { ensureWorkspaceRolesSeeded } from '../../fixtures/workspace-roles.fixtures';
+
+import {
+  expectInternalServerError,
+  expectValidationError,
+} from '../../assertions/errors.assertions';
+
+import { createAuthTestContext, AuthTestContext, testUsers } from './auth.controller.fixtures';
+import {
+  expectInvalidLoginCredentialsError,
+  expectSuccessfulLogin,
+  expectTokenPayload,
+} from './auth.controller.assertions';
+
+describe('Auth Controller', () => {
+  let app: Application;
+  let ctx: AuthTestContext;
+
+  beforeAll(async () => {
+    ctx = createAuthTestContext();
+    app = createTestApp(ctx.controller.router);
+
+    await ensureWorkspaceRolesSeeded();
+    await createTestUsers(testUsers);
+  });
+
+  describe('POST /login', () => {
+    async function login(body: Record<string, unknown> | undefined | string) {
+      return supertest(app).post('/login').send(body);
+    }
+
+    describe('on success', () => {
+      it.each(testUsers)(
+        `returns a token with user id, workspace role id, iat and exp in the payload when valid credentials are provided for user with workspace role $workspaceRoleName`,
+        async (user) => {
+          const response = await login({ email: user.email, password: user.password });
+
+          expectSuccessfulLogin(response);
+          await expectTokenPayload(ctx.tokenService.verifyToken(response.body.data.token), user);
+        },
+      );
+    });
+
+    describe('on invalid credentials', () => {
+      it.each([
+        { email: 'wrong-email@example.com', password: testUsers[0]?.password, case: 'wrong email' },
+        { email: testUsers[0]?.email, password: 'wrong-password', case: 'wrong password' },
+        {
+          email: 'wrong-email@example.com',
+          password: 'wrong-password',
+          case: 'wrong email and password',
+        },
+      ])(`returns an unauthorized error when $case`, async ({ email, password }) => {
+        const response = await login({ email, password });
+
+        expectInvalidLoginCredentialsError(response);
+      });
+    });
+
+    describe('on malformed request body', () => {
+      it.each([
+        {
+          case: 'email is undefined',
+          body: { email: undefined, password: 'test-password' },
+          expectedFields: ['email'],
+        },
+        {
+          case: 'email is omitted',
+          body: { password: 'test-password' },
+          expectedFields: ['email'],
+        },
+        {
+          case: 'email is not a valid email',
+          body: { email: 'not-an-email', password: 'test-password' },
+          expectedFields: ['email'],
+        },
+        {
+          case: 'email is empty',
+          body: { email: '', password: 'test-password' },
+          expectedFields: ['email'],
+        },
+        {
+          case: 'email is numeric',
+          body: { email: 123, password: 'test-password' },
+          expectedFields: ['email'],
+        },
+        {
+          case: 'email is boolean',
+          body: { email: true, password: 'test-password' },
+          expectedFields: ['email'],
+        },
+        {
+          case: 'password is undefined',
+          body: { email: 'test-email@example.com', password: undefined },
+          expectedFields: ['password'],
+        },
+        {
+          case: 'password is omitted',
+          body: { email: 'test-email@example.com' },
+          expectedFields: ['password'],
+        },
+        {
+          case: 'password is empty',
+          body: { email: 'test-email@example.com', password: '' },
+          expectedFields: ['password'],
+        },
+        {
+          case: 'password is numeric',
+          body: { email: 'test-email@example.com', password: 123 },
+          expectedFields: ['password'],
+        },
+        {
+          case: 'password is boolean',
+          body: { email: 'test-email@example.com', password: true },
+          expectedFields: ['password'],
+        },
+        {
+          case: 'email and password are empty',
+          body: { email: '', password: '' },
+          expectedFields: ['email', 'password'],
+        },
+        {
+          case: 'request body is undefined',
+          body: undefined,
+          expectedFields: ['email', 'password'],
+        },
+        {
+          case: 'request body is not an object',
+          body: 'not-an-object',
+          expectedFields: ['email', 'password'],
+        },
+        {
+          case: 'request body is an object with additional fields',
+          body: {
+            email: 'test-email@example.com',
+            password: 'test-password',
+            additionalField: 'additionalField',
+          },
+          expectedFields: ['additionalField'],
+        },
+      ])(`returns a validation error when $case`, async ({ body, expectedFields }) => {
+        const response = await login(body);
+        expectValidationError(response, expectedFields);
+      });
+    });
+
+    describe('on repository failure', () => {
+      afterEach(async () => {
+        jest.restoreAllMocks();
+      });
+
+      it('returns an internal server error when the user repository throws an unexpected error', async () => {
+        jest
+          .spyOn(ctx.userRepository, 'getUserByEmailWithPassword')
+          .mockRejectedValue(new Error('database unavailable'));
+
+        const response = await login({
+          email: testUsers[0]?.email,
+          password: testUsers[0]?.password,
+        });
+
+        expectInternalServerError(response);
+      });
+    });
+  });
+});

@@ -1,13 +1,4 @@
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  jest,
-} from '@jest/globals';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import supertest from 'supertest';
 
 import { Application } from 'express';
@@ -54,14 +45,6 @@ describe('Workspace Controller', () => {
     app = createTestApp(ctx.controller.router);
 
     await ensureWorkspaceRolesSeeded();
-  });
-
-  afterAll(async () => {
-    jest.restoreAllMocks();
-
-    await prisma.user.deleteMany();
-    await deleteAllWorkspaceRoles();
-    await prisma.$disconnect();
   });
 
   describe('POST /bootstrap', () => {

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-export const LoginParamsSchema = z.object({
-  email: z.string().email().min(1),
+export const LoginParamsSchema = z.strictObject({
+  email: z.email(),
   password: z.string().min(1),
 });
 

@@ -16,7 +16,7 @@ export class AuthController {
 
   private async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const validatedParams = LoginParamsSchema.parse(req.body);
+      const validatedParams = LoginParamsSchema.parse(req.body ?? {});
 
       const token = await this.authService.login(validatedParams);
 
