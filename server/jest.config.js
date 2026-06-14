@@ -13,6 +13,9 @@ const baseProjectConfig = {
 
 /** @type {import("jest").Config} **/
 export default {
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+  },
   projects: [
     {
       ...baseProjectConfig,
@@ -23,6 +26,7 @@ export default {
       ...baseProjectConfig,
       displayName: 'integration',
       testMatch: ['<rootDir>/tests/integration/**/*.test.ts'],
+      setupFilesAfterEnv: ['<rootDir>/tests/integration/setup-after-env.ts'],
       maxWorkers: 1,
     },
   ],
