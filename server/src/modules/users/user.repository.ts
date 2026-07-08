@@ -79,6 +79,25 @@ export class UserRepository implements IUserRepository {
     }
   }
 
+  public async getUserByEmailWithPassword(
+    email: string,
+  ): Promise<(User & { password: string }) | null> {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { email },
+        select: {
+          ...this.select,
+          password: true,
+        },
+      });
+
+      return user ? { ...UserSchema.parse(user), password: user.password } : null;
+    } catch (error) {
+      this.logError(error);
+      throw mapPrismaError(error);
+    }
+  }
+
   private logError(error: unknown): void {
     if (error instanceof Error) {
       this.logger.error(error.message, { cause: error.cause, stack: error.stack });

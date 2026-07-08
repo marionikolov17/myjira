@@ -2,5 +2,6 @@
   "jest.nodeEnv": {
     "NODE_OPTIONS": "--experimental-vm-modules"
   },
-  "jest.rootPath": "server"
+  "jest.rootPath": "server",
+  "jest.jestCommandLine": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand"
 }

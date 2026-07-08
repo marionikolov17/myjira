@@ -11,5 +11,302 @@
       "description": "Current server"
     }
   ],
-  "paths": {}
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "operationId": "login",
+        "summary": "Authenticate a user and issue a JWT",
+        "description": "Authenticates a user with their email and password. On success, returns a signed JWT whose payload contains the authenticated user's id and workspace role id, along with the standard `iat` and `exp` claims.\n\nThe email is normalized before lookup (surrounding whitespace is trimmed and the value is lowercased), so denormalized variants of a registered address still authenticate. Passwords are treated as exact-match secrets: they are neither trimmed nor case-folded, so any difference in casing or whitespace fails authentication.",
+        "tags": ["Auth"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              },
+              "examples": {
+                "validCredentials": {
+                  "summary": "Valid credentials",
+                  "value": {
+                    "email": "user@example.com",
+                    "password": "super-secret-password"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication succeeded. Returns the signed JWT.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                },
+                "examples": {
+                  "success": {
+                    "summary": "Issued token",
+                    "value": {
+                      "data": {
+                        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbHUwMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJ3b3Jrc3BhY2VSb2xlSWQiOiJjbHIwMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJpYXQiOjE3MDAwMDAwMDAsImV4cCI6MTcwMDAwMzYwMH0.dummy-signature"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body failed validation. `details.fields` lists each offending field. This is returned when `email` or `password` is missing, empty, of the wrong type, when `email` is not a valid email address, or when the body contains unrecognized fields (the request body is validated with a strict schema).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                },
+                "examples": {
+                  "missingFields": {
+                    "summary": "Email and password missing",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "status": 400,
+                        "message": "Validation error",
+                        "details": {
+                          "fields": [
+                            {
+                              "name": "email",
+                              "message": "Invalid input: expected string, received undefined"
+                            },
+                            {
+                              "name": "password",
+                              "message": "Invalid input: expected string, received undefined"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "invalidEmail": {
+                    "summary": "Email is not a valid address",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "status": 400,
+                        "message": "Validation error",
+                        "details": {
+                          "fields": [{ "name": "email", "message": "Invalid email address" }]
+                        }
+                      }
+                    }
+                  },
+                  "unrecognizedField": {
+                    "summary": "Body contains an additional field",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "status": 400,
+                        "message": "Validation error",
+                        "details": {
+                          "fields": [
+                            {
+                              "name": "additionalField",
+                              "message": "Unrecognized key: \"additionalField\""
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The email/password combination did not match a registered user. The same response is returned whether the email is unknown or the password is wrong, so as not to reveal which credential was incorrect.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidLoginCredentialsErrorResponse"
+                },
+                "examples": {
+                  "invalidCredentials": {
+                    "summary": "Wrong email or password",
+                    "value": {
+                      "error": {
+                        "code": "INVALID_LOGIN_CREDENTIALS",
+                        "status": 401,
+                        "message": "Invalid login credentials"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request (for example, a downstream dependency such as the database, password hasher, or token service failed).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                },
+                "examples": {
+                  "internalServerError": {
+                    "summary": "Unexpected failure",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "status": 500,
+                        "message": "Internal server error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "LoginRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["email", "password"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "The user's email address. Leading/trailing whitespace is trimmed and the value is lowercased before the user is looked up.",
+            "example": "user@example.com"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The user's password. Matched exactly; it is not trimmed or case-folded.",
+            "example": "super-secret-password"
+          }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["token"],
+            "properties": {
+              "token": {
+                "type": "string",
+                "description": "A signed JWT. Its payload contains `userId`, `workspaceRoleId`, and the standard `iat` and `exp` claims. The token expires 3600 seconds (1 hour) after issuance."
+              }
+            }
+          }
+        }
+      },
+      "ErrorField": {
+        "type": "object",
+        "required": ["name", "message"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the field that failed validation."
+          },
+          "message": {
+            "type": "string",
+            "description": "A human-readable explanation of why the field is invalid."
+          }
+        }
+      },
+      "ValidationErrorResponse": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "status", "message", "details"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": ["VALIDATION_ERROR"]
+              },
+              "status": {
+                "type": "integer",
+                "enum": [400]
+              },
+              "message": {
+                "type": "string",
+                "example": "Validation error"
+              },
+              "details": {
+                "type": "object",
+                "required": ["fields"],
+                "properties": {
+                  "fields": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/ErrorField"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "InvalidLoginCredentialsErrorResponse": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "status", "message"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": ["INVALID_LOGIN_CREDENTIALS"]
+              },
+              "status": {
+                "type": "integer",
+                "enum": [401]
+              },
+              "message": {
+                "type": "string",
+                "enum": ["Invalid login credentials"]
+              }
+            }
+          }
+        }
+      },
+      "InternalServerErrorResponse": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "status", "message"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": ["INTERNAL_SERVER_ERROR"]
+              },
+              "status": {
+                "type": "integer",
+                "enum": [500]
+              },
+              "message": {
+                "type": "string",
+                "enum": ["Internal server error"]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }

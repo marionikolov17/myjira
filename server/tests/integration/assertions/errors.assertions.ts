@@ -11,6 +11,7 @@ export function expectConflictError(response: supertest.Response): void {
 export function expectInternalServerError(response: supertest.Response): void {
   expect(response.status).toBe(500);
   expect(response.body.error?.code).toBe(ErrorCodes.INTERNAL_SERVER_ERROR);
+  expect(response.body.error?.message).toBe('Internal server error');
 }
 
 export function expectForbiddenError(response: supertest.Response): void {
@@ -33,8 +34,30 @@ export function expectBusinessRuleViolationError(response: supertest.Response): 
   expect(response.body.error?.code).toBe(ErrorCodes.BUSINESS_RULE_VIOLATION);
 }
 
-export function expectValidationError(response: supertest.Response): void {
+export function expectValidationError(
+  response: supertest.Response,
+  expectedFields?: string[],
+): void {
   expect(response.status).toBe(400);
   expect(response.body.error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
-  expect(response.body.error?.details?.fields).toBeDefined();
+
+  const fields = response.body.error?.details?.fields;
+  expect(fields).toBeDefined();
+
+  for (const field of fields) {
+    expect(field).toEqual({ name: expect.any(String), message: expect.any(String) });
+  }
+
+  if (expectedFields) {
+    expect(fields).toEqual(
+      expect.arrayContaining(expectedFields.map((name) => ({ name, message: expect.any(String) }))),
+    );
+    expect(fields).toHaveLength(expectedFields.length);
+  }
+}
+
+export function expectInvalidLoginCredentialsError(response: supertest.Response): void {
+  expect(response.status).toBe(401);
+  expect(response.body.error?.code).toBe(ErrorCodes.INVALID_LOGIN_CREDENTIALS);
+  expect(response.body.error?.message).toBe('Invalid login credentials');
 }
