@@ -170,9 +170,94 @@
           }
         }
       }
+    },
+    "/users/me": {
+      "get": {
+        "operationId": "getCurrentUser",
+        "summary": "Get the authenticated caller's actor context",
+        "description": "Returns the actor context for the authenticated caller. The actor context is derived from the Bearer token: the token's `userId`, the caller's workspace role (id and name), and one entry per project membership with the project role (id and name).\n\nThe global authentication middleware runs passively on every request and populates the actor context when a valid Bearer token is present. This route is then guarded so that requests without an actor context are rejected with `401 AUTHENTICATION_REQUIRED`. Any missing, invalid, expired, or malformed token (or a non-`Bearer` scheme) results in the same `401` response.",
+        "tags": ["Users"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "The authenticated caller's actor context.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActorContextResponse"
+                },
+                "examples": {
+                  "ownerWithProject": {
+                    "summary": "Owner who is a member of one project",
+                    "value": {
+                      "data": {
+                        "userId": "3f1e4c2a-1b2c-4d3e-8f90-1a2b3c4d5e6f",
+                        "workspaceRole": {
+                          "id": "7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c0d",
+                          "name": "Owner"
+                        },
+                        "projectRoles": [
+                          {
+                            "projectId": "b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e",
+                            "projectRoleId": "c2d3e4f5-a6b7-4c8d-9e0f-1a2b3c4d5e6f",
+                            "projectRoleName": "ProjectOwner"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "developerWithoutProjects": {
+                    "summary": "Developer with no project memberships",
+                    "value": {
+                      "data": {
+                        "userId": "9e0f1a2b-3c4d-4e5f-8a6b-7c8d9e0f1a2b",
+                        "workspaceRole": {
+                          "id": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+                          "name": "Developer"
+                        },
+                        "projectRoles": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token, so no actor context could be established. This is returned when the `Authorization` header is missing, uses a non-`Bearer` scheme, or the token is invalid, expired, or malformed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                },
+                "examples": {
+                  "authenticationRequired": {
+                    "summary": "No valid token provided",
+                    "value": {
+                      "error": {
+                        "code": "AUTHENTICATION_REQUIRED",
+                        "status": 401,
+                        "message": "Authentication required"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "A signed JWT issued by `POST /auth/login`, supplied as `Authorization: Bearer <token>`."
+      }
+    },
     "schemas": {
       "LoginRequest": {
         "type": "object",
@@ -254,6 +339,97 @@
                     }
                   }
                 }
+              }
+            }
+          }
+        }
+      },
+      "ActorWorkspaceRole": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The identifier of the caller's workspace role."
+          },
+          "name": {
+            "type": "string",
+            "enum": ["Owner", "Admin", "Developer"],
+            "description": "The name of the caller's workspace role."
+          }
+        }
+      },
+      "ActorProjectRole": {
+        "type": "object",
+        "required": ["projectId", "projectRoleId", "projectRoleName"],
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The identifier of the project the caller is a member of."
+          },
+          "projectRoleId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The identifier of the caller's role within the project."
+          },
+          "projectRoleName": {
+            "type": "string",
+            "enum": ["ProjectOwner", "ProjectAdmin", "Developer"],
+            "description": "The name of the caller's role within the project."
+          }
+        }
+      },
+      "ActorContext": {
+        "type": "object",
+        "required": ["userId", "workspaceRole", "projectRoles"],
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The identifier of the authenticated user."
+          },
+          "workspaceRole": {
+            "$ref": "#/components/schemas/ActorWorkspaceRole"
+          },
+          "projectRoles": {
+            "type": "array",
+            "description": "One entry per project the caller is a member of. Empty when the caller has no project memberships.",
+            "items": {
+              "$ref": "#/components/schemas/ActorProjectRole"
+            }
+          }
+        }
+      },
+      "ActorContextResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ActorContext"
+          }
+        }
+      },
+      "AuthenticationErrorResponse": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "status", "message"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": ["AUTHENTICATION_REQUIRED"]
+              },
+              "status": {
+                "type": "integer",
+                "enum": [401]
+              },
+              "message": {
+                "type": "string",
+                "enum": ["Authentication required"]
               }
             }
           }

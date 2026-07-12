@@ -61,3 +61,9 @@ export function expectInvalidLoginCredentialsError(response: supertest.Response)
   expect(response.body.error?.code).toBe(ErrorCodes.INVALID_LOGIN_CREDENTIALS);
   expect(response.body.error?.message).toBe('Invalid login credentials');
 }
+
+export function expectAuthenticationRequired(response: supertest.Response): void {
+  expect(response.status).toBe(401);
+  expect(response.body.error?.code).toBe(ErrorCodes.AUTHENTICATION_REQUIRED);
+  expect(response.body.error?.message).toBe('Authentication required');
+}

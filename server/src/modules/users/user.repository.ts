@@ -98,6 +98,20 @@ export class UserRepository implements IUserRepository {
     }
   }
 
+  public async getUserById(userId: string): Promise<User | null> {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: this.select,
+      });
+
+      return user ? UserSchema.parse(user) : null;
+    } catch (error) {
+      this.logError(error);
+      throw mapPrismaError(error);
+    }
+  }
+
   private logError(error: unknown): void {
     if (error instanceof Error) {
       this.logger.error(error.message, { cause: error.cause, stack: error.stack });

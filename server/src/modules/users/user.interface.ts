@@ -11,4 +11,5 @@ export interface IUserRepository extends IRepository {
   bulkCreateUsers(params: BulkCreateUsersParams): Promise<User[]>;
   hasUsersForWorkspaceRoleIds(params: HasUsersForWorkspaceRoleIdsParams): Promise<boolean>;
   getUserByEmailWithPassword(email: string): Promise<(User & { password: string }) | null>;
+  getUserById(userId: string): Promise<User | null>;
 }

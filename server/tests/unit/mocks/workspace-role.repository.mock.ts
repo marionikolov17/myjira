@@ -5,5 +5,6 @@ export function createMockWorkspaceRoleRepository(): jest.Mocked<IWorkspaceRoleR
   return {
     resourceName: 'workspace-roles',
     getWorkspaceRoles: jest.fn(),
+    getWorkspaceRoleById: jest.fn(),
   };
 }

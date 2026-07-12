@@ -3,4 +3,5 @@ import { WorkspaceRole } from './workspace-role.schema';
 
 export interface IWorkspaceRoleRepository extends IRepository {
   getWorkspaceRoles(): Promise<WorkspaceRole[]>;
+  getWorkspaceRoleById(id: string): Promise<WorkspaceRole | null>;
 }
