@@ -7,6 +7,9 @@ import { prisma } from '@/common/lib/prisma';
 //   3. Individual test cases may mutate that data.
 //   4. The database is wiped again in `afterAll` so the next file starts clean.
 async function resetDatabase() {
+  await prisma.projectMember.deleteMany();
+  await prisma.project.deleteMany();
+  await prisma.projectRole.deleteMany();
   await prisma.user.deleteMany();
   await prisma.workspaceRole.deleteMany();
 }
