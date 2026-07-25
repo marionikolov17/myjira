@@ -1,0 +1,94 @@
+---
+description: Conventions for writing backend unit tests (Jest + ESM) in server/tests/unit
+globs: server/tests/unit/**/*.ts
+alwaysApply: false
+---
+
+# Backend Unit Test Pattern
+
+Follow these conventions when generating or editing unit tests. Match the existing style exactly; do not introduce new frameworks, helpers, or structures.
+
+## File Layout & Naming
+
+- Unit tests live in `server/tests/unit/` and MIRROR the `src/` tree: `modules/<name>/`, `common/<area>/`.
+- Test file: `<subject>.test.ts` (e.g. `auth.service.test.ts`, `map-prisma-error.test.ts`).
+- Co-locate a `<subject>.mock.ts` next to the test for subject-specific fixtures, constants, and local mock factories.
+- Reusable dependency mocks live in `server/tests/unit/mocks/` as `create<Dependency>()` factories.
+
+## Imports (grouped, blank line between groups)
+
+1. `@jest/globals` + libraries — ALWAYS import globals explicitly: `import { beforeEach, describe, expect, it, jest } from '@jest/globals';`
+2. `@/` source imports (interfaces first, then concrete class/function).
+3. Relative imports for shared mocks (`../../mocks/*`) then co-located `./*.mock`.
+
+## Dependency Mocks
+
+- Every collaborator is mocked via a factory returning `jest.Mocked<IInterface>` with each method as `jest.fn()`:
+
+```typescript
+export function createMockUserRepository(): jest.Mocked<IUserRepository> {
+  return {
+    resourceName: "users",
+    createUser: jest.fn(),
+    getUserById: jest.fn(),
+  };
+}
+```
+
+- Mock against the INTERFACE (`IUserRepository`), never the concrete class.
+- For ESM module mocking use `jest.unstable_mockModule('winston', () => ...)` BEFORE dynamic `await import(...)` of the subject.
+
+## Structure
+
+- Top-level `describe` = subject name: class → `'AuthService'`; middleware/function → human phrase `'authentication middleware'`, `'mapPrismaError'`.
+- Nested `describe` per method under test (`describe('login', () => ...)`).
+- `beforeEach` resets first: `jest.restoreAllMocks(); jest.clearAllMocks();`.
+- Declare typed mocks and the subject with `let`, typed to the INTERFACE:
+
+```typescript
+let mockUserRepository: jest.Mocked<IUserRepository>;
+let authService: IAuthService;
+
+beforeEach(() => {
+  mockUserRepository = createMockUserRepository();
+  mockUserRepository.getUserByEmailWithPassword.mockResolvedValue(
+    mockUserWithPassword,
+  ); // happy-path default
+  authService = new AuthService(
+    mockUserRepository,
+    mockTokenService,
+    mockPasswordHasher,
+    mockLogger,
+  );
+});
+```
+
+- Set happy-path return values in `beforeEach`; override per-test for edge/error cases.
+
+## Test Cases
+
+- Name every test `it('should ...')`, describing ONE observable behavior per test.
+- Use `it.each` with `{ case, ... }` objects and `$case` interpolation for variations:
+
+```typescript
+it.each([
+  { case: "null", value: null },
+  { case: "an empty array", value: [] },
+])("should return false when given $case", ({ value }) => {
+  expect(isPlainObject(value)).toBe(false);
+});
+```
+
+- For each method, cover: the returned value, correct args passed to collaborators, each failure branch, side effects (e.g. logging), negative assertions (`not.toHaveBeenCalled()`), and error propagation from each dependency.
+
+## Assertions
+
+- `toBe` for primitives/identity, `toEqual` for objects/arrays.
+- Async errors: `await expect(promise).rejects.toThrow(SomeError);`.
+- Errors by type: `expect(result).toBeInstanceOf(ConflictError)`.
+- Interactions: `toHaveBeenCalledWith(...)`, `toHaveBeenCalledTimes(n)`, `expect(mock).not.toHaveBeenCalled()`.
+
+## Fixtures
+
+- Export `mock`-prefixed fixtures (`mockUser`, `mockWorkspaceRoles`) and `UPPER_SNAKE_CASE` constants (`VALID_EMAIL`, `USER_ID`).
+- Type fixtures to domain types (`User`, `WorkspaceRole[]`); use fixed dates (`new Date('2026-03-21')`) for determinism.

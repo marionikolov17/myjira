@@ -1,6 +1,8 @@
 ## 12-07-2026
 
-**Status:** Unresolved
+**Status:** Resolved <br />
+**Package:** Server <br />
+**Resolved at:** 25-07-2026
 
 - Unit test cases naming is not consistent with the codebase
 - Does not use project config when running unit tests
