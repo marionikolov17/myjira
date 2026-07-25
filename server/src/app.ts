@@ -1,5 +1,6 @@
 import express from 'express';
 import swaggerUi from 'swagger-ui-express';
+import { rateLimit, MINUTE } from 'express-rate-limit';
 import { errorMiddleware, loggerRequestMiddleware } from '@/common/middlewares';
 import { workspaceController } from '@/modules/workspace';
 import { authController, authenticationMiddleware } from '@/modules/auth';
@@ -9,6 +10,13 @@ import openapiSpec from '../docs/openapi.json';
 const app = express();
 
 app.use(express.json());
+app.use(
+  rateLimit({
+    windowMs: MINUTE * 1,
+    max: 100,
+    message: 'Too many requests, please try again later.',
+  }),
+);
 
 app.use(loggerRequestMiddleware);
 
