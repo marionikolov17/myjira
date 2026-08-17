@@ -138,6 +138,11 @@ describe('Auth Controller', () => {
           expectedFields: ['email'],
         },
         {
+          case: 'email is null',
+          body: { email: null, password: 'test-password' },
+          expectedFields: ['email'],
+        },
+        {
           case: 'password is undefined',
           body: { email: 'test-email@example.com', password: undefined },
           expectedFields: ['password'],
@@ -160,6 +165,11 @@ describe('Auth Controller', () => {
         {
           case: 'password is boolean',
           body: { email: 'test-email@example.com', password: true },
+          expectedFields: ['password'],
+        },
+        {
+          case: 'password is null',
+          body: { email: 'test-email@example.com', password: null },
           expectedFields: ['password'],
         },
         {
