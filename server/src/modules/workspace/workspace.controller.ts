@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { isPlainObject } from '@/common/utils/is-plain-object';
 import { IWorkspaceService } from './workspace.interface';
 import { BootstrapWorkspaceUsersSchema } from './workspace.schema';
 
@@ -20,7 +21,8 @@ export class WorkspaceController {
     next: NextFunction,
   ): Promise<void> {
     try {
-      const { bootstrapToken } = BootstrapWorkspaceUsersSchema.parse(req.body);
+      const body = isPlainObject(req.body) ? req.body : {};
+      const { bootstrapToken } = BootstrapWorkspaceUsersSchema.parse(body);
 
       const users = await this.workspaceService.bootstrapWorkspaceUsers({ bootstrapToken });
 

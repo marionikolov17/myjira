@@ -48,10 +48,8 @@ describe('Workspace Controller', () => {
   });
 
   describe('POST /bootstrap', () => {
-    function bootstrapWorkspaceUsers(body: unknown) {
-      return supertest(app)
-        .post('/bootstrap')
-        .send(body as object);
+    function bootstrapWorkspaceUsers(body: Record<string, unknown> | undefined | unknown[]) {
+      return supertest(app).post('/bootstrap').send(body);
     }
 
     function validBootstrap() {
@@ -107,27 +105,46 @@ describe('Workspace Controller', () => {
 
     describe('on malformed request body', () => {
       it.each([
-        { case: 'bootstrap token is undefined', body: { bootstrapToken: undefined } },
-        { case: 'bootstrap token is omitted', body: {} },
-        { case: 'request body is undefined', body: undefined },
-        { case: 'bootstrap token is numeric', body: { bootstrapToken: 123 } },
-        { case: 'bootstrap token is boolean', body: { bootstrapToken: true } },
-        { case: 'bootstrap token is null', body: { bootstrapToken: null } },
-        { case: 'bootstrap token is empty', body: { bootstrapToken: '' } },
-      ])(`returns a validation error when $case`, async ({ body }) => {
+        {
+          case: 'bootstrap token is undefined',
+          body: { bootstrapToken: undefined },
+          expectedFields: ['bootstrapToken'],
+        },
+        { case: 'bootstrap token is omitted', body: {}, expectedFields: ['bootstrapToken'] },
+        {
+          case: 'bootstrap token is numeric',
+          body: { bootstrapToken: 123 },
+          expectedFields: ['bootstrapToken'],
+        },
+        {
+          case: 'bootstrap token is boolean',
+          body: { bootstrapToken: true },
+          expectedFields: ['bootstrapToken'],
+        },
+        {
+          case: 'bootstrap token is null',
+          body: { bootstrapToken: null },
+          expectedFields: ['bootstrapToken'],
+        },
+        {
+          case: 'bootstrap token is empty',
+          body: { bootstrapToken: '' },
+          expectedFields: ['bootstrapToken'],
+        },
+        { case: 'request body is undefined', body: undefined, expectedFields: ['bootstrapToken'] },
+        { case: 'request body is not an object', body: [], expectedFields: ['bootstrapToken'] },
+        {
+          case: 'request body is an object with additional fields',
+          body: {
+            bootstrapToken: 'token',
+            additionalField: 'additionalField',
+          },
+          expectedFields: ['additionalField'],
+        },
+      ])(`returns a validation error when $case`, async ({ body, expectedFields }) => {
         const response = await bootstrapWorkspaceUsers(body);
 
-        expectValidationError(response);
-        await expectNoUsersInDatabase();
-      });
-
-      it('returns a validation error when valid bootstrap token but additional fields are present', async () => {
-        const response = await bootstrapWorkspaceUsers({
-          bootstrapToken: ctx.bootstrapToken,
-          additionalField: 'additionalField',
-        });
-
-        expectValidationError(response);
+        expectValidationError(response, expectedFields);
         await expectNoUsersInDatabase();
       });
     });
