@@ -1,0 +1,73 @@
+---
+description: Conventions for writing backend integration tests (Jest + Supertest + real Prisma) in server/tests/integration
+globs: server/tests/integration/**/*.ts
+alwaysApply: false
+---
+
+# Backend Integration Test Pattern
+
+Follow these conventions when generating or editing integration tests. Match the existing style exactly; do not introduce new frameworks, helpers, or structures. Integration tests exercise a real Express pipeline against a real Prisma/Postgres test DB via Supertest — collaborators are NOT mocked (that is the unit tests' job). The only thing you `jest.spyOn` is a wired-in dependency, and only to inject failures.
+
+## File Layout & Naming
+
+- Integration tests live in `server/tests/integration/` and MIRROR `src/modules/<name>/`.
+- Each subject gets THREE co-located files:
+  - `<name>.controller.test.ts` — the spec (the only `*.test.ts`).
+  - `<name>.controller.fixtures.ts` — the test-context factory, test users, and subject-specific data builders.
+  - `<name>.controller.assertions.ts` — subject-specific assertion helpers (response/DB shape checks).
+- Shared, cross-module helpers live in dedicated folders:
+  - `tests/integration/fixtures/` — DB seeding + shared fixtures (`users.fixtures.ts`, `workspace-roles.fixtures.ts`, `project-members.fixtures.ts`, `logger.fixtures.ts`).
+  - `tests/integration/assertions/errors.assertions.ts` — the canonical error-response assertions. ALWAYS reuse these; never re-assert status/code inline.
+
+## Test Lifecycle & Database (do not re-implement)
+
+- `tests/setup.ts` (global `setupFiles`) loads `.env.test`. `tests/integration/setup-after-env.ts` (`setupFilesAfterEnv`) resets the DB in `beforeAll`, `jest.restoreAllMocks()` in `afterEach`, and resets + `prisma.$disconnect()` in `afterAll`. The integration project runs with `maxWorkers: 1`.
+- Because the DB is wiped between files, each file OWNS its data: seed everything it needs in its own `beforeAll`, and rely on the global reset for teardown.
+- Seed shared reference data with the provided idempotent helpers, not raw Prisma: `ensureWorkspaceRolesSeeded()`, `ensureProjectRolesSeeded()`, `createTestUsers(testUsers)`.
+- For tests that MUTATE seeded rows, reset the affected table with a local `beforeEach`/`afterEach` (e.g. `await prisma.user.deleteMany()`), and restore reference data you deleted (e.g. `afterEach(() => ensureWorkspaceRolesSeeded())`).
+
+## Imports (grouped, blank line between groups)
+
+1. `@jest/globals` + libraries — import globals explicitly, plus `supertest` and the `Application` type: `import { beforeAll, describe, expect, it, jest } from '@jest/globals';`
+2. `@/` source imports (app utils, `prisma`, real repositories/services/controllers, domain types).
+3. Shared relative helpers: `../../fixtures/*` then `../../assertions/errors.assertions`.
+4. Co-located `./<name>.controller.fixtures` then `./<name>.controller.assertions`.
+
+## Test Context Factory (in `*.fixtures.ts`)
+
+- Export a `<Subject>TestContext` interface and a `create<Subject>TestContext()` factory that wires REAL Prisma-backed collaborators (`new UserRepository(prisma, silentLogger)`, real `JsonwebtokenTokenService`/`BcryptPasswordHasher`, real service + controller). Use `silentLogger` for every logger.
+- Expose on the context the SAME instances injected into the controller/app (repositories, token service, password hasher) so tests can `jest.spyOn` them to inject failures. Document this with the `NB!` comment convention already used.
+- Expose either `controller` (build the app in the spec via `createTestApp(ctx.controller.router)`) or a fully-built `app` when the test needs the real middleware pipeline (e.g. authentication). Mirror production middleware order when building `app` manually.
+- Put subject-specific request-data builders here too (e.g. `denormalizedEmailVariants`, `createExpiredToken`, `createTokenWithWrongSecret`), returning `{ case, ... }` arrays for `it.each`.
+
+## Structure
+
+- Top-level `describe` = `'<Subject> Controller'`.
+- `beforeAll`: build `ctx = create<Subject>TestContext()`, build `app`, then seed (`ensureWorkspaceRolesSeeded()`, `ensureProjectRolesSeeded()`, `createTestUsers(...)`) in dependency order.
+- Declare `app` and `ctx` (and any derived ids/actors) with `let` at the top of the `describe`.
+- Nested `describe` per route, named by method + path: `describe('POST /login', ...)`, `describe('GET /me', ...)`.
+- Inside each route `describe`, define small local request helpers that centralize the Supertest call (e.g. `login(body)`, `bootstrapWorkspaceUsers(body)`, `getMe(header)`, `bearer(token)`). Never spread raw `supertest(app)...` chains across cases.
+- Nested `describe` per scenario using the established phrasing: `'on success'`, `'on invalid credentials'`, `'on malformed request body'`, `'on missing workspace roles'`, `'on repository failure'` / `'on unexpected dependency failure'`, `'on unauthenticated request'`.
+
+## Test Cases
+
+- Name tests as an assertion of observable behavior (`it('creates the workspace users when a valid bootstrap token is provided', ...)`); the leading `should` is optional but the sentence must describe ONE HTTP-observable outcome.
+- Use `it.each` with `{ case, ... }` objects and `$case` interpolation for input matrices. Standard matrices to cover for a mutating, validated, authenticated endpoint:
+  - success paths (often `it.each(testUsers)` across every role),
+  - malformed body: each field `undefined` / omitted / wrong-type / empty / `null`, whole body `undefined` / non-object, and an extra-field case → assert the exact `expectedFields`,
+  - auth failures (missing / malformed / wrong-secret / expired token, principal no longer exists),
+  - dependency failures via `{ case, arrange }` objects whose `arrange` sets up the spy.
+- For failure injection use `jest.spyOn(ctx.<dependency>, '<method>')` with `.mockRejectedValue(new Error(...))`, `.mockResolvedValue(null)`, or `.mockImplementation(() => { throw ... })`. Rely on the global `afterEach` `restoreAllMocks`; only add a local `afterEach(() => jest.restoreAllMocks())` when a describe block needs it explicitly.
+
+## Assertions
+
+- Drive requests through Supertest and assert on the `response`. Never assert raw status codes for errors inline — call the shared helpers: `expectValidationError(response, expectedFields)`, `expectInternalServerError`, `expectForbiddenError`, `expectResourceNotFoundError(response, repository.resourceName)`, `expectBusinessRuleViolationError`, `expectAuthenticationRequired`, `expectInvalidLoginCredentialsError`, `expectConflictError`.
+- Success responses are shaped `{ data: ... }`; error responses `{ error: { code, message, details } }`. Assert success shape via subject-specific helpers in `*.assertions.ts`.
+- For endpoints with side effects, ALSO assert persisted state through Prisma after the call (`expectUsersInDatabase(testUsers)`, `expectNoUsersInDatabase()`), including negative cases (a rejected request must NOT mutate the DB).
+- Put reusable shape/DB checks in `*.assertions.ts` as `expect...`-named functions taking `supertest.Response` (import `expect` from `@jest/globals`); keep raw `expect` chains out of the spec where a helper fits.
+- `toBe` for primitives/identity, `toEqual` for objects/arrays; `expect.arrayContaining` / `expect.any(String)` for partial matches.
+
+## Shared Fixtures
+
+- Derive per-role `testUsers` from `Object.values(WorkspaceRoleName)` with a role-slugged, file-unique email prefix (e.g. `auth-test-<role>@…`, `users-me-<role>@…`) so parallel files never collide.
+- Type users to `TestUser` (from `../../fixtures/users.fixtures`); seed them with `createTestUsers`. Use fixed secrets/ids and real hashing via `passwordHasher` — no randomness.
