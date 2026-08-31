@@ -7,12 +7,14 @@ export class AuthorizationGuard implements IAuthorizationGuard {
   constructor(private readonly matrix: AuthorizationMatrix) {}
 
   public authorize(input: AuthorizeInput): void {
-    if (input.scope === AuthorizationScope.Workspace) {
-      this.authorizeWorkspace(input);
-      return;
+    switch (input.scope) {
+      case AuthorizationScope.Workspace:
+        return this.authorizeWorkspace(input);
+      case AuthorizationScope.Project:
+        return this.authorizeProject(input);
+      default:
+        throw new AuthorizationError();
     }
-
-    this.authorizeProject(input);
   }
 
   private authorizeWorkspace(

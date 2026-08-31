@@ -4,6 +4,7 @@ import { AuthorizationError } from '@/common/errors';
 import { IAuthorizationGuard } from '@/common/authorization';
 import { AuthorizationGuard } from '@/common/authorization';
 import { AuthorizationScope } from '@/common/authorization';
+import { AuthorizeInput } from '@/common/authorization';
 import { WorkspaceRoleName } from '@/modules/workspace-roles';
 import { ProjectRoleName } from '@/modules/project-members';
 
@@ -152,6 +153,20 @@ describe('AuthorizationGuard', () => {
             action: 'updateProjectRole',
             resource: PROJECT_ID,
           }),
+        ).toThrow(AuthorizationError);
+      });
+    });
+
+    describe('unknown scope', () => {
+      it('should deny an authorization scope that is not recognized', () => {
+        const actor = buildMockActor({ workspaceRoleName: WorkspaceRoleName.OWNER });
+
+        expect(() =>
+          authorizationGuard.authorize({
+            actor,
+            scope: 'unknown',
+            action: 'createUser',
+          } as unknown as AuthorizeInput),
         ).toThrow(AuthorizationError);
       });
     });
