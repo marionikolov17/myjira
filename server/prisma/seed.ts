@@ -1,7 +1,7 @@
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from './generated/prisma/client';
-import { ProjectRoleName, WorkspaceRoleName } from './generated/prisma/enums';
+import { PrismaClient } from '../src/generated/prisma/client';
+import { ProjectRoleName, WorkspaceRoleName } from '../src/generated/prisma/enums';
 
 const WORKSPACE_ROLES: WorkspaceRoleName[] = [
   WorkspaceRoleName.Owner,
