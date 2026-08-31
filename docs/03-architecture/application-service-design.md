@@ -114,6 +114,7 @@ Handles workspace business logic such as users and roles management.
 
   **Business Rules:**
   - Cannot update workspace role to be Workspace Owner
+  - A Workspace Admin cannot modify the role of a user who is a Workspace Owner
 
   **Transactions:**
 
@@ -385,7 +386,7 @@ Handles issue subtasks.
   | description           | string             | The description of the subtask       |
   | status                | enum (optional)    | The status of the subtask (TO-DO)    |
   | priority              | enum               | The priority of the subtask          |
-  | project_id            | UUID               | The id of the subtask project        |
+  | issue_id              | UUID               | The id of the parent issue           |
   | assignee_id           | UUID (optional)    | The assignee of the subtask          |
 
   > creator_id is derived from actor.user_id
