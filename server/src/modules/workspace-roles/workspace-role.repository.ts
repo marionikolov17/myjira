@@ -1,4 +1,4 @@
-import type { PrismaClient } from '../../../prisma/generated/prisma/client';
+import type { PrismaClient } from '@/generated/prisma/client';
 import { ILogger, logger } from '@/common/logger';
 import { prisma } from '@/common/lib/prisma';
 import { mapPrismaError } from '@/common/utils/map-prisma-error';

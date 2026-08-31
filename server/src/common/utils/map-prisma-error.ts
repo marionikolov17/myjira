@@ -1,4 +1,4 @@
-import { Prisma } from '../../../prisma/generated/prisma/client';
+import { Prisma } from '@/generated/prisma/client';
 import { AppError } from '../errors/app-error';
 import { ConflictError } from '../errors/conflict-error';
 import { BusinessRuleViolationError } from '../errors/business-rule-violation-error';

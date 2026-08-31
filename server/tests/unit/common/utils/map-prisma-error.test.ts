@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { Prisma } from '../../../../prisma/generated/prisma/client';
+import { Prisma } from '@/generated/prisma/client';
 import { mapPrismaError } from '@/common/utils/map-prisma-error';
 import { BusinessRuleViolationError, ConflictError, ResourceNotFoundError } from '@/common/errors';
 
