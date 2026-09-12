@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const BootstrapWorkspaceUsersSchema = z.strictObject({
+export const BootstrapWorkspaceUsersParamsSchema = z.strictObject({
   bootstrapToken: z.string().min(1),
 });
-export type BootstrapWorkspaceUsersParams = z.infer<typeof BootstrapWorkspaceUsersSchema>;
+export type BootstrapWorkspaceUsersParams = z.infer<typeof BootstrapWorkspaceUsersParamsSchema>;
