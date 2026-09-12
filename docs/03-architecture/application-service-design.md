@@ -44,16 +44,17 @@ AuthorizationGuard.authorize({
 
 Allowed roles are defined declaratively in AuthorizationMatrix.
 
-### 3.1 WorkspaceService
+### 3.1 UserService
 
 **Purpose:**
 
-Handles workspace business logic such as users and roles management.
+Handles user lifecycle within the workspace such as user creation, role assignment and user retrieval.
 
 **Dependencies:**
 
 - UserRepository
-- RoleRepository
+- WorkspaceRoleRepository
+- PasswordHasher
 - AuthorizationGuard
 
 **Methods:**
@@ -120,7 +121,109 @@ Handles workspace business logic such as users and roles management.
 
   - `Update` user record
 
-### 3.2 ProjectService
+- ##getMe()
+
+  **Purpose:**
+
+  Returns the currently authenticated user's information.
+
+  **Input Parameters:**
+
+  None. The user is derived from actor.user_id.
+
+  **Authorization Rules:**
+
+  - Any authenticated user
+
+  **Transactions:**
+
+  - None (read-only)
+
+- ##getUsers()
+
+  **Purpose:**
+
+  Lists workspace users.
+
+  **Input Parameters:**
+
+  Supports pagination, filtering and sorting query parameters.
+
+  **Authorization Rules:**
+
+  - Any authenticated workspace user
+
+  **Transactions:**
+
+  - None (read-only)
+
+- ##getUserById()
+
+  **Purpose:**
+
+  Fetches a single user by id.
+
+  **Input Parameters:**
+
+  | Field                 | Type               | Description                          |
+  | --------------------- | ------------------ | ------------------------------------ |
+  | user_id               | UUID               | The id of the user                   |
+
+  **Authorization Rules:**
+
+  - Any authenticated workspace user
+
+  **Business Rules:**
+  - The id must be of a valid user
+
+  **Transactions:**
+
+  - None (read-only)
+
+### 3.2 WorkspaceService
+
+**Purpose:**
+
+Handles workspace lifecycle operations such as initial workspace bootstrapping.
+
+**Dependencies:**
+
+- UserRepository
+- WorkspaceRoleRepository
+- WorkspaceUsersConfig
+- Logger
+
+**Methods:**
+
+- ##bootstrapWorkspaceUsers()
+
+  **Purpose:**
+
+  Creates the initial set of workspace users from configuration. This is a one-time operation used to initialize an empty workspace.
+
+  **Input Parameters:**
+
+  | Field                 | Type               | Description                          |
+  | --------------------- | ------------------ | ------------------------------------ |
+  | bootstrap_token       | string             | Shared secret authorizing bootstrap  |
+
+  **Authorization Rules:**
+
+  - Not role-based. Authorized via a shared bootstrap token; no authenticated actor is required.
+
+  **Business Rules:**
+  - The bootstrap token must match the configured token
+  - All required workspace roles must exist in the database
+  - The workspace must not already be bootstrapped (no users may exist for the workspace roles)
+
+  **Transactions:**
+
+  - Bulk `Insert` of user records
+
+  **Other:**
+  - Passwords are derived from configuration in the service and not provided by clients
+
+### 3.3 ProjectService
 
 **Purpose:**
 
@@ -262,7 +365,7 @@ Handles projects management.
 
   - `Update` project record
 
-### 3.3 IssueService
+### 3.4 IssueService
 
 **Purpose:**
 
@@ -351,7 +454,7 @@ Handles project issues.
 
   - `Update` issue record
 
-### 3.4 SubtaskService
+### 3.5 SubtaskService
 
 **Purpose:**
 

@@ -1,5 +1,6 @@
 import { prisma } from '@/common/lib/prisma';
 import { passwordHasher } from '@/common/password-hasher';
+import { UserStatus } from '@/generated/prisma/enums';
 import { WorkspaceRoleName } from '@/modules/workspace-roles';
 
 export interface TestUser {
@@ -32,6 +33,7 @@ async function mapTestUserToCreateUserParams(testUser: TestUser) {
     email: testUser.email,
     name: testUser.name,
     password: await passwordHasher.hashPassword(testUser.password),
+    status: UserStatus.Active,
     workspaceRoleId: workspaceRole.id,
   };
 }

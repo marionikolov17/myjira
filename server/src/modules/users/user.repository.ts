@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@/generated/prisma/client';
+import { UserStatus } from '@/generated/prisma/enums';
 import { ILogger, logger } from '@/common/logger';
 import { prisma } from '@/common/lib/prisma';
 import { mapPrismaError } from '@/common/utils/map-prisma-error';
@@ -7,7 +8,7 @@ import {
   CreateUserParams,
   HasUsersForWorkspaceRoleIdsParams,
 } from './user.types';
-import { User, UserSchema } from './user.schema';
+import { CreatedUser, CreatedUserSchema, User, UserSchema } from './user.schema';
 import { IUserRepository } from './user.interface';
 
 export class UserRepository implements IUserRepository {
@@ -20,25 +21,32 @@ export class UserRepository implements IUserRepository {
     createdAt: true,
     updatedAt: true,
   } as const;
+  private readonly createdUserSelect = {
+    ...this.select,
+    status: true,
+  } as const;
 
   constructor(
     private readonly prisma: PrismaClient,
     private readonly logger: ILogger,
   ) {}
 
-  public async createUser(params: CreateUserParams): Promise<User> {
+  public async createUser(params: CreateUserParams): Promise<CreatedUser> {
     try {
       const user = await this.prisma.user.create({
         data: {
           name: params.name,
           email: params.email,
-          password: params.hashedPassword,
+          password: null,
+          status: UserStatus.Pending,
+          activationTokenHash: params.activationTokenHash,
+          activationTokenExpiresAt: params.activationTokenExpiresAt,
           workspaceRoleId: params.workspaceRoleId,
         },
-        select: this.select,
+        select: this.createdUserSelect,
       });
 
-      return UserSchema.parse(user);
+      return CreatedUserSchema.parse(user);
     } catch (error) {
       this.logError(error);
       throw mapPrismaError(error);
@@ -52,6 +60,7 @@ export class UserRepository implements IUserRepository {
           name: user.name,
           email: user.email,
           password: user.hashedPassword,
+          status: UserStatus.Active,
           workspaceRoleId: user.workspaceRoleId,
         })),
         select: this.select,
@@ -81,17 +90,20 @@ export class UserRepository implements IUserRepository {
 
   public async getUserByEmailWithPassword(
     email: string,
-  ): Promise<(User & { password: string }) | null> {
+  ): Promise<(User & { password: string | null; status: UserStatus }) | null> {
     try {
       const user = await this.prisma.user.findUnique({
         where: { email },
         select: {
           ...this.select,
           password: true,
+          status: true,
         },
       });
 
-      return user ? { ...UserSchema.parse(user), password: user.password } : null;
+      return user
+        ? { ...UserSchema.parse(user), password: user.password, status: user.status }
+        : null;
     } catch (error) {
       this.logError(error);
       throw mapPrismaError(error);

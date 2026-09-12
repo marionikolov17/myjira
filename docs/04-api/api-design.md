@@ -61,7 +61,26 @@ Error categories:
 
 ## Workspace Level
 
-### 4.1 Users
+### 4.1 Workspace
+
+- `POST` /workspace/bootstrap
+
+  Creates the initial workspace users from configuration. One-time operation authorized by a shared bootstrap token in the request body (not JWT).
+
+  **Responses:**
+
+  - 201 Created -> success
+  - 400 -> validation error
+  - 403 -> forbidden
+  - 404 -> resource not found
+  - 422 -> business rules violation
+  - 500 -> internal server failure
+
+  **Idempotency:**
+
+  - Rejected with 422 if the workspace is already bootstrapped
+
+### 4.2 Users
 
 - `POST` /users
 
@@ -90,6 +109,15 @@ Error categories:
   - 404 -> resource not found
   - 422 -> business rules violation
   - 500 -> internal server failure
+- `GET` /users/me
+
+  Returns the currently authenticated user.
+
+  **Responses:**
+
+  - 200 -> success
+  - 401 -> authentication required
+  - 500 -> internal server failure
 - `GET` /users
 
   **Responses:**
@@ -108,7 +136,7 @@ Error categories:
   - 404 -> resource not found
   - 500 -> internal server failure
 
-### 4.2 Projects
+### 4.3 Projects
 
 - `POST` /projects
 
@@ -175,7 +203,7 @@ Error categories:
 
 ## Project Level
 
-### 4.3 Project Members
+### 4.4 Project Members
 
 - `POST` /projects/{projectId}/members
 
@@ -224,7 +252,7 @@ Error categories:
   - 404 -> resource not found
   - 500 -> internal server failure
 
-### 4.4 Issues
+### 4.5 Issues
 
 - `POST` /projects/{projectId}/issues
 
@@ -282,7 +310,7 @@ Error categories:
 
 ## Issue Level
 
-### 4.5 Subtasks
+### 4.6 Subtasks
 
 - `POST` /issues/{issueId}/subtasks
 

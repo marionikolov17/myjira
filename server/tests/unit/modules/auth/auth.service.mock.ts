@@ -1,4 +1,5 @@
 import { User } from '@/modules/users';
+import { UserStatus } from '@/generated/prisma/enums';
 
 export const VALID_EMAIL = 'test@test.com';
 export const WRONG_EMAIL = 'wrong@test.com';
@@ -7,10 +8,11 @@ export const WRONG_PASSWORD = 'wrong-password';
 export const HASHED_PASSWORD = 'hashed-password';
 export const GENERATED_TOKEN = 'token';
 
-export const mockUserWithPassword: User & { password: string } = {
+export const mockUserWithPassword: User & { password: string | null; status: UserStatus } = {
   id: '1',
   email: VALID_EMAIL,
   password: HASHED_PASSWORD,
+  status: UserStatus.Active,
   workspaceRoleId: '1',
   name: 'test',
   createdAt: new Date('2026-03-21'),

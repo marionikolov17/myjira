@@ -42,6 +42,13 @@ enum IssuePriority {
   @@map("issue_priority")
 }
 
+enum UserStatus {
+  Pending
+  Active
+
+  @@map("user_status")
+}
+
 model WorkspaceRole {
   id        String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name      WorkspaceRoleName
@@ -54,11 +61,14 @@ model WorkspaceRole {
 }
 
 model User {
-  id              String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name            String
-  email           String @unique
-  password        String
-  workspaceRoleId String @map("workspace_role_id") @db.Uuid
+  id                       String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                     String
+  email                    String     @unique
+  password                 String?
+  status                   UserStatus @default(Pending)
+  activationTokenHash      String?    @map("activation_token_hash")
+  activationTokenExpiresAt DateTime?  @map("activation_token_expires_at") @db.Timestamptz
+  workspaceRoleId          String     @map("workspace_role_id") @db.Uuid
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
@@ -72,6 +82,7 @@ model User {
   assignedSubtasks Subtask[]       @relation("SubtaskAssignee")
 
   @@index([workspaceRoleId])
+  @@index([activationTokenHash])
   @@map("users")
 }
 

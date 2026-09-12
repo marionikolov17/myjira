@@ -4,8 +4,10 @@ import { errorMiddleware, createAuthenticationMiddleware } from '@/common/middle
 import { prisma } from '@/common/lib/prisma';
 import { JsonwebtokenTokenService } from '@/common/token-service/jsonwebtoken-token-service';
 import { ITokenService } from '@/common/token-service/token-service.interface';
+import { authorizationGuard } from '@/common/authorization';
+import { CryptoActivationTokenService, IActivationTokenService } from '@/common/activation-token';
 
-import { IUserRepository, UserRepository } from '@/modules/users';
+import { IUserRepository, UserRepository, UserService } from '@/modules/users';
 import { IWorkspaceRoleRepository, WorkspaceRoleRepository } from '@/modules/workspace-roles';
 import { IProjectMemberRepository, ProjectMemberRepository } from '@/modules/project-members';
 import { UsersController } from '@/modules/users/user.controller';
@@ -18,6 +20,8 @@ import { TestUser } from '../../fixtures/users.fixtures';
 export const SECRET_KEY = 'users-test-secret-key';
 export const WRONG_SECRET_KEY = 'users-test-wrong-secret-key';
 export const TOKEN_EXPIRES_IN_SECONDS = 3600;
+export const ACTIVATION_URL_BASE = 'https://app.example.com/activate';
+export const ACTIVATION_TOKEN_TTL_SECONDS = 3600;
 
 export const testUsers: TestUser[] = Object.values(WorkspaceRoleName).map((roleName) => {
   const slug = roleName.toLowerCase();
@@ -35,6 +39,8 @@ export interface UsersTestContext {
   userRepository: IUserRepository;
   workspaceRoleRepository: IWorkspaceRoleRepository;
   projectMemberRepository: IProjectMemberRepository;
+  activationTokenService: IActivationTokenService;
+  activationUrlBase: string;
 }
 
 /**
@@ -45,9 +51,10 @@ export interface UsersTestContext {
  * The returned `tokenService` shares the same secret as the middleware, so it
  * can mint valid tokens for seeded users.
  *
- * NB! The exposed repositories are the same instances the authentication
- * middleware uses to build the actor context. Spy on them to inject failures
- * (e.g. a missing user, a missing workspace role, or a repository that throws).
+ * NB! The exposed repositories and the activation-token service are the same
+ * instances injected into the authentication middleware and the user service.
+ * Spy on them to inject failures (e.g. a missing user, a missing workspace role,
+ * a repository that throws, or a token service that throws during creation).
  */
 export function createUsersTestContext(): UsersTestContext {
   const userRepository = new UserRepository(prisma, silentLogger);
@@ -71,7 +78,20 @@ export function createUsersTestContext(): UsersTestContext {
     actorContextService,
   });
 
-  const usersController = new UsersController();
+  const activationTokenService = CryptoActivationTokenService.create({
+    ttlSeconds: ACTIVATION_TOKEN_TTL_SECONDS,
+  });
+
+  const userService = new UserService(
+    userRepository,
+    workspaceRoleRepository,
+    authorizationGuard,
+    activationTokenService,
+    silentLogger,
+    { activationUrlBase: ACTIVATION_URL_BASE },
+  );
+
+  const usersController = new UsersController(userService);
 
   const app = express();
   app.use(express.json());
@@ -85,6 +105,8 @@ export function createUsersTestContext(): UsersTestContext {
     userRepository,
     workspaceRoleRepository,
     projectMemberRepository,
+    activationTokenService,
+    activationUrlBase: ACTIVATION_URL_BASE,
   };
 }
 
@@ -99,6 +121,33 @@ export async function fetchPersistedUser(email: string): Promise<PersistedUser> 
     throw new Error(`Expected seeded user ${email} to exist`);
   }
   return { id: user.id, workspaceRoleId: user.workspaceRoleId };
+}
+
+/**
+ * Returns the full persisted user row (including sensitive columns) so tests can
+ * assert on the stored password, status, and activation-token hash.
+ */
+export async function fetchRawUserByEmail(email: string) {
+  return prisma.user.findUnique({ where: { email } });
+}
+
+export async function fetchWorkspaceRoleIdByName(name: WorkspaceRoleName): Promise<string> {
+  const role = await prisma.workspaceRole.findFirst({ where: { name } });
+  if (!role) {
+    throw new Error(`Expected workspace role ${name} to exist`);
+  }
+  return role.id;
+}
+
+/**
+ * Removes every user created during a test while preserving the three seeded
+ * actor users. Scopes cleanup to the rows a mutating route creates so tests do
+ * not rely on unique emails to stay isolated, and the seeded actors (and their
+ * project membership) survive between cases.
+ */
+export async function deleteNonSeededUsers(): Promise<void> {
+  const seededEmails = testUsers.map((user) => user.email);
+  await prisma.user.deleteMany({ where: { email: { notIn: seededEmails } } });
 }
 
 /**
