@@ -4,6 +4,7 @@ import { ILogger } from '@/common/logger/logger.interface';
 import { ITokenService } from '@/common/token-service/token-service.interface';
 import { IPasswordHasher } from '@/common/password-hasher/password-hasher.interface';
 import { InvalidLoginCredentialsError } from '@/common/errors';
+import { UserStatus } from '@/generated/prisma/enums';
 
 import { IAuthService } from '@/modules/auth/auth.interface';
 import { AuthService } from '@/modules/auth/auth.service';
@@ -128,6 +129,45 @@ describe('AuthService', () => {
         authService.login({ email: VALID_EMAIL, password: WRONG_PASSWORD }),
       ).rejects.toThrow(InvalidLoginCredentialsError);
 
+      expect(mockTokenService.generateToken).not.toHaveBeenCalled();
+    });
+
+    it('should throw an invalid login credentials error when the user is not active', async () => {
+      mockUserRepository.getUserByEmailWithPassword.mockResolvedValue({
+        ...mockUserWithPassword,
+        status: UserStatus.Pending,
+      });
+
+      await expect(
+        authService.login({ email: VALID_EMAIL, password: VALID_PASSWORD }),
+      ).rejects.toThrow(InvalidLoginCredentialsError);
+    });
+
+    it('should not verify the password or generate a token for a non-active user', async () => {
+      mockUserRepository.getUserByEmailWithPassword.mockResolvedValue({
+        ...mockUserWithPassword,
+        status: UserStatus.Pending,
+      });
+
+      await expect(
+        authService.login({ email: VALID_EMAIL, password: VALID_PASSWORD }),
+      ).rejects.toThrow(InvalidLoginCredentialsError);
+
+      expect(mockPasswordHasher.verifyPassword).not.toHaveBeenCalled();
+      expect(mockTokenService.generateToken).not.toHaveBeenCalled();
+    });
+
+    it('should throw an invalid login credentials error when the user has no password', async () => {
+      mockUserRepository.getUserByEmailWithPassword.mockResolvedValue({
+        ...mockUserWithPassword,
+        password: null,
+      });
+
+      await expect(
+        authService.login({ email: VALID_EMAIL, password: VALID_PASSWORD }),
+      ).rejects.toThrow(InvalidLoginCredentialsError);
+
+      expect(mockPasswordHasher.verifyPassword).not.toHaveBeenCalled();
       expect(mockTokenService.generateToken).not.toHaveBeenCalled();
     });
 

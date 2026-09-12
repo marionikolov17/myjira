@@ -74,7 +74,7 @@ async function fetchUsersFromDatabase() {
 }
 
 async function expectPasswordIsHashed(
-  storedPassword: string | undefined,
+  storedPassword: string | null | undefined,
   initialPassword: string,
 ): Promise<void> {
   expect(storedPassword).toBeDefined();

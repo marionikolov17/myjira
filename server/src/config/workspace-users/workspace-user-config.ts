@@ -1,6 +1,6 @@
 import { WorkspaceRole, WorkspaceRoleName } from '@/modules/workspace-roles';
 import { IPasswordHasher } from '@/common/password-hasher';
-import { CreateUserParams } from '@/modules/users';
+import { BulkCreateUserParams } from '@/modules/users';
 
 export class WorkspaceUserConfig {
   constructor(
@@ -11,7 +11,7 @@ export class WorkspaceUserConfig {
     private readonly passwordHasher: IPasswordHasher,
   ) {}
 
-  public async getRecord(workspaceRoles: WorkspaceRole[]): Promise<CreateUserParams> {
+  public async getRecord(workspaceRoles: WorkspaceRole[]): Promise<BulkCreateUserParams> {
     const workspaceRole = workspaceRoles.find((role) => role.name === this.workspaceRoleName);
 
     return {

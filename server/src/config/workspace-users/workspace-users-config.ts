@@ -1,17 +1,17 @@
 import { WorkspaceRole, WorkspaceRoleName } from '@/modules/workspace-roles';
 import { passwordHasher } from '@/common/password-hasher';
-import { CreateUserParams } from '@/modules/users';
+import { BulkCreateUserParams } from '@/modules/users';
 import { WorkspaceUserConfig } from './workspace-user-config';
 import { env } from '../env';
 
 export interface IWorkspaceUsersConfig {
-  getUsers(workspaceRoles: WorkspaceRole[]): Promise<CreateUserParams[]>;
+  getUsers(workspaceRoles: WorkspaceRole[]): Promise<BulkCreateUserParams[]>;
 }
 
 export class WorkspaceUsersConfig implements IWorkspaceUsersConfig {
   constructor(private readonly users: WorkspaceUserConfig[]) {}
 
-  public async getUsers(workspaceRoles: WorkspaceRole[]): Promise<CreateUserParams[]> {
+  public async getUsers(workspaceRoles: WorkspaceRole[]): Promise<BulkCreateUserParams[]> {
     return Promise.all(this.users.map((user) => user.getRecord(workspaceRoles)));
   }
 }

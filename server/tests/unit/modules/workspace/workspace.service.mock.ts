@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import { WorkspaceRole, WorkspaceRoleName } from '@/modules/workspace-roles';
-import { CreateUserParams, User } from '@/modules/users';
+import { BulkCreateUserParams, User } from '@/modules/users';
 import { IWorkspaceUsersConfig } from '@/config/workspace-users/workspace-users-config';
 import { BootstrapWorkspaceConfigParams } from '@/modules/workspace/workspace.types';
 
@@ -30,7 +30,7 @@ export const mockWorkspaceRoles: WorkspaceRole[] = [
 ];
 
 export const mockHashedPassword = 'hashedPassword';
-export const mockUsersConfig: CreateUserParams[] = [
+export const mockUsersConfig: BulkCreateUserParams[] = [
   {
     name: 'Admin',
     email: 'admin@example.com',
