@@ -11,7 +11,8 @@ import {
 } from '@/common/errors';
 import { ILogger } from '@/common/logger';
 import { IWorkspaceUsersConfig } from '@/config/workspace-users/workspace-users-config';
-import { BootstrapWorkspaceConfigParams, BootstrapWorkspaceUsersParams } from './workspace.types';
+import { BootstrapWorkspaceConfigParams } from './workspace.types';
+import { BootstrapWorkspaceUsersParams } from './workspace.schema';
 import { IWorkspaceService } from './workspace.interface';
 
 export class WorkspaceService implements IWorkspaceService {
