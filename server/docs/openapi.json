@@ -12,6 +12,238 @@
     }
   ],
   "paths": {
+    "/workspace/bootstrap": {
+      "post": {
+        "operationId": "bootstrapWorkspaceUsers",
+        "summary": "Bootstrap the workspace's initial users",
+        "description": "One-time provisioning endpoint that seeds the workspace's predefined set of users (one per workspace role). It is authorized by a shared bootstrap secret supplied in the request body rather than a Bearer token, so it can be called before any user exists.\n\nThe supplied `bootstrapToken` must exactly match the server-configured bootstrap secret (`BOOTSTRAP_TOKEN`); it is compared verbatim and is neither trimmed nor case-folded. Before any users are created, the operation also requires that every workspace role (`Owner`, `Admin`, `Developer`) has already been seeded, and that the workspace has not been bootstrapped before — it refuses to run if any user already exists for the workspace roles.\n\nOn success it creates all of the configured users in a single operation and returns them. Passwords are hashed at rest and are never included in the response.",
+        "tags": ["Workspace"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BootstrapWorkspaceUsersRequest"
+              },
+              "examples": {
+                "validToken": {
+                  "summary": "Valid bootstrap token",
+                  "value": {
+                    "bootstrapToken": "super-secret-bootstrap-token"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The workspace was bootstrapped. Returns the newly created users, one per workspace role, without their passwords.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BootstrapWorkspaceUsersResponse"
+                },
+                "examples": {
+                  "created": {
+                    "summary": "Created workspace users",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "3f1e4c2a-1b2c-4d3e-8f90-1a2b3c4d5e6f",
+                          "name": "test-owner",
+                          "email": "test-owner@example.com",
+                          "workspaceRoleId": "7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c0d",
+                          "createdAt": "2026-01-01T00:00:00.000Z",
+                          "updatedAt": "2026-01-01T00:00:00.000Z"
+                        },
+                        {
+                          "id": "9e0f1a2b-3c4d-4e5f-8a6b-7c8d9e0f1a2b",
+                          "name": "test-admin",
+                          "email": "test-admin@example.com",
+                          "workspaceRoleId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+                          "createdAt": "2026-01-01T00:00:00.000Z",
+                          "updatedAt": "2026-01-01T00:00:00.000Z"
+                        },
+                        {
+                          "id": "b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e",
+                          "name": "test-developer",
+                          "email": "test-developer@example.com",
+                          "workspaceRoleId": "c2d3e4f5-a6b7-4c8d-9e0f-1a2b3c4d5e6f",
+                          "createdAt": "2026-01-01T00:00:00.000Z",
+                          "updatedAt": "2026-01-01T00:00:00.000Z"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body failed validation. `details.fields` lists each offending field. This is returned when `bootstrapToken` is missing, empty, or of the wrong type, or when the body contains unrecognized fields (the request body is validated with a strict schema). A non-object body is treated as an empty object, so it fails with a missing `bootstrapToken`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                },
+                "examples": {
+                  "missingToken": {
+                    "summary": "Bootstrap token missing",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "status": 400,
+                        "message": "Validation error",
+                        "details": {
+                          "fields": [
+                            {
+                              "name": "bootstrapToken",
+                              "message": "Invalid input: expected string, received undefined"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "emptyToken": {
+                    "summary": "Bootstrap token is an empty string",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "status": 400,
+                        "message": "Validation error",
+                        "details": {
+                          "fields": [
+                            {
+                              "name": "bootstrapToken",
+                              "message": "Too small: expected string to have >=1 characters"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "unrecognizedField": {
+                    "summary": "Body contains an additional field",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "status": 400,
+                        "message": "Validation error",
+                        "details": {
+                          "fields": [
+                            {
+                              "name": "additionalField",
+                              "message": "Unrecognized key: \"additionalField\""
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The provided `bootstrapToken` did not match the server-configured bootstrap secret. No users are created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                },
+                "examples": {
+                  "invalidToken": {
+                    "summary": "Incorrect bootstrap token",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "status": 403,
+                        "message": "Forbidden"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "One or more of the required workspace roles (`Owner`, `Admin`, `Developer`) have not been seeded, so the workspace cannot be bootstrapped. `details.resource.resourceName` is `workspace_roles` and `details.resource.resourceId` is the name of the first missing role. No users are created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceNotFoundErrorResponse"
+                },
+                "examples": {
+                  "missingWorkspaceRole": {
+                    "summary": "A required workspace role is missing",
+                    "value": {
+                      "error": {
+                        "code": "RESOURCE_NOT_FOUND",
+                        "status": 404,
+                        "message": "workspace_roles not found",
+                        "details": {
+                          "resource": {
+                            "resourceName": "workspace_roles",
+                            "resourceId": "Owner"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The workspace has already been bootstrapped: at least one user already exists for the workspace roles. The existing users are left intact and no new users are created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse"
+                },
+                "examples": {
+                  "alreadyBootstrapped": {
+                    "summary": "Workspace already bootstrapped",
+                    "value": {
+                      "error": {
+                        "code": "BUSINESS_RULE_VIOLATION",
+                        "status": 422,
+                        "message": "Workspace is already bootstrapped"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request (for example, a downstream dependency such as the database failed).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                },
+                "examples": {
+                  "internalServerError": {
+                    "summary": "Unexpected failure",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "status": 500,
+                        "message": "Internal server error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/login": {
       "post": {
         "operationId": "login",
@@ -259,6 +491,162 @@
       }
     },
     "schemas": {
+      "BootstrapWorkspaceUsersRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["bootstrapToken"],
+        "properties": {
+          "bootstrapToken": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The shared bootstrap secret configured on the server (`BOOTSTRAP_TOKEN`). Compared verbatim against the configured value; it is neither trimmed nor case-folded.",
+            "example": "super-secret-bootstrap-token"
+          }
+        }
+      },
+      "WorkspaceUser": {
+        "type": "object",
+        "required": ["id", "name", "email", "workspaceRoleId", "createdAt", "updatedAt"],
+        "description": "A workspace user created by the bootstrap operation. The user's password is never exposed.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The identifier of the user."
+          },
+          "name": {
+            "type": "string",
+            "description": "The user's display name."
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "The user's email address."
+          },
+          "workspaceRoleId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The identifier of the workspace role assigned to the user."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the user was created."
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the user was last updated."
+          }
+        }
+      },
+      "BootstrapWorkspaceUsersResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "description": "The created workspace users, one per workspace role.",
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceUser"
+            }
+          }
+        }
+      },
+      "ForbiddenErrorResponse": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "status", "message"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": ["FORBIDDEN"]
+              },
+              "status": {
+                "type": "integer",
+                "enum": [403]
+              },
+              "message": {
+                "type": "string",
+                "enum": ["Forbidden"]
+              }
+            }
+          }
+        }
+      },
+      "ResourceNotFoundErrorResponse": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "status", "message", "details"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": ["RESOURCE_NOT_FOUND"]
+              },
+              "status": {
+                "type": "integer",
+                "enum": [404]
+              },
+              "message": {
+                "type": "string",
+                "example": "workspace_roles not found"
+              },
+              "details": {
+                "type": "object",
+                "required": ["resource"],
+                "properties": {
+                  "resource": {
+                    "type": "object",
+                    "required": ["resourceName"],
+                    "properties": {
+                      "resourceName": {
+                        "type": "string",
+                        "description": "The name of the resource that could not be found.",
+                        "example": "workspace_roles"
+                      },
+                      "resourceId": {
+                        "type": "string",
+                        "description": "The identifier of the specific resource that could not be found, when applicable.",
+                        "example": "Owner"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "BusinessRuleViolationErrorResponse": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "status", "message"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": ["BUSINESS_RULE_VIOLATION"]
+              },
+              "status": {
+                "type": "integer",
+                "enum": [422]
+              },
+              "message": {
+                "type": "string",
+                "example": "Workspace is already bootstrapped"
+              }
+            }
+          }
+        }
+      },
       "LoginRequest": {
         "type": "object",
         "additionalProperties": false,
