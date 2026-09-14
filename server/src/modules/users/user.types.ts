@@ -1,4 +1,4 @@
-import { CreatedUser } from './user.schema';
+import { User } from './user.schema';
 
 /* 
 ==============================
@@ -35,7 +35,7 @@ User Service Types
 */
 
 export interface CreateUserResult {
-  user: CreatedUser;
+  user: User;
   activation: ActivationLink;
 }
 

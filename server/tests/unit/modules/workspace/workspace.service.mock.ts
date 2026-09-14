@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+import { UserStatus } from '@/generated/prisma/enums';
 import { WorkspaceRole, WorkspaceRoleName } from '@/modules/workspace-roles';
 import { BulkCreateUserParams, User } from '@/modules/users';
 import { IWorkspaceUsersConfig } from '@/config/workspace-users/workspace-users-config';
@@ -57,6 +58,7 @@ export const mockUsersAfterBulkCreate: User[] = [
     name: 'Admin',
     email: 'admin@example.com',
     workspaceRoleId: ADMIN_ROLE_ID,
+    status: UserStatus.Active,
     createdAt: new Date('2026-03-21'),
     updatedAt: new Date('2026-03-21'),
   },
@@ -65,6 +67,7 @@ export const mockUsersAfterBulkCreate: User[] = [
     name: 'Owner',
     email: 'owner@example.com',
     workspaceRoleId: OWNER_ROLE_ID,
+    status: UserStatus.Active,
     createdAt: new Date('2026-03-21'),
     updatedAt: new Date('2026-03-21'),
   },
@@ -73,6 +76,7 @@ export const mockUsersAfterBulkCreate: User[] = [
     name: 'Developer',
     email: 'dev@example.com',
     workspaceRoleId: DEVELOPER_ROLE_ID,
+    status: UserStatus.Active,
     createdAt: new Date('2026-03-21'),
     updatedAt: new Date('2026-03-21'),
   },
