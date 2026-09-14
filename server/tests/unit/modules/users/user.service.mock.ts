@@ -1,8 +1,9 @@
 import { ActorContext } from '@/common/interfaces';
 import { ActivationToken } from '@/common/activation-token';
+import { UserStatus } from '@/generated/prisma/enums';
 import { WorkspaceRole, WorkspaceRoleName } from '@/modules/workspace-roles';
-import { CreatedUser } from '@/modules/users';
-import { CreateUserParams, UserServiceConfig } from '@/modules/users/user.types';
+import { CreateUserRequestParams, User } from '@/modules/users';
+import { UserServiceConfig } from '@/modules/users/user.types';
 
 export const OWNER_ROLE_ID = '11111111-1111-1111-1111-111111111111';
 export const DEVELOPER_ROLE_ID = '22222222-2222-2222-2222-222222222222';
@@ -26,7 +27,7 @@ export const ownerActor: ActorContext = {
   projectRoles: [],
 };
 
-export const validInput: CreateUserParams = {
+export const validInput: CreateUserRequestParams = {
   name: 'Ada Lovelace',
   email: 'ada@example.com',
   workspaceRoleId: DEVELOPER_ROLE_ID,
@@ -52,12 +53,12 @@ export const generatedActivationToken: ActivationToken = {
   expiresAt: EXPIRES_AT,
 };
 
-export const createdUser: CreatedUser = {
+export const createdUser: User = {
   id: CREATED_USER_ID,
   name: validInput.name,
   email: validInput.email,
   workspaceRoleId: DEVELOPER_ROLE_ID,
-  status: 'Pending',
+  status: UserStatus.Pending,
   createdAt: new Date('2026-01-15T00:00:00.000Z'),
   updatedAt: new Date('2026-01-15T00:00:00.000Z'),
 };

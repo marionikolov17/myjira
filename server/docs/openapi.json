@@ -55,6 +55,7 @@
                           "name": "test-owner",
                           "email": "test-owner@example.com",
                           "workspaceRoleId": "7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c0d",
+                          "status": "Active",
                           "createdAt": "2026-01-01T00:00:00.000Z",
                           "updatedAt": "2026-01-01T00:00:00.000Z"
                         },
@@ -63,6 +64,7 @@
                           "name": "test-admin",
                           "email": "test-admin@example.com",
                           "workspaceRoleId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+                          "status": "Active",
                           "createdAt": "2026-01-01T00:00:00.000Z",
                           "updatedAt": "2026-01-01T00:00:00.000Z"
                         },
@@ -71,6 +73,7 @@
                           "name": "test-developer",
                           "email": "test-developer@example.com",
                           "workspaceRoleId": "c2d3e4f5-a6b7-4c8d-9e0f-1a2b3c4d5e6f",
+                          "status": "Active",
                           "createdAt": "2026-01-01T00:00:00.000Z",
                           "updatedAt": "2026-01-01T00:00:00.000Z"
                         }
@@ -774,42 +777,6 @@
           }
         }
       },
-      "WorkspaceUser": {
-        "type": "object",
-        "required": ["id", "name", "email", "workspaceRoleId", "createdAt", "updatedAt"],
-        "description": "A workspace user created by the bootstrap operation. The user's password is never exposed.",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "The identifier of the user."
-          },
-          "name": {
-            "type": "string",
-            "description": "The user's display name."
-          },
-          "email": {
-            "type": "string",
-            "format": "email",
-            "description": "The user's email address."
-          },
-          "workspaceRoleId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "The identifier of the workspace role assigned to the user."
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When the user was created."
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When the user was last updated."
-          }
-        }
-      },
       "BootstrapWorkspaceUsersResponse": {
         "type": "object",
         "required": ["data"],
@@ -818,7 +785,7 @@
             "type": "array",
             "description": "The created workspace users, one per workspace role.",
             "items": {
-              "$ref": "#/components/schemas/WorkspaceUser"
+              "$ref": "#/components/schemas/User"
             }
           }
         }
@@ -978,10 +945,10 @@
           }
         }
       },
-      "CreatedUser": {
+      "User": {
         "type": "object",
         "required": ["id", "name", "email", "workspaceRoleId", "status", "createdAt", "updatedAt"],
-        "description": "A freshly created workspace user. The account has no password yet and is `Pending` until the invitee activates it; the password and activation-token material are never exposed.",
+        "description": "A workspace user. The password and activation-token material are never exposed.",
         "properties": {
           "id": {
             "type": "string",
@@ -1005,7 +972,7 @@
           "status": {
             "type": "string",
             "enum": ["Pending", "Active"],
-            "description": "The user's lifecycle status. A newly created user is always `Pending` until the activation link is used."
+            "description": "The user's lifecycle status. A newly created user is `Pending` until the activation link is used, then `Active`."
           },
           "createdAt": {
             "type": "string",
@@ -1046,7 +1013,7 @@
             "required": ["user", "activation"],
             "properties": {
               "user": {
-                "$ref": "#/components/schemas/CreatedUser"
+                "$ref": "#/components/schemas/User"
               },
               "activation": {
                 "$ref": "#/components/schemas/ActivationLink"

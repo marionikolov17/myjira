@@ -6,15 +6,11 @@ export const UserSchema = z.object({
   name: z.string(),
   email: z.email(),
   workspaceRoleId: z.uuid(),
+  status: z.enum(UserStatus),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
 export type User = z.infer<typeof UserSchema>;
-
-export const CreatedUserSchema = UserSchema.extend({
-  status: z.enum(UserStatus),
-});
-export type CreatedUser = z.infer<typeof CreatedUserSchema>;
 
 export const CreateUserRequestParamsSchema = z.strictObject({
   name: z.string().min(1),

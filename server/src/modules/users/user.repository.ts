@@ -8,7 +8,7 @@ import {
   CreateUserParams,
   HasUsersForWorkspaceRoleIdsParams,
 } from './user.types';
-import { CreatedUser, CreatedUserSchema, User, UserSchema } from './user.schema';
+import { User, UserSchema } from './user.schema';
 import { IUserRepository } from './user.interface';
 
 export class UserRepository implements IUserRepository {
@@ -18,12 +18,9 @@ export class UserRepository implements IUserRepository {
     name: true,
     email: true,
     workspaceRoleId: true,
+    status: true,
     createdAt: true,
     updatedAt: true,
-  } as const;
-  private readonly createdUserSelect = {
-    ...this.select,
-    status: true,
   } as const;
 
   constructor(
@@ -31,7 +28,7 @@ export class UserRepository implements IUserRepository {
     private readonly logger: ILogger,
   ) {}
 
-  public async createUser(params: CreateUserParams): Promise<CreatedUser> {
+  public async createUser(params: CreateUserParams): Promise<User> {
     try {
       const user = await this.prisma.user.create({
         data: {
@@ -43,10 +40,10 @@ export class UserRepository implements IUserRepository {
           activationTokenExpiresAt: params.activationTokenExpiresAt,
           workspaceRoleId: params.workspaceRoleId,
         },
-        select: this.createdUserSelect,
+        select: this.select,
       });
 
-      return CreatedUserSchema.parse(user);
+      return UserSchema.parse(user);
     } catch (error) {
       this.logError(error);
       throw mapPrismaError(error);
@@ -90,20 +87,17 @@ export class UserRepository implements IUserRepository {
 
   public async getUserByEmailWithPassword(
     email: string,
-  ): Promise<(User & { password: string | null; status: UserStatus }) | null> {
+  ): Promise<(User & { password: string | null }) | null> {
     try {
       const user = await this.prisma.user.findUnique({
         where: { email },
         select: {
           ...this.select,
           password: true,
-          status: true,
         },
       });
 
-      return user
-        ? { ...UserSchema.parse(user), password: user.password, status: user.status }
-        : null;
+      return user ? { ...UserSchema.parse(user), password: user.password } : null;
     } catch (error) {
       this.logError(error);
       throw mapPrismaError(error);

@@ -1,4 +1,5 @@
 import { TokenPayload } from '@/common/token-service';
+import { UserStatus } from '@/generated/prisma/enums';
 import { User } from '@/modules/users';
 import { WorkspaceRole, WorkspaceRoleName } from '@/modules/workspace-roles';
 import { ProjectMemberWithRole, ProjectRoleName } from '@/modules/project-members';
@@ -18,6 +19,7 @@ export const mockUser: User = {
   name: 'Actor User',
   email: 'actor@example.com',
   workspaceRoleId: WORKSPACE_ROLE_ID,
+  status: UserStatus.Active,
   createdAt: new Date('2026-03-21'),
   updatedAt: new Date('2026-03-21'),
 };
