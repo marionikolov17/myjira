@@ -9,6 +9,8 @@ import openapiSpec from '../docs/openapi.json';
 
 const app = express();
 
+app.set('query parser', 'extended');
+
 app.use(express.json());
 app.use(
   rateLimit({

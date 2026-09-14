@@ -3,9 +3,10 @@ import { ILogger } from '@/common/logger';
 import { BusinessRuleViolationError } from '@/common/errors';
 import { IActivationTokenService } from '@/common/activation-token';
 import { AuthorizationScope, IAuthorizationGuard } from '@/common/authorization';
+import { QueryOptions } from '@/common/query';
 import { IWorkspaceRoleRepository, WorkspaceRoleName } from '@/modules/workspace-roles';
 import { IUserRepository, IUserService } from './user.interface';
-import { CreateUserResult, UserServiceConfig } from './user.types';
+import { CreateUserResult, ListUsersResult, UserServiceConfig } from './user.types';
 import { CreateUserRequestParams } from './user.schema';
 
 export class UserService implements IUserService {
@@ -75,5 +76,15 @@ export class UserService implements IUserService {
     const url = new URL(this.config.activationUrlBase);
     url.searchParams.set('token', token);
     return url.toString();
+  }
+
+  public async listUsers(actor: ActorContext, options: QueryOptions): Promise<ListUsersResult> {
+    this.authorizationGuard.authorize({
+      actor,
+      scope: AuthorizationScope.Workspace,
+      action: 'listUsers',
+    });
+
+    return this.userRepository.findUsers(options);
   }
 }

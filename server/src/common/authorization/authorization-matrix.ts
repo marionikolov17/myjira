@@ -10,6 +10,7 @@ export interface AuthorizationMatrix {
 export const authorizationMatrix: AuthorizationMatrix = {
   [AuthorizationScope.Workspace]: {
     createUser: [WorkspaceRoleName.OWNER, WorkspaceRoleName.ADMIN],
+    listUsers: [WorkspaceRoleName.OWNER, WorkspaceRoleName.ADMIN, WorkspaceRoleName.DEVELOPER],
     updateUserRole: [WorkspaceRoleName.OWNER, WorkspaceRoleName.ADMIN],
     createProject: [WorkspaceRoleName.OWNER, WorkspaceRoleName.ADMIN],
   },

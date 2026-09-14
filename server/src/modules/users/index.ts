@@ -1,17 +1,20 @@
 import { logger } from '@/common/logger';
 import { authorizationGuard } from '@/common/authorization';
 import { activationTokenService } from '@/common/activation-token';
+import { queryParser } from '@/common/query';
 import { workspaceRoleRepository } from '@/modules/workspace-roles';
 import { env } from '@/config/env';
 import { UsersController } from './user.controller';
 import { UserService } from './user.service';
 import { userRepository } from './user.repository';
+import { usersQueryConfig } from './user.query-config';
 
 export * from './user.schema';
 export * from './user.interface';
 export * from './user.types';
 export * from './user.repository';
 export * from './user.service';
+export * from './user.query-config';
 
 const userService = new UserService(
   userRepository,
@@ -22,6 +25,6 @@ const userService = new UserService(
   { activationUrlBase: env.ACTIVATION_URL_BASE },
 );
 
-const usersController = new UsersController(userService);
+const usersController = new UsersController(userService, queryParser, usersQueryConfig);
 
 export { usersController, userService };
