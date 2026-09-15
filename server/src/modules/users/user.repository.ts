@@ -3,10 +3,12 @@ import { UserStatus } from '@/generated/prisma/enums';
 import { ILogger, logger } from '@/common/logger';
 import { prisma } from '@/common/lib/prisma';
 import { mapPrismaError } from '@/common/utils/map-prisma-error';
+import { QueryOptions, toPrismaFindArgs } from '@/common/query';
 import {
   BulkCreateUsersParams,
   CreateUserParams,
   HasUsersForWorkspaceRoleIdsParams,
+  ListUsersResult,
 } from './user.types';
 import { User, UserSchema } from './user.schema';
 import { IUserRepository } from './user.interface';
@@ -112,6 +114,29 @@ export class UserRepository implements IUserRepository {
       });
 
       return user ? UserSchema.parse(user) : null;
+    } catch (error) {
+      this.logError(error);
+      throw mapPrismaError(error);
+    }
+  }
+
+  public async findUsers(options: QueryOptions): Promise<ListUsersResult> {
+    const { skip, take, orderBy, where } = toPrismaFindArgs(options);
+    const stableOrderBy = [...orderBy, { id: 'asc' as const }];
+
+    try {
+      const [rows, totalItems] = await this.prisma.$transaction([
+        this.prisma.user.findMany({
+          skip,
+          take,
+          orderBy: stableOrderBy,
+          where,
+          select: this.select,
+        }),
+        this.prisma.user.count({ where }),
+      ]);
+
+      return { items: rows.map((u) => UserSchema.parse(u)), totalItems };
     } catch (error) {
       this.logError(error);
       throw mapPrismaError(error);

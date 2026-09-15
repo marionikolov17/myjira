@@ -5,12 +5,14 @@ import { prisma } from '@/common/lib/prisma';
 import { JsonwebtokenTokenService } from '@/common/token-service/jsonwebtoken-token-service';
 import { ITokenService } from '@/common/token-service/token-service.interface';
 import { authorizationGuard } from '@/common/authorization';
+import { queryParser } from '@/common/query';
 import { CryptoActivationTokenService, IActivationTokenService } from '@/common/activation-token';
 
 import { IUserRepository, UserRepository, UserService } from '@/modules/users';
 import { IWorkspaceRoleRepository, WorkspaceRoleRepository } from '@/modules/workspace-roles';
 import { IProjectMemberRepository, ProjectMemberRepository } from '@/modules/project-members';
 import { UsersController } from '@/modules/users/user.controller';
+import { usersQueryConfig } from '@/modules/users/user.query-config';
 import { ActorContextService } from '@/modules/auth/actor-context.service';
 import { WorkspaceRoleName } from '@/modules/workspace-roles';
 
@@ -91,9 +93,10 @@ export function createUsersTestContext(): UsersTestContext {
     { activationUrlBase: ACTIVATION_URL_BASE },
   );
 
-  const usersController = new UsersController(userService);
+  const usersController = new UsersController(userService, queryParser, usersQueryConfig);
 
   const app = express();
+  app.set('query parser', 'extended');
   app.use(express.json());
   app.use(authenticationMiddleware);
   app.use('/api/v1/users', usersController.router);

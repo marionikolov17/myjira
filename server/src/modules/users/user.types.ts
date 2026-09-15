@@ -47,3 +47,8 @@ export interface ActivationLink {
 export interface UserServiceConfig {
   activationUrlBase: string;
 }
+
+export interface ListUsersResult {
+  items: User[];
+  totalItems: number;
+}
