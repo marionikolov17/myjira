@@ -1,0 +1,67 @@
+---
+description: Return-shape convention for paginated repository list methods (Paginated<T> from @/common/query) in server/src/modules
+globs: server/src/modules/**/*.repository.ts,server/src/modules/**/*.interface.ts,server/src/modules/**/*.types.ts
+alwaysApply: false
+---
+
+# Repository Paginated List Convention
+
+Follow these rules for every repository "list" method. The goal is a single, atomic
+return shape whenever pagination/filtering/sorting is involved, and a bare array
+otherwise — so callers cannot pair a page from one moment with a count from another,
+and unpaginated getters stay ceremony-free.
+
+## The Shape
+
+- Repository methods that accept `QueryOptions` MUST return `Promise<Paginated<T>>`.
+- `Paginated<T>` is defined in `@/common/query` (`server/src/common/query/paginated.ts`) and re-exported from `@/common/query`:
+
+```ts
+export interface Paginated<T> {
+  items: T[];
+  totalItems: number;
+}
+```
+
+- `items` and `totalItems` MUST be produced from a single database read — use `prisma.$transaction([findMany, count])`. Never fetch them in separate awaits.
+- Repository methods whose collection is bounded and NOT parameterized by `QueryOptions` (e.g. `getWorkspaceRoles()`, `getProjectMembersByUserId(userId)`) MUST return `T[]` directly. Do not wrap them in `Paginated<T>`.
+
+## Naming
+
+- Repo method that runs a `QueryOptions`-driven query: `find<Plural>` (e.g. `findUsers`).
+- Service method that fronts it for a caller (adds authorization / actor scoping): `list<Plural>` (e.g. `listUsers`).
+- Module-local result type aliases are allowed for readability, but MUST alias `Paginated<T>` rather than re-declare its shape:
+
+```ts
+// modules/users/user.types.ts
+import { Paginated } from '@/common/query';
+import { User } from './user.schema';
+
+export type ListUsersResult = Paginated<User>;
+```
+
+## Layering
+
+- Repositories return `Paginated<T>`. They MUST NOT return `page`, `pageSize`, or `totalPages` — those are HTTP-layer concepts.
+- Controllers derive `PaginationMeta` at the edge with `buildPaginationMeta(page, pageSize, totalItems)` from `@/common/query` and emit `{ data: items, meta: { pagination } }`.
+- Services pass `Paginated<T>` through unchanged (or narrow `items` after authorization); they MUST NOT recompute `totalItems` from `items.length`.
+
+## Error Handling
+
+- Wrap the `$transaction` in `try/catch`, log via the repository's `logError`, and rethrow with `mapPrismaError(error)` — same as every other repository method. Do not catch inside the transaction callback.
+
+## Stable Ordering
+
+- When a caller-supplied `orderBy` is not guaranteed unique, append a tiebreaker on the primary key so pagination is deterministic across pages:
+
+```ts
+const stableOrderBy = [...orderBy, { id: 'asc' as const }];
+```
+
+## Reference Implementation
+
+See `server/src/modules/users/user.repository.ts` (`findUsers`) and `server/src/modules/users/user.controller.ts` (`listUsers`) for the canonical end-to-end wiring: repo returns `Paginated<User>`, service passes it through, controller builds `PaginationMeta` and shapes the HTTP response.
+
+## Future Shapes (Do Not Overload `Paginated<T>`)
+
+If a future endpoint needs cursor-based pagination or wants to skip `COUNT(*)` on hot paths, add a SEPARATE shape (e.g. `PaginatedCursor<T> = { items: T[]; nextCursor: string | null }`) rather than making `totalItems` optional on `Paginated<T>`. Keep each shape unambiguous.
