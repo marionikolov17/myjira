@@ -1,3 +1,4 @@
+import { Paginated } from '@/common/query';
 import { User } from './user.schema';
 
 /* 
@@ -48,7 +49,4 @@ export interface UserServiceConfig {
   activationUrlBase: string;
 }
 
-export interface ListUsersResult {
-  items: User[];
-  totalItems: number;
-}
+export type ListUsersResult = Paginated<User>;
