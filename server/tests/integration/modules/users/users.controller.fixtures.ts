@@ -116,14 +116,29 @@ export function createUsersTestContext(): UsersTestContext {
 export interface PersistedUser {
   id: string;
   workspaceRoleId: string;
+  workspaceRoleName: WorkspaceRoleName;
 }
 
 export async function fetchPersistedUser(email: string): Promise<PersistedUser> {
   const user = await prisma.user.findUnique({ where: { email } });
+
   if (!user) {
     throw new Error(`Expected seeded user ${email} to exist`);
   }
-  return { id: user.id, workspaceRoleId: user.workspaceRoleId };
+
+  const workspaceRole = await prisma.workspaceRole.findUnique({
+    where: { id: user.workspaceRoleId },
+  });
+
+  if (!workspaceRole) {
+    throw new Error(`Expected workspace role ${user.workspaceRoleId} to exist`);
+  }
+
+  return {
+    id: user.id,
+    workspaceRoleId: user.workspaceRoleId,
+    workspaceRoleName: workspaceRole.name as WorkspaceRoleName,
+  };
 }
 
 /**

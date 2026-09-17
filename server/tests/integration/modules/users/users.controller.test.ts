@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it, jest } from '@jest/globals';
+import { afterAll, beforeAll, describe, expect, it, jest } from '@jest/globals';
 import supertest from 'supertest';
 
 import { Application } from 'express';
@@ -36,10 +36,10 @@ import {
   createExpiredToken,
   createTokenWithWrongSecret,
   createUsersTestContext,
-  deleteNonSeededUsers,
   fetchPersistedUser,
   fetchRawUserByEmail,
   fetchWorkspaceRoleIdByName,
+  PersistedUser,
   testUsers,
   UsersTestContext,
 } from './users.controller.fixtures';
@@ -49,6 +49,41 @@ import {
   expectPendingUserPersisted,
   extractActivationToken,
 } from './users.controller.assertions';
+import { TestUser } from '../workspace/workspace.controller.fixtures';
+import { User } from '@/generated/prisma/client';
+
+function fetchPersistedUsers(testUsers: TestUser[]): Promise<PersistedUser[]> {
+  return Promise.all(
+    testUsers.map(async (testUser) => {
+      const user = await fetchPersistedUser(testUser.email);
+
+      if (!user) {
+        throw new Error(`Expected user ${testUser.email} to be persisted`);
+      }
+
+      return user;
+    }),
+  );
+}
+
+function parsePersistedUserIntoActorContext(
+  user: PersistedUser | undefined,
+  projectRoles: SeededProjectMembership[],
+): ActorContext {
+  if (!user) {
+    throw new Error('User is undefined');
+  }
+
+  return {
+    userId: user.id,
+    workspaceRole: { id: user.workspaceRoleId, name: user.workspaceRoleName },
+    projectRoles: projectRoles.map((projectRole) => ({
+      projectId: projectRole.projectId,
+      projectRoleId: projectRole.projectRoleId,
+      projectRoleName: projectRole.projectRoleName,
+    })),
+  };
+}
 
 describe('Users Controller', () => {
   let app: Application;
@@ -58,79 +93,16 @@ describe('Users Controller', () => {
   let adminActor: ActorContext;
   let developerActor: ActorContext;
 
-  let ownerUserId: string;
-  let ownerWorkspaceRoleId: string;
-
   beforeAll(async () => {
     ctx = createUsersTestContext();
     app = ctx.app;
 
     await ensureWorkspaceRolesSeeded();
     await ensureProjectRolesSeeded();
-    await createTestUsers(testUsers);
-
-    const [ownerUser, adminUser, developerUser] = testUsers;
-    if (!ownerUser || !adminUser || !developerUser) {
-      throw new Error('Expected three seeded users, one per workspace role');
-    }
-
-    const owner = await fetchPersistedUser(ownerUser.email);
-    const admin = await fetchPersistedUser(adminUser.email);
-    const developer = await fetchPersistedUser(developerUser.email);
-
-    ownerUserId = owner.id;
-    ownerWorkspaceRoleId = owner.workspaceRoleId;
-
-    const membership: SeededProjectMembership = await addUserToNewProject(
-      owner.id,
-      ProjectRoleName.PROJECT_OWNER,
-      'Users controller test project',
-    );
-
-    ownerActor = {
-      userId: owner.id,
-      workspaceRole: { id: owner.workspaceRoleId, name: ownerUser.workspaceRoleName },
-      projectRoles: [
-        {
-          projectId: membership.projectId,
-          projectRoleId: membership.projectRoleId,
-          projectRoleName: membership.projectRoleName,
-        },
-      ],
-    };
-
-    adminActor = {
-      userId: admin.id,
-      workspaceRole: { id: admin.workspaceRoleId, name: adminUser.workspaceRoleName },
-      projectRoles: [],
-    };
-
-    developerActor = {
-      userId: developer.id,
-      workspaceRole: { id: developer.workspaceRoleId, name: developerUser.workspaceRoleName },
-      projectRoles: [],
-    };
   });
-
-  function getMe(authorizationHeader?: string) {
-    const request = supertest(app).get('/api/v1/users/me');
-    if (authorizationHeader === undefined) {
-      return request;
-    }
-    return request.set('Authorization', authorizationHeader);
-  }
 
   function bearer(token: string): string {
     return `Bearer ${token}`;
-  }
-
-  function ownerBearerToken(): string {
-    return bearer(
-      ctx.tokenService.generateToken({
-        userId: ownerActor.userId,
-        workspaceRoleId: ownerActor.workspaceRole.id,
-      }),
-    );
   }
 
   function tokenFor(actor: ActorContext): string {
@@ -143,47 +115,58 @@ describe('Users Controller', () => {
   }
 
   describe('GET /me', () => {
+    beforeAll(async () => {
+      await createTestUsers(testUsers);
+      const [owner, admin, developer] = await fetchPersistedUsers(testUsers);
+
+      const membership: SeededProjectMembership = await addUserToNewProject(
+        owner?.id ?? '',
+        ProjectRoleName.PROJECT_OWNER,
+        'Users controller test project',
+      );
+
+      ownerActor = parsePersistedUserIntoActorContext(owner, [membership]);
+      adminActor = parsePersistedUserIntoActorContext(admin, []);
+      developerActor = parsePersistedUserIntoActorContext(developer, []);
+    });
+
+    afterAll(async () => {
+      await prisma.projectMember.deleteMany();
+      await prisma.project.deleteMany();
+      await prisma.user.deleteMany();
+    });
+
+    function getMe(authorizationHeader?: string) {
+      const request = supertest(app).get('/api/v1/users/me');
+
+      if (authorizationHeader === undefined) {
+        return request;
+      }
+
+      return request.set('Authorization', authorizationHeader);
+    }
+
     describe('on success', () => {
       it('returns the actor context for an Owner user', async () => {
-        const token = ctx.tokenService.generateToken({
-          userId: ownerActor.userId,
-          workspaceRoleId: ownerActor.workspaceRole.id,
-        });
-
-        const response = await getMe(bearer(token));
+        const response = await getMe(tokenFor(ownerActor));
 
         expectActorContextResponse(response, ownerActor);
       });
 
       it('returns the actor context for an Admin user', async () => {
-        const token = ctx.tokenService.generateToken({
-          userId: adminActor.userId,
-          workspaceRoleId: adminActor.workspaceRole.id,
-        });
-
-        const response = await getMe(bearer(token));
+        const response = await getMe(tokenFor(adminActor));
 
         expectActorContextResponse(response, adminActor);
       });
 
       it('returns the actor context for a Developer user', async () => {
-        const token = ctx.tokenService.generateToken({
-          userId: developerActor.userId,
-          workspaceRoleId: developerActor.workspaceRole.id,
-        });
-
-        const response = await getMe(bearer(token));
+        const response = await getMe(tokenFor(developerActor));
 
         expectActorContextResponse(response, developerActor);
       });
 
       it('returns the project roles for a user that is a member of a project', async () => {
-        const token = ctx.tokenService.generateToken({
-          userId: ownerActor.userId,
-          workspaceRoleId: ownerActor.workspaceRole.id,
-        });
-
-        const response = await getMe(bearer(token));
+        const response = await getMe(tokenFor(ownerActor));
 
         expect(response.status).toBe(200);
         expect(response.body.data.projectRoles).toEqual(ownerActor.projectRoles);
@@ -191,12 +174,7 @@ describe('Users Controller', () => {
       });
 
       it('returns an empty project roles array for a user with no memberships', async () => {
-        const token = ctx.tokenService.generateToken({
-          userId: adminActor.userId,
-          workspaceRoleId: adminActor.workspaceRole.id,
-        });
-
-        const response = await getMe(bearer(token));
+        const response = await getMe(tokenFor(adminActor));
 
         expect(response.status).toBe(200);
         expect(response.body.data.projectRoles).toEqual([]);
@@ -211,17 +189,17 @@ describe('Users Controller', () => {
       });
 
       it('returns an authentication required error when the token is invalid', async () => {
-        const invalidToken = createTokenWithWrongSecret(ownerUserId, ownerWorkspaceRoleId);
-
-        const response = await getMe(bearer(invalidToken));
+        const response = await getMe(
+          createTokenWithWrongSecret(ownerActor.userId, ownerActor.workspaceRole.id),
+        );
 
         expectAuthenticationRequired(response);
       });
 
       it('returns an authentication required error when the token is expired', async () => {
-        const expiredToken = createExpiredToken(ownerUserId, ownerWorkspaceRoleId);
-
-        const response = await getMe(bearer(expiredToken));
+        const response = await getMe(
+          createExpiredToken(ownerActor.userId, ownerActor.workspaceRole.id),
+        );
 
         expectAuthenticationRequired(response);
       });
@@ -252,7 +230,7 @@ describe('Users Controller', () => {
       ])('returns an authentication required error when $case', async ({ arrange }) => {
         arrange();
 
-        const response = await getMe(ownerBearerToken());
+        const response = await getMe(tokenFor(ownerActor));
 
         expectAuthenticationRequired(response);
       });
@@ -284,7 +262,7 @@ describe('Users Controller', () => {
       ])('returns an internal server error when $case', async ({ arrange }) => {
         arrange();
 
-        const response = await getMe(ownerBearerToken());
+        const response = await getMe(tokenFor(ownerActor));
 
         expectInternalServerError(response);
       });
@@ -292,6 +270,116 @@ describe('Users Controller', () => {
   });
 
   describe('GET /', () => {
+    const usersCount = 25;
+
+    const pageSize = 10;
+    const expectedTotal = usersCount;
+    const expectedTotalPages = Math.ceil(expectedTotal / pageSize);
+
+    const ownerUsersCount = 10;
+    const adminUsersCount = 10;
+    const developerUsersCount = 5;
+
+    const oldDate = new Date('2020-01-01T00:00:00Z');
+    const recentDate = new Date('2020-06-01T00:00:00Z');
+
+    let allUsers: User[] = [];
+    let ownerUsers: User[] = [];
+    let adminUsers: User[] = [];
+    let developerUsers: User[] = [];
+
+    beforeAll(async () => {
+      ownerUsers = await prisma.user.createManyAndReturn({
+        data: await Promise.all(
+          Array.from({ length: ownerUsersCount }, async (_, i) => {
+            const workspaceRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.OWNER);
+
+            return {
+              email: `owner-user-${i}@example.com`,
+              name: `Owner User ${i}`,
+              workspaceRoleId: workspaceRoleId ?? '',
+              status: i < 5 ? UserStatus.Active : UserStatus.Pending,
+              password: null as string | null,
+              createdAt: i % 2 === 0 ? oldDate : recentDate,
+            };
+          }),
+        ),
+      });
+      adminUsers = await prisma.user.createManyAndReturn({
+        data: await Promise.all(
+          Array.from({ length: adminUsersCount }, async (_, i) => {
+            const workspaceRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.ADMIN);
+
+            return {
+              email: `admin-user-${i}@example.com`,
+              name: `Admin User ${i}`,
+              workspaceRoleId: workspaceRoleId ?? '',
+              status: i < 5 ? UserStatus.Active : UserStatus.Pending,
+              password: null as string | null,
+              createdAt: i % 2 === 0 ? oldDate : recentDate,
+            };
+          }),
+        ),
+      });
+      developerUsers = await prisma.user.createManyAndReturn({
+        data: await Promise.all(
+          Array.from({ length: developerUsersCount }, async (_, i) => {
+            const workspaceRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.DEVELOPER);
+
+            return {
+              email: `developer-user-${i}@example.com`,
+              name: `Developer User ${i}`,
+              workspaceRoleId: workspaceRoleId ?? '',
+              status: UserStatus.Active,
+              password: null as string | null,
+              createdAt: recentDate,
+            };
+          }),
+        ),
+      });
+
+      allUsers = [...ownerUsers, ...adminUsers, ...developerUsers];
+
+      const activeOwnerUser = ownerUsers.find((user) => user.status === UserStatus.Active);
+      const activeAdminUser = adminUsers.find((user) => user.status === UserStatus.Active);
+      const activeDeveloperUser = developerUsers.find((user) => user.status === UserStatus.Active);
+
+      if (!activeOwnerUser || !activeAdminUser || !activeDeveloperUser) {
+        throw new Error(
+          'Expected an active user to be seeded for each of Owner, Admin, and Developer',
+        );
+      }
+
+      ownerActor = parsePersistedUserIntoActorContext(
+        {
+          id: activeOwnerUser.id,
+          workspaceRoleId: activeOwnerUser.workspaceRoleId,
+          workspaceRoleName: WorkspaceRoleName.OWNER,
+        },
+        [],
+      );
+      adminActor = parsePersistedUserIntoActorContext(
+        {
+          id: activeAdminUser.id,
+          workspaceRoleId: activeAdminUser.workspaceRoleId,
+          workspaceRoleName: WorkspaceRoleName.ADMIN,
+        },
+        [],
+      );
+      developerActor = parsePersistedUserIntoActorContext(
+        {
+          id: activeDeveloperUser.id,
+          workspaceRoleId: activeDeveloperUser.workspaceRoleId,
+          workspaceRoleName: WorkspaceRoleName.DEVELOPER,
+        },
+        [],
+      );
+    });
+
+    afterAll(async () => {
+      await prisma.user.deleteMany();
+    });
+
     function listUsers(query?: Record<string, unknown>, authorizationHeader?: string) {
       let request = supertest(app).get('/api/v1/users');
 
@@ -308,58 +396,32 @@ describe('Users Controller', () => {
 
     describe('on success', () => {
       describe('envelope and pagination over a known population', () => {
-        const EXTRA_USER_COUNT = 22;
-        const PAGE_SIZE = 10;
-        const expectedTotal = testUsers.length + EXTRA_USER_COUNT;
-        const expectedTotalPages = Math.ceil(expectedTotal / PAGE_SIZE);
-
-        let extraUserIds: string[] = [];
-
-        beforeAll(async () => {
-          const ownerRoleId = ownerActor.workspaceRole.id;
-          const extras = Array.from({ length: EXTRA_USER_COUNT }, (_, i) => ({
-            email: `pagination-user-${i + 1}@example.com`,
-            name: `Pagination User ${i + 1}`,
-            workspaceRoleId: ownerRoleId,
-            status: UserStatus.Active,
-            password: null as string | null,
-          }));
-          const created = await prisma.user.createManyAndReturn({ data: extras });
-          extraUserIds = created.map((u) => u.id);
-        });
-
-        afterAll(async () => {
-          if (extraUserIds.length) {
-            await prisma.user.deleteMany({ where: { id: { in: extraUserIds } } });
-          }
-        });
-
         it('returns the first page with correct data length and pagination totals', async () => {
           const response = await listUsers(
-            { page: '1', pageSize: String(PAGE_SIZE) },
+            { page: '1', pageSize: String(pageSize) },
             tokenFor(ownerActor),
           );
 
           expectPaginatedEnvelope(response, {
             page: 1,
-            pageSize: PAGE_SIZE,
+            pageSize: pageSize,
             totalItems: expectedTotal,
             totalPages: expectedTotalPages,
-            dataLength: PAGE_SIZE,
+            dataLength: pageSize,
           });
         });
 
         it('applies skip/take so the final page returns only the remaining users', async () => {
-          const remainder = expectedTotal - (expectedTotalPages - 1) * PAGE_SIZE;
+          const remainder = expectedTotal - (expectedTotalPages - 1) * pageSize;
 
           const response = await listUsers(
-            { page: String(expectedTotalPages), pageSize: String(PAGE_SIZE) },
+            { page: String(expectedTotalPages), pageSize: String(pageSize) },
             tokenFor(ownerActor),
           );
 
           expectPaginatedEnvelope(response, {
             page: expectedTotalPages,
-            pageSize: PAGE_SIZE,
+            pageSize: pageSize,
             totalItems: expectedTotal,
             totalPages: expectedTotalPages,
             dataLength: remainder,
@@ -368,7 +430,10 @@ describe('Users Controller', () => {
       });
 
       it('returns an empty envelope with zeroed totals when no users match the filter', async () => {
-        const response = await listUsers({ 'filter[status]': 'Pending' }, tokenFor(ownerActor));
+        const response = await listUsers(
+          { 'filter[workspaceRoleId]': '11111111-1111-4111-8111-111111111111' },
+          tokenFor(ownerActor),
+        );
 
         expectEmptyPaginatedEnvelope(response);
       });
@@ -393,73 +458,24 @@ describe('Users Controller', () => {
       // here we prove the users query-config filters real rows against the real
       // column and enum types end to end.
       let pendingUserIds: string[] = [];
-      let oldUserId: string;
-      let recentUserId: string;
+      let recentUserIds: string[] = [];
+
+      let adminWorkspaceRoleId: string;
+      let developerWorkspaceRoleId: string;
 
       const RANGE_LOWER = new Date('2020-03-01T00:00:00Z');
       const RANGE_UPPER = new Date('2020-12-31T00:00:00Z');
 
       beforeAll(async () => {
-        const ownerRoleId = ownerActor.workspaceRole.id;
+        pendingUserIds = allUsers
+          .filter((user) => user.status === UserStatus.Pending)
+          .map((user) => user.id);
+        recentUserIds = allUsers
+          .filter((user) => user.createdAt >= RANGE_LOWER && user.createdAt <= RANGE_UPPER)
+          .map((user) => user.id);
 
-        const pending = await prisma.user.createManyAndReturn({
-          data: [
-            {
-              email: 'filter-pending-a@example.com',
-              name: 'Filter Pending A',
-              workspaceRoleId: ownerRoleId,
-              status: UserStatus.Pending,
-              password: null,
-              activationTokenHash: 'hash-a',
-              activationTokenExpiresAt: new Date('2026-12-31'),
-            },
-            {
-              email: 'filter-pending-b@example.com',
-              name: 'Filter Pending B',
-              workspaceRoleId: ownerRoleId,
-              status: UserStatus.Pending,
-              password: null,
-              activationTokenHash: 'hash-b',
-              activationTokenExpiresAt: new Date('2026-12-31'),
-            },
-          ],
-        });
-        pendingUserIds = pending.map((u) => u.id);
-
-        const dated = await prisma.user.createManyAndReturn({
-          data: [
-            {
-              email: 'filter-old@example.com',
-              name: 'Filter Old',
-              workspaceRoleId: ownerRoleId,
-              status: UserStatus.Active,
-              password: null,
-              createdAt: new Date('2020-01-01T00:00:00Z'),
-            },
-            {
-              email: 'filter-recent@example.com',
-              name: 'Filter Recent',
-              workspaceRoleId: ownerRoleId,
-              status: UserStatus.Active,
-              password: null,
-              createdAt: new Date('2020-06-01T00:00:00Z'),
-            },
-          ],
-        });
-
-        const [oldUser, recentUser] = dated;
-
-        if (!oldUser || !recentUser) {
-          throw new Error('Expected two dated users to be seeded');
-        }
-
-        oldUserId = oldUser.id;
-        recentUserId = recentUser.id;
-      });
-
-      afterAll(async () => {
-        const ids = [...pendingUserIds, oldUserId, recentUserId];
-        await prisma.user.deleteMany({ where: { id: { in: ids } } });
+        adminWorkspaceRoleId = adminUsers[0]?.workspaceRoleId ?? '';
+        developerWorkspaceRoleId = developerUsers[0]?.workspaceRoleId ?? '';
       });
 
       it('returns exactly the Pending users for filter[status]=Pending (enum coercion)', async () => {
@@ -469,24 +485,31 @@ describe('Users Controller', () => {
         expect(response.body.meta.pagination.totalItems).toBe(pendingUserIds.length);
       });
 
-      it('returns exactly the single user matching filter[workspaceRoleId] (uuid coercion)', async () => {
+      it('returns exactly the users matching filter[workspaceRoleId] (uuid coercion) for a given workspace role', async () => {
         const response = await listUsers(
-          { 'filter[workspaceRoleId]': adminActor.workspaceRole.id },
+          { 'filter[workspaceRoleId]': adminWorkspaceRoleId, pageSize: '100' },
           tokenFor(ownerActor),
         );
 
-        expectDataIds(response, [adminActor.userId]);
+        expectDataIds(
+          response,
+          adminUsers.map((user) => user.id),
+        );
       });
 
       it('returns exactly the users whose role is in filter[workspaceRoleId][in]', async () => {
         const response = await listUsers(
           {
-            'filter[workspaceRoleId][in]': `${adminActor.workspaceRole.id},${developerActor.workspaceRole.id}`,
+            'filter[workspaceRoleId][in]': `${adminWorkspaceRoleId},${developerWorkspaceRoleId}`,
+            pageSize: '100',
           },
           tokenFor(ownerActor),
         );
 
-        expectDataIds(response, [adminActor.userId, developerActor.userId]);
+        expectDataIds(response, [
+          ...adminUsers.map((user) => user.id),
+          ...developerUsers.map((user) => user.id),
+        ]);
       });
 
       it('excludes rows outside a createdAt window (date coercion, gte + lte)', async () => {
@@ -494,78 +517,61 @@ describe('Users Controller', () => {
           {
             'filter[createdAt][gte]': RANGE_LOWER.toISOString(),
             'filter[createdAt][lte]': RANGE_UPPER.toISOString(),
+            pageSize: '100',
           },
           tokenFor(ownerActor),
         );
 
-        // Only the recent dated user falls inside the window: the old user sits
-        // below the lower bound and every "now"-stamped actor sits above the
-        // upper bound, so all of them are excluded.
-        expectDataIds(response, [recentUserId]);
+        expectDataIds(response, recentUserIds);
       });
     });
 
     describe('on sorting', () => {
-      // Sort tests isolate a controlled Pending set via filter[status]=Pending so
-      // the assertion can pin an exact order independent of the seeded actors.
+      const allUsersCopy: User[] = allUsers.slice();
+
       describe('with users at distinct timestamps', () => {
         let orderedNewestFirst: string[] = [];
 
         beforeAll(async () => {
-          const ownerRoleId = ownerActor.workspaceRole.id;
-          const created = await prisma.user.createManyAndReturn({
-            data: [
-              {
-                email: 'sort-1@example.com',
-                name: 'Sort 1',
-                workspaceRoleId: ownerRoleId,
-                status: UserStatus.Pending,
-                password: null,
-                activationTokenHash: 'sort-hash-1',
-                activationTokenExpiresAt: new Date('2026-12-31'),
-                createdAt: new Date('2021-01-01T00:00:00Z'),
+          let createdAt = new Date('2021-01-01T00:00:00Z');
+
+          for (const user of allUsers) {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: {
+                createdAt: createdAt,
               },
-              {
-                email: 'sort-2@example.com',
-                name: 'Sort 2',
-                workspaceRoleId: ownerRoleId,
-                status: UserStatus.Pending,
-                password: null,
-                activationTokenHash: 'sort-hash-2',
-                activationTokenExpiresAt: new Date('2026-12-31'),
-                createdAt: new Date('2021-02-01T00:00:00Z'),
-              },
-              {
-                email: 'sort-3@example.com',
-                name: 'Sort 3',
-                workspaceRoleId: ownerRoleId,
-                status: UserStatus.Pending,
-                password: null,
-                activationTokenHash: 'sort-hash-3',
-                activationTokenExpiresAt: new Date('2026-12-31'),
-                createdAt: new Date('2021-03-01T00:00:00Z'),
-              },
-            ],
-          });
-          const idByEmail = new Map(created.map((u) => [u.email, u.id]));
-          orderedNewestFirst = [
-            idByEmail.get('sort-3@example.com') as string,
-            idByEmail.get('sort-2@example.com') as string,
-            idByEmail.get('sort-1@example.com') as string,
-          ];
+            });
+
+            createdAt = new Date(createdAt.getTime() + 60 * 60 * 24 * 1000); // 1 day apart
+          }
+
+          allUsers = await prisma.user.findMany();
+          orderedNewestFirst = allUsers
+            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+            .map((user) => user.id);
         });
 
         afterAll(async () => {
-          await prisma.user.deleteMany({
-            where: {
-              email: { in: ['sort-1@example.com', 'sort-2@example.com', 'sort-3@example.com'] },
-            },
-          });
+          await Promise.all(
+            allUsers.map(async (user) => {
+              const originalCreatedAt = allUsersCopy.find((u) => u.id === user.id)?.createdAt;
+
+              await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                  createdAt: originalCreatedAt,
+                },
+              });
+            }),
+          );
+
+          allUsers = await prisma.user.findMany();
         });
 
         it('orders rows by createdAt descending for sort=-createdAt', async () => {
           const response = await listUsers(
-            { 'filter[status]': 'Pending', sort: '-createdAt' },
+            { sort: '-createdAt', pageSize: '100' },
             tokenFor(ownerActor),
           );
 
@@ -577,53 +583,45 @@ describe('Users Controller', () => {
         let tiedIdsAscending: string[] = [];
 
         beforeAll(async () => {
-          const ownerRoleId = ownerActor.workspaceRole.id;
           const sharedCreatedAt = new Date('2021-05-01T00:00:00Z');
-          const created = await prisma.user.createManyAndReturn({
-            data: [
-              {
-                email: 'tie-a@example.com',
-                name: 'Tie A',
-                workspaceRoleId: ownerRoleId,
-                status: UserStatus.Pending,
-                password: null,
-                activationTokenHash: 'tie-hash-a',
-                activationTokenExpiresAt: new Date('2026-12-31'),
-                createdAt: sharedCreatedAt,
-              },
-              {
-                email: 'tie-b@example.com',
-                name: 'Tie B',
-                workspaceRoleId: ownerRoleId,
-                status: UserStatus.Pending,
-                password: null,
-                activationTokenHash: 'tie-hash-b',
-                activationTokenExpiresAt: new Date('2026-12-31'),
-                createdAt: sharedCreatedAt,
-              },
-            ],
-          });
 
-          // Derive the expected order from the DB using the same secondary key
-          // the repository applies (id asc), so the oracle matches Postgres uuid
-          // ordering exactly rather than relying on JS string-sort equivalence.
-          const ordered = await prisma.user.findMany({
-            where: { id: { in: created.map((u) => u.id) } },
-            orderBy: { id: 'asc' },
-            select: { id: true },
-          });
-          tiedIdsAscending = ordered.map((u) => u.id);
+          await Promise.all(
+            allUsers.map((user) =>
+              prisma.user.update({
+                where: { id: user.id },
+                data: {
+                  createdAt: sharedCreatedAt,
+                },
+              }),
+            ),
+          );
+
+          allUsers = await prisma.user.findMany();
+          tiedIdsAscending = allUsers
+            .sort((a, b) => a.id.localeCompare(b.id))
+            .map((user) => user.id);
         });
 
         afterAll(async () => {
-          await prisma.user.deleteMany({
-            where: { email: { in: ['tie-a@example.com', 'tie-b@example.com'] } },
-          });
+          await Promise.all(
+            allUsers.map(async (user) => {
+              const originalCreatedAt = allUsers.find((u) => u.id === user.id)?.createdAt;
+
+              await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                  createdAt: originalCreatedAt,
+                },
+              });
+            }),
+          );
+
+          allUsers = await prisma.user.findMany();
         });
 
         it('breaks createdAt ties with a stable id ascending order', async () => {
           const response = await listUsers(
-            { 'filter[status]': 'Pending', sort: '-createdAt' },
+            { sort: '-createdAt', pageSize: '100' },
             tokenFor(ownerActor),
           );
 
@@ -708,24 +706,29 @@ describe('Users Controller', () => {
   });
 
   describe('POST /', () => {
-    let developerRoleId: string;
-    let adminRoleId: string;
-
     beforeAll(async () => {
-      developerRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.DEVELOPER);
-      adminRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.ADMIN);
+      await createTestUsers(testUsers);
+      const [owner, admin, developer] = await fetchPersistedUsers(testUsers);
+
+      ownerActor = parsePersistedUserIntoActorContext(owner, []);
+      adminActor = parsePersistedUserIntoActorContext(admin, []);
+      developerActor = parsePersistedUserIntoActorContext(developer, []);
     });
 
-    afterEach(deleteNonSeededUsers);
+    afterAll(async () => {
+      await prisma.user.deleteMany();
+    });
 
     function createUserRequest(
       body: Record<string, unknown> | undefined | unknown[],
       authorizationHeader?: string,
     ) {
       const request = supertest(app).post('/api/v1/users');
+
       if (authorizationHeader !== undefined) {
         request.set('Authorization', authorizationHeader);
       }
+
       return request.send(body);
     }
 
@@ -742,6 +745,7 @@ describe('Users Controller', () => {
           if (value === '__ROLE__') {
             return [key, roleId];
           }
+
           return [key, value];
         }),
       );
@@ -759,28 +763,28 @@ describe('Users Controller', () => {
           actorLabel: 'Workspace Owner',
           getActor: () => ownerActor,
           roleLabel: 'Developer',
-          getRoleId: () => developerRoleId,
+          getRoleId: () => developerActor.workspaceRole.id,
           email: 'created-by-owner-developer@example.com',
         },
         {
           actorLabel: 'Workspace Owner',
           getActor: () => ownerActor,
           roleLabel: 'Admin',
-          getRoleId: () => adminRoleId,
+          getRoleId: () => adminActor.workspaceRole.id,
           email: 'created-by-owner-admin@example.com',
         },
         {
           actorLabel: 'Workspace Admin',
           getActor: () => adminActor,
           roleLabel: 'Developer',
-          getRoleId: () => developerRoleId,
+          getRoleId: () => developerActor.workspaceRole.id,
           email: 'created-by-admin-developer@example.com',
         },
         {
           actorLabel: 'Workspace Admin',
           getActor: () => adminActor,
           roleLabel: 'Admin',
-          getRoleId: () => adminRoleId,
+          getRoleId: () => adminActor.workspaceRole.id,
           email: 'created-by-admin-admin@example.com',
         },
       ])(
@@ -816,7 +820,7 @@ describe('Users Controller', () => {
         const email = 'forbidden-create@example.com';
 
         const response = await createUserRequest(
-          { name: 'Should Not Exist', email, workspaceRoleId: developerRoleId },
+          { name: 'Should Not Exist', email, workspaceRoleId: developerActor.workspaceRole.id },
           tokenFor(developerActor),
         );
 
@@ -830,7 +834,7 @@ describe('Users Controller', () => {
         const response = await createUserRequest({
           name: 'Should Not Exist',
           email,
-          workspaceRoleId: developerRoleId,
+          workspaceRoleId: developerActor.workspaceRole.id,
         });
 
         expectAuthenticationRequired(response);
@@ -910,7 +914,7 @@ describe('Users Controller', () => {
           expectedFields: ['name', 'email', 'workspaceRoleId'],
         },
       ])('returns a validation error when $case', async ({ body, expectedFields }) => {
-        const resolvedBody = resolveRolePlaceholder(body, developerRoleId);
+        const resolvedBody = resolveRolePlaceholder(body, developerActor.workspaceRole.id);
 
         const response = await createUserRequest(resolvedBody, tokenFor(ownerActor));
 
@@ -936,7 +940,7 @@ describe('Users Controller', () => {
         const email = 'owner-role-assignment@example.com';
 
         const response = await createUserRequest(
-          { name: 'Owner Assignment', email, workspaceRoleId: ownerWorkspaceRoleId },
+          { name: 'Owner Assignment', email, workspaceRoleId: ownerActor.workspaceRole.id },
           tokenFor(ownerActor),
         );
 
@@ -950,13 +954,13 @@ describe('Users Controller', () => {
         const email = 'duplicate-create@example.com';
 
         const first = await createUserRequest(
-          { name: 'First', email, workspaceRoleId: developerRoleId },
+          { name: 'First', email, workspaceRoleId: developerActor.workspaceRole.id },
           tokenFor(ownerActor),
         );
         expect(first.status).toBe(201);
 
         const second = await createUserRequest(
-          { name: 'Second', email, workspaceRoleId: developerRoleId },
+          { name: 'Second', email, workspaceRoleId: developerActor.workspaceRole.id },
           tokenFor(ownerActor),
         );
 
@@ -992,7 +996,7 @@ describe('Users Controller', () => {
         const email = 'dependency-failure@example.com';
 
         const response = await createUserRequest(
-          { name: 'Dependency Failure', email, workspaceRoleId: developerRoleId },
+          { name: 'Dependency Failure', email, workspaceRoleId: developerActor.workspaceRole.id },
           tokenFor(ownerActor),
         );
 
