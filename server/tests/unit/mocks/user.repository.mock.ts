@@ -9,5 +9,6 @@ export function createMockUserRepository(): jest.Mocked<IUserRepository> {
     hasUsersForWorkspaceRoleIds: jest.fn(),
     getUserByEmailWithPassword: jest.fn(),
     getUserById: jest.fn(),
+    findUsers: jest.fn(),
   };
 }

@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, describe, expect, it, jest } from '@jest/globals';
+import { afterAll, beforeAll, describe, expect, it, jest } from '@jest/globals';
 import supertest from 'supertest';
 
 import { Application } from 'express';
@@ -6,6 +6,9 @@ import { Application } from 'express';
 import { ActorContext } from '@/common/interfaces';
 import { ProjectRoleName } from '@/modules/project-members';
 import { WorkspaceRoleName } from '@/modules/workspace-roles';
+import { prisma } from '@/common/lib/prisma';
+import { UserStatus } from '@/generated/prisma/enums';
+import { User } from '@/generated/prisma/client';
 
 import { createTestUsers } from '../../fixtures/users.fixtures';
 import { ensureWorkspaceRolesSeeded } from '../../fixtures/workspace-roles.fixtures';
@@ -23,15 +26,21 @@ import {
   expectInternalServerError,
   expectValidationError,
 } from '../../assertions/errors.assertions';
+import {
+  expectDataIds,
+  expectDataIdsInOrder,
+  expectEmptyPaginatedEnvelope,
+  expectPaginatedEnvelope,
+} from '../../assertions/list.assertions';
 
 import {
   createExpiredToken,
   createTokenWithWrongSecret,
   createUsersTestContext,
-  deleteNonSeededUsers,
   fetchPersistedUser,
   fetchRawUserByEmail,
   fetchWorkspaceRoleIdByName,
+  PersistedUser,
   testUsers,
   UsersTestContext,
 } from './users.controller.fixtures';
@@ -42,16 +51,30 @@ import {
   extractActivationToken,
 } from './users.controller.assertions';
 
+import { TestUser } from '../workspace/workspace.controller.fixtures';
+
+function fetchPersistedUsers(testUsers: TestUser[]): Promise<PersistedUser[]> {
+  return Promise.all(testUsers.map(async (testUser) => fetchPersistedUser(testUser.email)));
+}
+
+function userToActorContext(
+  user: PersistedUser,
+  projectRoles: SeededProjectMembership[],
+): ActorContext {
+  return {
+    userId: user.id,
+    workspaceRole: { id: user.workspaceRoleId, name: user.workspaceRoleName },
+    projectRoles: projectRoles.map((projectRole) => ({
+      projectId: projectRole.projectId,
+      projectRoleId: projectRole.projectRoleId,
+      projectRoleName: projectRole.projectRoleName,
+    })),
+  };
+}
+
 describe('Users Controller', () => {
   let app: Application;
   let ctx: UsersTestContext;
-
-  let ownerActor: ActorContext;
-  let adminActor: ActorContext;
-  let developerActor: ActorContext;
-
-  let ownerUserId: string;
-  let ownerWorkspaceRoleId: string;
 
   beforeAll(async () => {
     ctx = createUsersTestContext();
@@ -59,114 +82,78 @@ describe('Users Controller', () => {
 
     await ensureWorkspaceRolesSeeded();
     await ensureProjectRolesSeeded();
-    await createTestUsers(testUsers);
-
-    const [ownerUser, adminUser, developerUser] = testUsers;
-    if (!ownerUser || !adminUser || !developerUser) {
-      throw new Error('Expected three seeded users, one per workspace role');
-    }
-
-    const owner = await fetchPersistedUser(ownerUser.email);
-    const admin = await fetchPersistedUser(adminUser.email);
-    const developer = await fetchPersistedUser(developerUser.email);
-
-    ownerUserId = owner.id;
-    ownerWorkspaceRoleId = owner.workspaceRoleId;
-
-    const membership: SeededProjectMembership = await addUserToNewProject(
-      owner.id,
-      ProjectRoleName.PROJECT_OWNER,
-      'Users controller test project',
-    );
-
-    ownerActor = {
-      userId: owner.id,
-      workspaceRole: { id: owner.workspaceRoleId, name: ownerUser.workspaceRoleName },
-      projectRoles: [
-        {
-          projectId: membership.projectId,
-          projectRoleId: membership.projectRoleId,
-          projectRoleName: membership.projectRoleName,
-        },
-      ],
-    };
-
-    adminActor = {
-      userId: admin.id,
-      workspaceRole: { id: admin.workspaceRoleId, name: adminUser.workspaceRoleName },
-      projectRoles: [],
-    };
-
-    developerActor = {
-      userId: developer.id,
-      workspaceRole: { id: developer.workspaceRoleId, name: developerUser.workspaceRoleName },
-      projectRoles: [],
-    };
   });
-
-  function getMe(authorizationHeader?: string) {
-    const request = supertest(app).get('/api/v1/users/me');
-    if (authorizationHeader === undefined) {
-      return request;
-    }
-    return request.set('Authorization', authorizationHeader);
-  }
 
   function bearer(token: string): string {
     return `Bearer ${token}`;
   }
 
-  function ownerBearerToken(): string {
+  function tokenFor(actor: ActorContext): string {
     return bearer(
       ctx.tokenService.generateToken({
-        userId: ownerActor.userId,
-        workspaceRoleId: ownerActor.workspaceRole.id,
+        userId: actor.userId,
+        workspaceRoleId: actor.workspaceRole.id,
       }),
     );
   }
 
   describe('GET /me', () => {
+    let ownerActor: ActorContext;
+    let adminActor: ActorContext;
+    let developerActor: ActorContext;
+
+    beforeAll(async () => {
+      await createTestUsers(testUsers);
+      const [owner, admin, developer] = await fetchPersistedUsers(testUsers);
+
+      if (!owner || !admin || !developer) {
+        throw new Error('Expected users to be persisted');
+      }
+
+      const membership: SeededProjectMembership = await addUserToNewProject(
+        owner.id,
+        ProjectRoleName.PROJECT_OWNER,
+        'Users controller test project',
+      );
+
+      ownerActor = userToActorContext(owner, [membership]);
+      adminActor = userToActorContext(admin, []);
+      developerActor = userToActorContext(developer, []);
+    });
+
+    afterAll(async () => {
+      await prisma.projectMember.deleteMany();
+      await prisma.project.deleteMany();
+      await prisma.user.deleteMany();
+    });
+
+    function getMe(authorizationHeader?: string) {
+      const request = supertest(app).get('/api/v1/users/me');
+
+      if (authorizationHeader === undefined) {
+        return request;
+      }
+
+      return request.set('Authorization', authorizationHeader);
+    }
+
     describe('on success', () => {
-      it('returns the actor context for an Owner user', async () => {
-        const token = ctx.tokenService.generateToken({
-          userId: ownerActor.userId,
-          workspaceRoleId: ownerActor.workspaceRole.id,
-        });
+      it.each([
+        { actor: 'Owner', getActor: () => ownerActor, getExpectedActor: () => ownerActor },
+        { actor: 'Admin', getActor: () => adminActor, getExpectedActor: () => adminActor },
+        {
+          actor: 'Developer',
+          getActor: () => developerActor,
+          getExpectedActor: () => developerActor,
+        },
+      ])('returns the actor context for a $actor', async ({ getActor, getExpectedActor }) => {
+        const response = await getMe(tokenFor(getActor()));
 
-        const response = await getMe(bearer(token));
-
-        expectActorContextResponse(response, ownerActor);
-      });
-
-      it('returns the actor context for an Admin user', async () => {
-        const token = ctx.tokenService.generateToken({
-          userId: adminActor.userId,
-          workspaceRoleId: adminActor.workspaceRole.id,
-        });
-
-        const response = await getMe(bearer(token));
-
-        expectActorContextResponse(response, adminActor);
-      });
-
-      it('returns the actor context for a Developer user', async () => {
-        const token = ctx.tokenService.generateToken({
-          userId: developerActor.userId,
-          workspaceRoleId: developerActor.workspaceRole.id,
-        });
-
-        const response = await getMe(bearer(token));
-
-        expectActorContextResponse(response, developerActor);
+        expectActorContextResponse(response, getExpectedActor());
       });
 
       it('returns the project roles for a user that is a member of a project', async () => {
-        const token = ctx.tokenService.generateToken({
-          userId: ownerActor.userId,
-          workspaceRoleId: ownerActor.workspaceRole.id,
-        });
-
-        const response = await getMe(bearer(token));
+        const response = await getMe(tokenFor(ownerActor));
 
         expect(response.status).toBe(200);
         expect(response.body.data.projectRoles).toEqual(ownerActor.projectRoles);
@@ -174,12 +161,7 @@ describe('Users Controller', () => {
       });
 
       it('returns an empty project roles array for a user with no memberships', async () => {
-        const token = ctx.tokenService.generateToken({
-          userId: adminActor.userId,
-          workspaceRoleId: adminActor.workspaceRole.id,
-        });
-
-        const response = await getMe(bearer(token));
+        const response = await getMe(tokenFor(adminActor));
 
         expect(response.status).toBe(200);
         expect(response.body.data.projectRoles).toEqual([]);
@@ -194,17 +176,17 @@ describe('Users Controller', () => {
       });
 
       it('returns an authentication required error when the token is invalid', async () => {
-        const invalidToken = createTokenWithWrongSecret(ownerUserId, ownerWorkspaceRoleId);
-
-        const response = await getMe(bearer(invalidToken));
+        const response = await getMe(
+          createTokenWithWrongSecret(ownerActor.userId, ownerActor.workspaceRole.id),
+        );
 
         expectAuthenticationRequired(response);
       });
 
       it('returns an authentication required error when the token is expired', async () => {
-        const expiredToken = createExpiredToken(ownerUserId, ownerWorkspaceRoleId);
-
-        const response = await getMe(bearer(expiredToken));
+        const response = await getMe(
+          createExpiredToken(ownerActor.userId, ownerActor.workspaceRole.id),
+        );
 
         expectAuthenticationRequired(response);
       });
@@ -235,7 +217,7 @@ describe('Users Controller', () => {
       ])('returns an authentication required error when $case', async ({ arrange }) => {
         arrange();
 
-        const response = await getMe(ownerBearerToken());
+        const response = await getMe(tokenFor(ownerActor));
 
         expectAuthenticationRequired(response);
       });
@@ -267,7 +249,453 @@ describe('Users Controller', () => {
       ])('returns an internal server error when $case', async ({ arrange }) => {
         arrange();
 
-        const response = await getMe(ownerBearerToken());
+        const response = await getMe(tokenFor(ownerActor));
+
+        expectInternalServerError(response);
+      });
+    });
+  });
+
+  describe('GET /', () => {
+    const usersCount = 25;
+
+    const pageSize = 10;
+    const expectedTotal = usersCount;
+    const expectedTotalPages = Math.ceil(expectedTotal / pageSize);
+
+    const ownerUsersCount = 10;
+    const adminUsersCount = 10;
+    const developerUsersCount = 5;
+
+    const oldDate = new Date('2020-01-01T00:00:00Z');
+    const recentDate = new Date('2020-06-01T00:00:00Z');
+
+    let allUsers: User[] = [];
+    let ownerUsers: User[] = [];
+    let adminUsers: User[] = [];
+    let developerUsers: User[] = [];
+
+    let ownerActor: ActorContext;
+    let adminActor: ActorContext;
+    let developerActor: ActorContext;
+
+    beforeAll(async () => {
+      const ownerRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.OWNER);
+      const adminRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.ADMIN);
+      const developerRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.DEVELOPER);
+
+      if (!ownerRoleId || !adminRoleId || !developerRoleId) {
+        throw new Error('Expected workspace roles to be seeded');
+      }
+
+      ownerUsers = await prisma.user.createManyAndReturn({
+        data: Array.from({ length: ownerUsersCount }, (_, i) => {
+          return {
+            email: `owner-user-${i}@example.com`,
+            name: `Owner User ${i}`,
+            workspaceRoleId: ownerRoleId,
+            status: i < 5 ? UserStatus.Active : UserStatus.Pending,
+            password: null as string | null,
+            createdAt: i % 2 === 0 ? oldDate : recentDate,
+          };
+        }),
+      });
+      adminUsers = await prisma.user.createManyAndReturn({
+        data: Array.from({ length: adminUsersCount }, (_, i) => {
+          return {
+            email: `admin-user-${i}@example.com`,
+            name: `Admin User ${i}`,
+            workspaceRoleId: adminRoleId,
+            status: i < 5 ? UserStatus.Active : UserStatus.Pending,
+            password: null as string | null,
+            createdAt: i % 2 === 0 ? oldDate : recentDate,
+          };
+        }),
+      });
+      developerUsers = await prisma.user.createManyAndReturn({
+        data: Array.from({ length: developerUsersCount }, (_, i) => {
+          return {
+            email: `developer-user-${i}@example.com`,
+            name: `Developer User ${i}`,
+            workspaceRoleId: developerRoleId,
+            status: UserStatus.Active,
+            password: null as string | null,
+            createdAt: recentDate,
+          };
+        }),
+      });
+
+      allUsers = [...ownerUsers, ...adminUsers, ...developerUsers];
+
+      const activeOwnerUser = ownerUsers.find((user) => user.status === UserStatus.Active);
+      const activeAdminUser = adminUsers.find((user) => user.status === UserStatus.Active);
+      const activeDeveloperUser = developerUsers.find((user) => user.status === UserStatus.Active);
+
+      if (!activeOwnerUser || !activeAdminUser || !activeDeveloperUser) {
+        throw new Error(
+          'Expected an active user to be seeded for each of Owner, Admin, and Developer',
+        );
+      }
+
+      ownerActor = userToActorContext(
+        {
+          id: activeOwnerUser.id,
+          workspaceRoleId: activeOwnerUser.workspaceRoleId,
+          workspaceRoleName: WorkspaceRoleName.OWNER,
+        },
+        [],
+      );
+      adminActor = userToActorContext(
+        {
+          id: activeAdminUser.id,
+          workspaceRoleId: activeAdminUser.workspaceRoleId,
+          workspaceRoleName: WorkspaceRoleName.ADMIN,
+        },
+        [],
+      );
+      developerActor = userToActorContext(
+        {
+          id: activeDeveloperUser.id,
+          workspaceRoleId: activeDeveloperUser.workspaceRoleId,
+          workspaceRoleName: WorkspaceRoleName.DEVELOPER,
+        },
+        [],
+      );
+    });
+
+    afterAll(async () => {
+      await prisma.user.deleteMany();
+    });
+
+    function listUsers(query?: Record<string, unknown>, authorizationHeader?: string) {
+      let request = supertest(app).get('/api/v1/users');
+
+      if (authorizationHeader !== undefined) {
+        request = request.set('Authorization', authorizationHeader);
+      }
+
+      if (query) {
+        request = request.query(query);
+      }
+
+      return request;
+    }
+
+    describe('on success', () => {
+      describe('envelope and pagination over a known population', () => {
+        it('returns the first page with correct data length and pagination totals', async () => {
+          const response = await listUsers(
+            { page: '1', pageSize: String(pageSize) },
+            tokenFor(ownerActor),
+          );
+
+          expectPaginatedEnvelope(response, {
+            page: 1,
+            pageSize: pageSize,
+            totalItems: expectedTotal,
+            totalPages: expectedTotalPages,
+            dataLength: pageSize,
+          });
+        });
+
+        it('applies skip/take so the final page returns only the remaining users', async () => {
+          const remainder = expectedTotal - (expectedTotalPages - 1) * pageSize;
+
+          const response = await listUsers(
+            { page: String(expectedTotalPages), pageSize: String(pageSize) },
+            tokenFor(ownerActor),
+          );
+
+          expectPaginatedEnvelope(response, {
+            page: expectedTotalPages,
+            pageSize: pageSize,
+            totalItems: expectedTotal,
+            totalPages: expectedTotalPages,
+            dataLength: remainder,
+          });
+        });
+      });
+
+      it('returns an empty envelope with zeroed totals when no users match the filter', async () => {
+        const response = await listUsers(
+          { 'filter[workspaceRoleId]': '11111111-1111-4111-8111-111111111111' },
+          tokenFor(ownerActor),
+        );
+
+        expectEmptyPaginatedEnvelope(response);
+      });
+    });
+
+    describe('on pagination defaults', () => {
+      it('applies the users query-config defaults (page=1, pageSize=10) when neither is supplied', async () => {
+        const response = await listUsers(undefined, tokenFor(ownerActor));
+
+        expectPaginatedEnvelope(response, { page: 1, pageSize: 10 });
+      });
+    });
+
+    describe('on authorized roles', () => {
+      it.each([
+        { case: 'Owner', getActor: () => ownerActor },
+        { case: 'Admin', getActor: () => adminActor },
+        { case: 'Developer', getActor: () => developerActor },
+      ])('returns 200 with a valid envelope for a $case actor', async ({ getActor }) => {
+        const response = await listUsers(undefined, tokenFor(getActor()));
+
+        expectPaginatedEnvelope(response);
+      });
+    });
+
+    describe('on safe fields', () => {
+      it('every user in data exposes only safe fields and no credential material', async () => {
+        const response = await listUsers(undefined, tokenFor(ownerActor));
+
+        expectPaginatedEnvelope(response);
+        for (const user of response.body.data as Record<string, unknown>[]) {
+          expect(user).toHaveProperty('id');
+          expect(user).toHaveProperty('name');
+          expect(user).toHaveProperty('email');
+          expect(user).toHaveProperty('workspaceRoleId');
+          expect(user).toHaveProperty('status');
+          expect(user).toHaveProperty('createdAt');
+          expect(user).toHaveProperty('updatedAt');
+          expect(user).not.toHaveProperty('password');
+          expect(user).not.toHaveProperty('activationTokenHash');
+          expect(user).not.toHaveProperty('activationTokenExpiresAt');
+        }
+      });
+    });
+
+    describe('on filtering', () => {
+      // A controlled population that lets each filter assert BOTH inclusion
+      // (matching rows returned) and exclusion (non-matching rows absent). The
+      // generic parse/coerce rules are covered by the query-parser unit tests;
+      // here we prove the users query-config filters real rows against the real
+      // column and enum types end to end.
+      let pendingUserIds: string[] = [];
+      let recentUserIds: string[] = [];
+
+      let adminWorkspaceRoleId: string;
+      let developerWorkspaceRoleId: string;
+
+      const RANGE_LOWER = new Date('2020-03-01T00:00:00Z');
+      const RANGE_UPPER = new Date('2020-12-31T00:00:00Z');
+
+      beforeAll(async () => {
+        pendingUserIds = allUsers
+          .filter((user) => user.status === UserStatus.Pending)
+          .map((user) => user.id);
+        recentUserIds = allUsers
+          .filter((user) => user.createdAt >= RANGE_LOWER && user.createdAt <= RANGE_UPPER)
+          .map((user) => user.id);
+
+        adminWorkspaceRoleId = adminUsers[0]?.workspaceRoleId ?? '';
+        developerWorkspaceRoleId = developerUsers[0]?.workspaceRoleId ?? '';
+      });
+
+      it('returns exactly the Pending users for filter[status]=Pending (enum coercion)', async () => {
+        const response = await listUsers({ 'filter[status]': 'Pending' }, tokenFor(ownerActor));
+
+        expectDataIds(response, pendingUserIds);
+        expect(response.body.meta.pagination.totalItems).toBe(pendingUserIds.length);
+      });
+
+      it('returns exactly the users matching filter[workspaceRoleId] (uuid coercion) for a given workspace role', async () => {
+        const response = await listUsers(
+          { 'filter[workspaceRoleId]': adminWorkspaceRoleId, pageSize: '100' },
+          tokenFor(ownerActor),
+        );
+
+        expectDataIds(
+          response,
+          adminUsers.map((user) => user.id),
+        );
+      });
+
+      it('returns exactly the users whose role is in filter[workspaceRoleId][in]', async () => {
+        const response = await listUsers(
+          {
+            'filter[workspaceRoleId][in]': `${adminWorkspaceRoleId},${developerWorkspaceRoleId}`,
+            pageSize: '100',
+          },
+          tokenFor(ownerActor),
+        );
+
+        expectDataIds(response, [
+          ...adminUsers.map((user) => user.id),
+          ...developerUsers.map((user) => user.id),
+        ]);
+      });
+
+      it('excludes rows outside a createdAt window (date coercion, gte + lte)', async () => {
+        const response = await listUsers(
+          {
+            'filter[createdAt][gte]': RANGE_LOWER.toISOString(),
+            'filter[createdAt][lte]': RANGE_UPPER.toISOString(),
+            pageSize: '100',
+          },
+          tokenFor(ownerActor),
+        );
+
+        expectDataIds(response, recentUserIds);
+      });
+    });
+
+    describe('on sorting', () => {
+      describe('with users at distinct timestamps', () => {
+        let allUsersOriginal: User[] = [];
+
+        let orderedNewestFirst: string[] = [];
+
+        beforeAll(async () => {
+          allUsersOriginal = allUsers.slice();
+
+          let createdAt = new Date('2021-01-01T00:00:00Z');
+
+          for (const user of allUsers) {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: {
+                createdAt: createdAt,
+              },
+            });
+
+            createdAt = new Date(createdAt.getTime() + 60 * 60 * 24 * 1000); // 1 day apart
+          }
+
+          allUsers = await prisma.user.findMany();
+          orderedNewestFirst = allUsers
+            .slice()
+            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+            .map((user) => user.id);
+        });
+
+        afterAll(async () => {
+          await Promise.all(
+            allUsers.map(async (user) => {
+              const originalCreatedAt = allUsersOriginal.find((u) => u.id === user.id)?.createdAt;
+
+              await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                  createdAt: originalCreatedAt,
+                },
+              });
+            }),
+          );
+
+          allUsers = await prisma.user.findMany();
+        });
+
+        it('orders rows by createdAt descending for sort=-createdAt', async () => {
+          const response = await listUsers(
+            { sort: '-createdAt', pageSize: '100' },
+            tokenFor(ownerActor),
+          );
+
+          expectDataIdsInOrder(response, orderedNewestFirst);
+        });
+      });
+
+      describe('with users sharing a timestamp', () => {
+        let allUsersOriginal: User[] = [];
+
+        let tiedIdsAscending: string[] = [];
+
+        beforeAll(async () => {
+          allUsersOriginal = allUsers.slice();
+
+          const sharedCreatedAt = new Date('2021-05-01T00:00:00Z');
+
+          await Promise.all(
+            allUsers.map((user) =>
+              prisma.user.update({
+                where: { id: user.id },
+                data: {
+                  createdAt: sharedCreatedAt,
+                },
+              }),
+            ),
+          );
+
+          allUsers = await prisma.user.findMany();
+          tiedIdsAscending = allUsers
+            .slice()
+            .sort((a, b) => a.id.localeCompare(b.id))
+            .map((user) => user.id);
+        });
+
+        afterAll(async () => {
+          await Promise.all(
+            allUsers.map(async (user) => {
+              const originalCreatedAt = allUsersOriginal.find((u) => u.id === user.id)?.createdAt;
+
+              await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                  createdAt: originalCreatedAt,
+                },
+              });
+            }),
+          );
+
+          allUsers = await prisma.user.findMany();
+        });
+
+        it('breaks createdAt ties with a stable id ascending order', async () => {
+          const response = await listUsers(
+            { sort: '-createdAt', pageSize: '100' },
+            tokenFor(ownerActor),
+          );
+
+          expectDataIdsInOrder(response, tiedIdsAscending);
+        });
+      });
+    });
+
+    describe('on query-validation failures', () => {
+      // The exhaustive validation matrix (bad sort field, unknown filter,
+      // disallowed operator, oversized pageSize, non-UUID value, ...) lives in
+      // the query-parser unit tests. Here we only prove the parser is wired to
+      // the users query-config and that its ValidationError surfaces as a 400
+      // through the error middleware.
+      it('returns 400 naming the offending field when the query fails validation', async () => {
+        const response = await listUsers({ sort: 'disallowed' }, tokenFor(ownerActor));
+
+        expectValidationError(response, ['sort']);
+      });
+    });
+
+    describe('on authorization failures', () => {
+      it('returns 403 for an actor whose workspace role is not in the listUsers matrix', async () => {
+        const unsupportedWorkspaceRoleName = 'Viewer' as WorkspaceRoleName;
+
+        jest.spyOn(ctx.workspaceRoleRepository, 'getWorkspaceRoleById').mockResolvedValue({
+          id: ownerActor.workspaceRole.id,
+          name: unsupportedWorkspaceRoleName,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        const response = await listUsers(undefined, tokenFor(ownerActor));
+
+        expectForbiddenError(response);
+      });
+
+      it('returns 401 for an unauthenticated request', async () => {
+        const response = await listUsers();
+
+        expectAuthenticationRequired(response);
+      });
+    });
+
+    describe('on unexpected dependency failure', () => {
+      it('returns 500 when the user repository throws', async () => {
+        jest
+          .spyOn(ctx.userRepository, 'findUsers')
+          .mockRejectedValue(new Error('database unavailable'));
+
+        const response = await listUsers(undefined, tokenFor(ownerActor));
 
         expectInternalServerError(response);
       });
@@ -275,34 +703,38 @@ describe('Users Controller', () => {
   });
 
   describe('POST /', () => {
-    let developerRoleId: string;
-    let adminRoleId: string;
+    let ownerActor: ActorContext;
+    let adminActor: ActorContext;
+    let developerActor: ActorContext;
 
     beforeAll(async () => {
-      developerRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.DEVELOPER);
-      adminRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.ADMIN);
+      await createTestUsers(testUsers);
+      const [owner, admin, developer] = await fetchPersistedUsers(testUsers);
+
+      if (!owner || !admin || !developer) {
+        throw new Error('Expected users to be persisted');
+      }
+
+      ownerActor = userToActorContext(owner, []);
+      adminActor = userToActorContext(admin, []);
+      developerActor = userToActorContext(developer, []);
     });
 
-    afterEach(deleteNonSeededUsers);
+    afterAll(async () => {
+      await prisma.user.deleteMany();
+    });
 
     function createUserRequest(
       body: Record<string, unknown> | undefined | unknown[],
       authorizationHeader?: string,
     ) {
       const request = supertest(app).post('/api/v1/users');
+
       if (authorizationHeader !== undefined) {
         request.set('Authorization', authorizationHeader);
       }
-      return request.send(body);
-    }
 
-    function tokenFor(actor: ActorContext): string {
-      return bearer(
-        ctx.tokenService.generateToken({
-          userId: actor.userId,
-          workspaceRoleId: actor.workspaceRole.id,
-        }),
-      );
+      return request.send(body);
     }
 
     function resolveRolePlaceholder(
@@ -318,6 +750,7 @@ describe('Users Controller', () => {
           if (value === '__ROLE__') {
             return [key, roleId];
           }
+
           return [key, value];
         }),
       );
@@ -335,28 +768,28 @@ describe('Users Controller', () => {
           actorLabel: 'Workspace Owner',
           getActor: () => ownerActor,
           roleLabel: 'Developer',
-          getRoleId: () => developerRoleId,
+          getRoleId: () => developerActor.workspaceRole.id,
           email: 'created-by-owner-developer@example.com',
         },
         {
           actorLabel: 'Workspace Owner',
           getActor: () => ownerActor,
           roleLabel: 'Admin',
-          getRoleId: () => adminRoleId,
+          getRoleId: () => adminActor.workspaceRole.id,
           email: 'created-by-owner-admin@example.com',
         },
         {
           actorLabel: 'Workspace Admin',
           getActor: () => adminActor,
           roleLabel: 'Developer',
-          getRoleId: () => developerRoleId,
+          getRoleId: () => developerActor.workspaceRole.id,
           email: 'created-by-admin-developer@example.com',
         },
         {
           actorLabel: 'Workspace Admin',
           getActor: () => adminActor,
           roleLabel: 'Admin',
-          getRoleId: () => adminRoleId,
+          getRoleId: () => adminActor.workspaceRole.id,
           email: 'created-by-admin-admin@example.com',
         },
       ])(
@@ -392,7 +825,7 @@ describe('Users Controller', () => {
         const email = 'forbidden-create@example.com';
 
         const response = await createUserRequest(
-          { name: 'Should Not Exist', email, workspaceRoleId: developerRoleId },
+          { name: 'Should Not Exist', email, workspaceRoleId: developerActor.workspaceRole.id },
           tokenFor(developerActor),
         );
 
@@ -406,7 +839,7 @@ describe('Users Controller', () => {
         const response = await createUserRequest({
           name: 'Should Not Exist',
           email,
-          workspaceRoleId: developerRoleId,
+          workspaceRoleId: developerActor.workspaceRole.id,
         });
 
         expectAuthenticationRequired(response);
@@ -486,7 +919,7 @@ describe('Users Controller', () => {
           expectedFields: ['name', 'email', 'workspaceRoleId'],
         },
       ])('returns a validation error when $case', async ({ body, expectedFields }) => {
-        const resolvedBody = resolveRolePlaceholder(body, developerRoleId);
+        const resolvedBody = resolveRolePlaceholder(body, developerActor.workspaceRole.id);
 
         const response = await createUserRequest(resolvedBody, tokenFor(ownerActor));
 
@@ -512,7 +945,7 @@ describe('Users Controller', () => {
         const email = 'owner-role-assignment@example.com';
 
         const response = await createUserRequest(
-          { name: 'Owner Assignment', email, workspaceRoleId: ownerWorkspaceRoleId },
+          { name: 'Owner Assignment', email, workspaceRoleId: ownerActor.workspaceRole.id },
           tokenFor(ownerActor),
         );
 
@@ -526,17 +959,21 @@ describe('Users Controller', () => {
         const email = 'duplicate-create@example.com';
 
         const first = await createUserRequest(
-          { name: 'First', email, workspaceRoleId: developerRoleId },
+          { name: 'First', email, workspaceRoleId: developerActor.workspaceRole.id },
           tokenFor(ownerActor),
         );
         expect(first.status).toBe(201);
 
         const second = await createUserRequest(
-          { name: 'Second', email, workspaceRoleId: developerRoleId },
+          { name: 'Second', email, workspaceRoleId: developerActor.workspaceRole.id },
           tokenFor(ownerActor),
         );
 
         expectConflictError(second);
+
+        const persisted = await prisma.user.findMany({ where: { email } });
+        expect(persisted).toHaveLength(1);
+        expect(persisted[0]?.name).toBe('First');
       });
     });
 
@@ -568,7 +1005,7 @@ describe('Users Controller', () => {
         const email = 'dependency-failure@example.com';
 
         const response = await createUserRequest(
-          { name: 'Dependency Failure', email, workspaceRoleId: developerRoleId },
+          { name: 'Dependency Failure', email, workspaceRoleId: developerActor.workspaceRole.id },
           tokenFor(ownerActor),
         );
 

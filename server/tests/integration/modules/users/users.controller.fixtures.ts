@@ -5,12 +5,14 @@ import { prisma } from '@/common/lib/prisma';
 import { JsonwebtokenTokenService } from '@/common/token-service/jsonwebtoken-token-service';
 import { ITokenService } from '@/common/token-service/token-service.interface';
 import { authorizationGuard } from '@/common/authorization';
+import { queryParser } from '@/common/query';
 import { CryptoActivationTokenService, IActivationTokenService } from '@/common/activation-token';
 
 import { IUserRepository, UserRepository, UserService } from '@/modules/users';
 import { IWorkspaceRoleRepository, WorkspaceRoleRepository } from '@/modules/workspace-roles';
 import { IProjectMemberRepository, ProjectMemberRepository } from '@/modules/project-members';
 import { UsersController } from '@/modules/users/user.controller';
+import { usersQueryConfig } from '@/modules/users/user.query-config';
 import { ActorContextService } from '@/modules/auth/actor-context.service';
 import { WorkspaceRoleName } from '@/modules/workspace-roles';
 
@@ -91,9 +93,10 @@ export function createUsersTestContext(): UsersTestContext {
     { activationUrlBase: ACTIVATION_URL_BASE },
   );
 
-  const usersController = new UsersController(userService);
+  const usersController = new UsersController(userService, queryParser, usersQueryConfig);
 
   const app = express();
+  app.set('query parser', 'extended');
   app.use(express.json());
   app.use(authenticationMiddleware);
   app.use('/api/v1/users', usersController.router);
@@ -113,14 +116,29 @@ export function createUsersTestContext(): UsersTestContext {
 export interface PersistedUser {
   id: string;
   workspaceRoleId: string;
+  workspaceRoleName: WorkspaceRoleName;
 }
 
 export async function fetchPersistedUser(email: string): Promise<PersistedUser> {
   const user = await prisma.user.findUnique({ where: { email } });
+
   if (!user) {
     throw new Error(`Expected seeded user ${email} to exist`);
   }
-  return { id: user.id, workspaceRoleId: user.workspaceRoleId };
+
+  const workspaceRole = await prisma.workspaceRole.findUnique({
+    where: { id: user.workspaceRoleId },
+  });
+
+  if (!workspaceRole) {
+    throw new Error(`Expected workspace role ${user.workspaceRoleId} to exist`);
+  }
+
+  return {
+    id: user.id,
+    workspaceRoleId: user.workspaceRoleId,
+    workspaceRoleName: workspaceRole.name as WorkspaceRoleName,
+  };
 }
 
 /**
@@ -137,17 +155,6 @@ export async function fetchWorkspaceRoleIdByName(name: WorkspaceRoleName): Promi
     throw new Error(`Expected workspace role ${name} to exist`);
   }
   return role.id;
-}
-
-/**
- * Removes every user created during a test while preserving the three seeded
- * actor users. Scopes cleanup to the rows a mutating route creates so tests do
- * not rely on unique emails to stay isolated, and the seeded actors (and their
- * project membership) survive between cases.
- */
-export async function deleteNonSeededUsers(): Promise<void> {
-  const seededEmails = testUsers.map((user) => user.email);
-  await prisma.user.deleteMany({ where: { email: { notIn: seededEmails } } });
 }
 
 /**

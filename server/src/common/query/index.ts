@@ -4,6 +4,7 @@ export * from './query.types';
 export * from './query.constants';
 export * from './query.interface';
 export * from './pagination-meta';
+export * from './paginated';
 export * from './prisma-query-mapper';
 export { QueryParser } from './query-parser';
 

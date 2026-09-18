@@ -9,10 +9,8 @@ import {
   ResourceNotFoundError,
 } from '@/common/errors';
 
-import {
-  BootstrapWorkspaceConfigParams,
-  BootstrapWorkspaceUsersParams,
-} from '@/modules/workspace/workspace.types';
+import { BootstrapWorkspaceConfigParams } from '@/modules/workspace/workspace.types';
+import { BootstrapWorkspaceUsersParams } from '@/modules/workspace/workspace.schema';
 
 import { IUserRepository } from '@/modules/users';
 import { IWorkspaceRoleRepository, WorkspaceRoleName } from '@/modules/workspace-roles';
