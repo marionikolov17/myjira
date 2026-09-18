@@ -158,17 +158,6 @@ export async function fetchWorkspaceRoleIdByName(name: WorkspaceRoleName): Promi
 }
 
 /**
- * Removes every user created during a test while preserving the three seeded
- * actor users. Scopes cleanup to the rows a mutating route creates so tests do
- * not rely on unique emails to stay isolated, and the seeded actors (and their
- * project membership) survive between cases.
- */
-export async function deleteNonSeededUsers(): Promise<void> {
-  const seededEmails = testUsers.map((user) => user.email);
-  await prisma.user.deleteMany({ where: { email: { notIn: seededEmails } } });
-}
-
-/**
  * Mints an already-expired token for the given claims by signing with a token
  * service whose expiry is in the past.
  */

@@ -8,6 +8,7 @@ import { ProjectRoleName } from '@/modules/project-members';
 import { WorkspaceRoleName } from '@/modules/workspace-roles';
 import { prisma } from '@/common/lib/prisma';
 import { UserStatus } from '@/generated/prisma/enums';
+import { User } from '@/generated/prisma/client';
 
 import { createTestUsers } from '../../fixtures/users.fixtures';
 import { ensureWorkspaceRolesSeeded } from '../../fixtures/workspace-roles.fixtures';
@@ -49,31 +50,17 @@ import {
   expectPendingUserPersisted,
   extractActivationToken,
 } from './users.controller.assertions';
+
 import { TestUser } from '../workspace/workspace.controller.fixtures';
-import { User } from '@/generated/prisma/client';
 
 function fetchPersistedUsers(testUsers: TestUser[]): Promise<PersistedUser[]> {
-  return Promise.all(
-    testUsers.map(async (testUser) => {
-      const user = await fetchPersistedUser(testUser.email);
-
-      if (!user) {
-        throw new Error(`Expected user ${testUser.email} to be persisted`);
-      }
-
-      return user;
-    }),
-  );
+  return Promise.all(testUsers.map(async (testUser) => fetchPersistedUser(testUser.email)));
 }
 
-function parsePersistedUserIntoActorContext(
-  user: PersistedUser | undefined,
+function userToActorContext(
+  user: PersistedUser,
   projectRoles: SeededProjectMembership[],
 ): ActorContext {
-  if (!user) {
-    throw new Error('User is undefined');
-  }
-
   return {
     userId: user.id,
     workspaceRole: { id: user.workspaceRoleId, name: user.workspaceRoleName },
@@ -88,10 +75,6 @@ function parsePersistedUserIntoActorContext(
 describe('Users Controller', () => {
   let app: Application;
   let ctx: UsersTestContext;
-
-  let ownerActor: ActorContext;
-  let adminActor: ActorContext;
-  let developerActor: ActorContext;
 
   beforeAll(async () => {
     ctx = createUsersTestContext();
@@ -115,19 +98,27 @@ describe('Users Controller', () => {
   }
 
   describe('GET /me', () => {
+    let ownerActor: ActorContext;
+    let adminActor: ActorContext;
+    let developerActor: ActorContext;
+
     beforeAll(async () => {
       await createTestUsers(testUsers);
       const [owner, admin, developer] = await fetchPersistedUsers(testUsers);
 
+      if (!owner || !admin || !developer) {
+        throw new Error('Expected users to be persisted');
+      }
+
       const membership: SeededProjectMembership = await addUserToNewProject(
-        owner?.id ?? '',
+        owner.id,
         ProjectRoleName.PROJECT_OWNER,
         'Users controller test project',
       );
 
-      ownerActor = parsePersistedUserIntoActorContext(owner, [membership]);
-      adminActor = parsePersistedUserIntoActorContext(admin, []);
-      developerActor = parsePersistedUserIntoActorContext(developer, []);
+      ownerActor = userToActorContext(owner, [membership]);
+      adminActor = userToActorContext(admin, []);
+      developerActor = userToActorContext(developer, []);
     });
 
     afterAll(async () => {
@@ -147,22 +138,18 @@ describe('Users Controller', () => {
     }
 
     describe('on success', () => {
-      it('returns the actor context for an Owner user', async () => {
-        const response = await getMe(tokenFor(ownerActor));
+      it.each([
+        { actor: 'Owner', getActor: () => ownerActor, getExpectedActor: () => ownerActor },
+        { actor: 'Admin', getActor: () => adminActor, getExpectedActor: () => adminActor },
+        {
+          actor: 'Developer',
+          getActor: () => developerActor,
+          getExpectedActor: () => developerActor,
+        },
+      ])('returns the actor context for a $actor', async ({ getActor, getExpectedActor }) => {
+        const response = await getMe(tokenFor(getActor()));
 
-        expectActorContextResponse(response, ownerActor);
-      });
-
-      it('returns the actor context for an Admin user', async () => {
-        const response = await getMe(tokenFor(adminActor));
-
-        expectActorContextResponse(response, adminActor);
-      });
-
-      it('returns the actor context for a Developer user', async () => {
-        const response = await getMe(tokenFor(developerActor));
-
-        expectActorContextResponse(response, developerActor);
+        expectActorContextResponse(response, getExpectedActor());
       });
 
       it('returns the project roles for a user that is a member of a project', async () => {
@@ -288,54 +275,54 @@ describe('Users Controller', () => {
     let adminUsers: User[] = [];
     let developerUsers: User[] = [];
 
-    beforeAll(async () => {
-      ownerUsers = await prisma.user.createManyAndReturn({
-        data: await Promise.all(
-          Array.from({ length: ownerUsersCount }, async (_, i) => {
-            const workspaceRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.OWNER);
+    let ownerActor: ActorContext;
+    let adminActor: ActorContext;
+    let developerActor: ActorContext;
 
-            return {
-              email: `owner-user-${i}@example.com`,
-              name: `Owner User ${i}`,
-              workspaceRoleId: workspaceRoleId ?? '',
-              status: i < 5 ? UserStatus.Active : UserStatus.Pending,
-              password: null as string | null,
-              createdAt: i % 2 === 0 ? oldDate : recentDate,
-            };
-          }),
-        ),
+    beforeAll(async () => {
+      const ownerRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.OWNER);
+      const adminRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.ADMIN);
+      const developerRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.DEVELOPER);
+
+      if (!ownerRoleId || !adminRoleId || !developerRoleId) {
+        throw new Error('Expected workspace roles to be seeded');
+      }
+
+      ownerUsers = await prisma.user.createManyAndReturn({
+        data: Array.from({ length: ownerUsersCount }, (_, i) => {
+          return {
+            email: `owner-user-${i}@example.com`,
+            name: `Owner User ${i}`,
+            workspaceRoleId: ownerRoleId,
+            status: i < 5 ? UserStatus.Active : UserStatus.Pending,
+            password: null as string | null,
+            createdAt: i % 2 === 0 ? oldDate : recentDate,
+          };
+        }),
       });
       adminUsers = await prisma.user.createManyAndReturn({
-        data: await Promise.all(
-          Array.from({ length: adminUsersCount }, async (_, i) => {
-            const workspaceRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.ADMIN);
-
-            return {
-              email: `admin-user-${i}@example.com`,
-              name: `Admin User ${i}`,
-              workspaceRoleId: workspaceRoleId ?? '',
-              status: i < 5 ? UserStatus.Active : UserStatus.Pending,
-              password: null as string | null,
-              createdAt: i % 2 === 0 ? oldDate : recentDate,
-            };
-          }),
-        ),
+        data: Array.from({ length: adminUsersCount }, (_, i) => {
+          return {
+            email: `admin-user-${i}@example.com`,
+            name: `Admin User ${i}`,
+            workspaceRoleId: adminRoleId,
+            status: i < 5 ? UserStatus.Active : UserStatus.Pending,
+            password: null as string | null,
+            createdAt: i % 2 === 0 ? oldDate : recentDate,
+          };
+        }),
       });
       developerUsers = await prisma.user.createManyAndReturn({
-        data: await Promise.all(
-          Array.from({ length: developerUsersCount }, async (_, i) => {
-            const workspaceRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.DEVELOPER);
-
-            return {
-              email: `developer-user-${i}@example.com`,
-              name: `Developer User ${i}`,
-              workspaceRoleId: workspaceRoleId ?? '',
-              status: UserStatus.Active,
-              password: null as string | null,
-              createdAt: recentDate,
-            };
-          }),
-        ),
+        data: Array.from({ length: developerUsersCount }, (_, i) => {
+          return {
+            email: `developer-user-${i}@example.com`,
+            name: `Developer User ${i}`,
+            workspaceRoleId: developerRoleId,
+            status: UserStatus.Active,
+            password: null as string | null,
+            createdAt: recentDate,
+          };
+        }),
       });
 
       allUsers = [...ownerUsers, ...adminUsers, ...developerUsers];
@@ -350,7 +337,7 @@ describe('Users Controller', () => {
         );
       }
 
-      ownerActor = parsePersistedUserIntoActorContext(
+      ownerActor = userToActorContext(
         {
           id: activeOwnerUser.id,
           workspaceRoleId: activeOwnerUser.workspaceRoleId,
@@ -358,7 +345,7 @@ describe('Users Controller', () => {
         },
         [],
       );
-      adminActor = parsePersistedUserIntoActorContext(
+      adminActor = userToActorContext(
         {
           id: activeAdminUser.id,
           workspaceRoleId: activeAdminUser.workspaceRoleId,
@@ -366,7 +353,7 @@ describe('Users Controller', () => {
         },
         [],
       );
-      developerActor = parsePersistedUserIntoActorContext(
+      developerActor = userToActorContext(
         {
           id: activeDeveloperUser.id,
           workspaceRoleId: activeDeveloperUser.workspaceRoleId,
@@ -439,6 +426,14 @@ describe('Users Controller', () => {
       });
     });
 
+    describe('on pagination defaults', () => {
+      it('applies the users query-config defaults (page=1, pageSize=10) when neither is supplied', async () => {
+        const response = await listUsers(undefined, tokenFor(ownerActor));
+
+        expectPaginatedEnvelope(response, { page: 1, pageSize: 10 });
+      });
+    });
+
     describe('on authorized roles', () => {
       it.each([
         { case: 'Owner', getActor: () => ownerActor },
@@ -448,6 +443,26 @@ describe('Users Controller', () => {
         const response = await listUsers(undefined, tokenFor(getActor()));
 
         expectPaginatedEnvelope(response);
+      });
+    });
+
+    describe('on safe fields', () => {
+      it('every user in data exposes only safe fields and no credential material', async () => {
+        const response = await listUsers(undefined, tokenFor(ownerActor));
+
+        expectPaginatedEnvelope(response);
+        for (const user of response.body.data as Record<string, unknown>[]) {
+          expect(user).toHaveProperty('id');
+          expect(user).toHaveProperty('name');
+          expect(user).toHaveProperty('email');
+          expect(user).toHaveProperty('workspaceRoleId');
+          expect(user).toHaveProperty('status');
+          expect(user).toHaveProperty('createdAt');
+          expect(user).toHaveProperty('updatedAt');
+          expect(user).not.toHaveProperty('password');
+          expect(user).not.toHaveProperty('activationTokenHash');
+          expect(user).not.toHaveProperty('activationTokenExpiresAt');
+        }
       });
     });
 
@@ -527,12 +542,14 @@ describe('Users Controller', () => {
     });
 
     describe('on sorting', () => {
-      const allUsersCopy: User[] = allUsers.slice();
-
       describe('with users at distinct timestamps', () => {
+        let allUsersOriginal: User[] = [];
+
         let orderedNewestFirst: string[] = [];
 
         beforeAll(async () => {
+          allUsersOriginal = allUsers.slice();
+
           let createdAt = new Date('2021-01-01T00:00:00Z');
 
           for (const user of allUsers) {
@@ -548,6 +565,7 @@ describe('Users Controller', () => {
 
           allUsers = await prisma.user.findMany();
           orderedNewestFirst = allUsers
+            .slice()
             .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
             .map((user) => user.id);
         });
@@ -555,7 +573,7 @@ describe('Users Controller', () => {
         afterAll(async () => {
           await Promise.all(
             allUsers.map(async (user) => {
-              const originalCreatedAt = allUsersCopy.find((u) => u.id === user.id)?.createdAt;
+              const originalCreatedAt = allUsersOriginal.find((u) => u.id === user.id)?.createdAt;
 
               await prisma.user.update({
                 where: { id: user.id },
@@ -580,9 +598,13 @@ describe('Users Controller', () => {
       });
 
       describe('with users sharing a timestamp', () => {
+        let allUsersOriginal: User[] = [];
+
         let tiedIdsAscending: string[] = [];
 
         beforeAll(async () => {
+          allUsersOriginal = allUsers.slice();
+
           const sharedCreatedAt = new Date('2021-05-01T00:00:00Z');
 
           await Promise.all(
@@ -598,6 +620,7 @@ describe('Users Controller', () => {
 
           allUsers = await prisma.user.findMany();
           tiedIdsAscending = allUsers
+            .slice()
             .sort((a, b) => a.id.localeCompare(b.id))
             .map((user) => user.id);
         });
@@ -605,7 +628,7 @@ describe('Users Controller', () => {
         afterAll(async () => {
           await Promise.all(
             allUsers.map(async (user) => {
-              const originalCreatedAt = allUsers.find((u) => u.id === user.id)?.createdAt;
+              const originalCreatedAt = allUsersOriginal.find((u) => u.id === user.id)?.createdAt;
 
               await prisma.user.update({
                 where: { id: user.id },
@@ -630,39 +653,26 @@ describe('Users Controller', () => {
       });
     });
 
-    describe('on pagination defaults', () => {
-      it('applies the users query-config defaults (page=1, pageSize=10) when neither is supplied', async () => {
-        const response = await listUsers(undefined, tokenFor(ownerActor));
+    describe('on query-validation failures', () => {
+      // The exhaustive validation matrix (bad sort field, unknown filter,
+      // disallowed operator, oversized pageSize, non-UUID value, ...) lives in
+      // the query-parser unit tests. Here we only prove the parser is wired to
+      // the users query-config and that its ValidationError surfaces as a 400
+      // through the error middleware.
+      it('returns 400 naming the offending field when the query fails validation', async () => {
+        const response = await listUsers({ sort: 'disallowed' }, tokenFor(ownerActor));
 
-        expectPaginatedEnvelope(response, { page: 1, pageSize: 10 });
-      });
-    });
-
-    describe('on safe fields', () => {
-      it('every user in data exposes only safe fields and no credential material', async () => {
-        const response = await listUsers(undefined, tokenFor(ownerActor));
-
-        expectPaginatedEnvelope(response);
-        for (const user of response.body.data as Record<string, unknown>[]) {
-          expect(user).toHaveProperty('id');
-          expect(user).toHaveProperty('name');
-          expect(user).toHaveProperty('email');
-          expect(user).toHaveProperty('workspaceRoleId');
-          expect(user).toHaveProperty('status');
-          expect(user).toHaveProperty('createdAt');
-          expect(user).toHaveProperty('updatedAt');
-          expect(user).not.toHaveProperty('password');
-          expect(user).not.toHaveProperty('activationTokenHash');
-          expect(user).not.toHaveProperty('activationTokenExpiresAt');
-        }
+        expectValidationError(response, ['sort']);
       });
     });
 
     describe('on authorization failures', () => {
       it('returns 403 for an actor whose workspace role is not in the listUsers matrix', async () => {
+        const unsupportedWorkspaceRoleName = 'Viewer' as WorkspaceRoleName;
+
         jest.spyOn(ctx.workspaceRoleRepository, 'getWorkspaceRoleById').mockResolvedValue({
           id: ownerActor.workspaceRole.id,
-          name: 'Viewer' as WorkspaceRoleName,
+          name: unsupportedWorkspaceRoleName,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
@@ -676,19 +686,6 @@ describe('Users Controller', () => {
         const response = await listUsers();
 
         expectAuthenticationRequired(response);
-      });
-    });
-
-    describe('on query-validation failures', () => {
-      // The exhaustive validation matrix (bad sort field, unknown filter,
-      // disallowed operator, oversized pageSize, non-UUID value, ...) lives in
-      // the query-parser unit tests. Here we only prove the parser is wired to
-      // the users query-config and that its ValidationError surfaces as a 400
-      // through the error middleware.
-      it('returns 400 naming the offending field when the query fails validation', async () => {
-        const response = await listUsers({ sort: 'disallowed' }, tokenFor(ownerActor));
-
-        expectValidationError(response, ['sort']);
       });
     });
 
@@ -706,13 +703,21 @@ describe('Users Controller', () => {
   });
 
   describe('POST /', () => {
+    let ownerActor: ActorContext;
+    let adminActor: ActorContext;
+    let developerActor: ActorContext;
+
     beforeAll(async () => {
       await createTestUsers(testUsers);
       const [owner, admin, developer] = await fetchPersistedUsers(testUsers);
 
-      ownerActor = parsePersistedUserIntoActorContext(owner, []);
-      adminActor = parsePersistedUserIntoActorContext(admin, []);
-      developerActor = parsePersistedUserIntoActorContext(developer, []);
+      if (!owner || !admin || !developer) {
+        throw new Error('Expected users to be persisted');
+      }
+
+      ownerActor = userToActorContext(owner, []);
+      adminActor = userToActorContext(admin, []);
+      developerActor = userToActorContext(developer, []);
     });
 
     afterAll(async () => {
@@ -965,6 +970,10 @@ describe('Users Controller', () => {
         );
 
         expectConflictError(second);
+
+        const persisted = await prisma.user.findMany({ where: { email } });
+        expect(persisted).toHaveLength(1);
+        expect(persisted[0]?.name).toBe('First');
       });
     });
 
