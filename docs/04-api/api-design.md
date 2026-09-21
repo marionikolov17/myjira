@@ -33,14 +33,16 @@ Error structure:
     "code": "ERROR_CODE",
     "status": 400, // Error status code from the response
     "message": "Error message here.",
-    "details": { // Error specific details
-      "fields": [ // For validation errors
+    "details": {
+      // Error specific details
+      "fields": [
+        // For validation errors
         {
           "name": "field name",
           "message": "error message"
         }
       ]
-    } 
+    }
   }
 }
 ```
@@ -68,7 +70,6 @@ Error categories:
   Creates the initial workspace users from configuration. One-time operation authorized by a shared bootstrap token in the request body (not JWT).
 
   **Responses:**
-
   - 201 Created -> success
   - 400 -> validation error
   - 403 -> forbidden
@@ -77,7 +78,6 @@ Error categories:
   - 500 -> internal server failure
 
   **Idempotency:**
-
   - Rejected with 422 if the workspace is already bootstrapped
 
 ### 4.2 Users
@@ -85,7 +85,6 @@ Error categories:
 - `POST` /users
 
   **Responses:**
-
   - 201 Created -> success
   - 400 -> validation error
   - 401 -> authentication required
@@ -95,13 +94,12 @@ Error categories:
   - 500 -> internal server failure
 
   **Idempotency:**
-
   - Enforce uniqueness (on email address)
   - Duplicate names are allowed
+
 - `PATCH` /users/{id}
 
   **Responses:**
-
   - 200 -> success
   - 400 -> validation error
   - 401 -> authentication required
@@ -109,27 +107,28 @@ Error categories:
   - 404 -> resource not found
   - 422 -> business rules violation
   - 500 -> internal server failure
+
 - `GET` /users/me
 
   Returns the currently authenticated user.
 
   **Responses:**
-
   - 200 -> success
   - 401 -> authentication required
   - 500 -> internal server failure
+
 - `GET` /users
 
   **Responses:**
-
   - 200 -> success
+  - 400 -> validation error
   - 401 -> authentication required
   - 403 -> forbidden
   - 500 -> internal server failure
+
 - `GET` /users/{id}
 
   **Responses:**
-
   - 200 -> success
   - 401 -> authentication required
   - 403 -> forbidden
@@ -141,7 +140,6 @@ Error categories:
 - `POST` /projects
 
   **Responses:**
-
   - 201 Created -> success
   - 400 -> validation error
   - 401 -> authentication required
@@ -150,12 +148,11 @@ Error categories:
   - 500 -> internal server failure
 
   **Idempotency:**
-
   - Duplicate names are allowed
+
 - `PATCH` /projects/{id}
 
   **Responses:**
-
   - 200 -> success
   - 400 -> validation error
   - 401 -> authentication required
@@ -163,29 +160,28 @@ Error categories:
   - 404 -> resource not found
   - 422 -> business rules violation
   - 500 -> internal server failure
+
 - `DELETE` /projects/{id}
 
   **Responses:**
-
   - 204 No Content -> success
   - 400 -> validation error
   - 401 -> authentication required
   - 403 -> forbidden
   - 404 -> resource not found
   - 500 -> internal server failure
+
 - `GET` /projects
 
   Supports pagination, filtering and sorting.
 
   **Responses:**
-
   - 200 -> success
   - 401 -> authentication required
   - 403 -> forbidden
   - 500 -> internal server failure
 
   **Responses:**
-
   - 200 -> success
   - 401 -> authentication required
   - 403 -> forbidden
@@ -194,7 +190,6 @@ Error categories:
 - `GET` /projects/{id}
 
   **Responses:**
-
   - 200 -> success
   - 401 -> authentication required
   - 403 -> forbidden
@@ -208,7 +203,6 @@ Error categories:
 - `POST` /projects/{projectId}/members
 
   **Responses:**
-
   - 201 Created -> success
   - 400 -> validation error
   - 401 -> authentication required
@@ -219,12 +213,11 @@ Error categories:
   - 500 -> internal server failure
 
   **Idempotency:**
-
   - Duplicate members are not allowed
+
 - `PATCH` /projects/{projectId}/members/{memberId}
 
   **Responses:**
-
   - 200 -> success
   - 400 -> validation error
   - 401 -> authentication required
@@ -232,20 +225,20 @@ Error categories:
   - 404 -> resource not found
   - 422 -> business rules violation
   - 500 -> internal server failure
+
 - `DELETE` /projects/{projectId}/members/{memberId}
 
   **Responses:**
-
   - 204 No Content -> success
   - 400 -> validation error
   - 401 -> authentication required
   - 403 -> forbidden
   - 404 -> resource not found
   - 500 -> internal server failure
+
 - `GET` /projects/{projectId}/members
 
   **Responses:**
-
   - 200 -> success
   - 401 -> authentication required
   - 403 -> forbidden
@@ -257,7 +250,6 @@ Error categories:
 - `POST` /projects/{projectId}/issues
 
   **Responses:**
-
   - 201 Created -> success
   - 400 -> validation error
   - 401 -> authentication required
@@ -265,10 +257,10 @@ Error categories:
   - 404 -> resource not found
   - 422 -> business rules violation
   - 500 -> internal server failure
+
 - `PATCH` /issues/{id}
 
   **Responses:**
-
   - 200 -> success
   - 400 -> validation error
   - 401 -> authentication required
@@ -276,22 +268,22 @@ Error categories:
   - 404 -> resource not found
   - 422 -> business rules violation
   - 500 -> internal server failure
+
 - `DELETE` /issues/{id}
 
   **Responses:**
-
   - 204 No Content -> success
   - 400 -> validation error
   - 401 -> authentication required
   - 403 -> forbidden
   - 404 -> resource not found
   - 500 -> internal server failure
+
 - `GET` /projects/{projectId}/issues
 
   Supports pagination, filtering and sorting.
 
   **Responses:**
-
   - 200 -> success
   - 401 -> authentication required
   - 403 -> forbidden
@@ -301,7 +293,6 @@ Error categories:
 - `GET` /issues/{id}
 
   **Responses:**
-
   - 200 -> success
   - 401 -> authentication required
   - 403 -> forbidden
@@ -315,7 +306,6 @@ Error categories:
 - `POST` /issues/{issueId}/subtasks
 
   **Responses:**
-
   - 201 Created -> success
   - 400 -> validation error
   - 401 -> authentication required
@@ -323,10 +313,10 @@ Error categories:
   - 404 -> resource not found
   - 422 -> business rules violation
   - 500 -> internal server failure
+
 - `PATCH` /subtasks/{id}
 
   **Responses:**
-
   - 200 -> success
   - 400 -> validation error
   - 401 -> authentication required
@@ -334,31 +324,31 @@ Error categories:
   - 404 -> resource not found
   - 422 -> business rules violation
   - 500 -> internal server failure
+
 - `DELETE` /subtasks/{id}
 
   **Responses:**
-
   - 204 No Content -> success
   - 400 -> validation error
   - 401 -> authentication required
   - 403 -> forbidden
   - 404 -> resource not found
   - 500 -> internal server failure
+
 - `GET` /issues/{issueId}/subtasks
 
   Supports pagination, filtering and sorting.
 
   **Responses:**
-
   - 200 -> success
   - 401 -> authentication required
   - 403 -> forbidden
   - 404 -> resource not found
   - 500 -> internal server failure
+
 - `GET` /subtasks/{id}
 
   **Responses:**
-
   - 200 -> success
   - 401 -> authentication required
   - 403 -> forbidden
@@ -422,14 +412,14 @@ The responses will follow the Envelope Pattern.
   "data": [
     {
       "id": "uuid",
-      "field1": "...",
+      "field1": "..."
       // ...
     },
     {
       "id": "uuid",
-      "field1": "...",
+      "field1": "..."
       // ...
-    },
+    }
   ],
   "meta": {
     "pagination": {
@@ -446,7 +436,7 @@ The responses will follow the Envelope Pattern.
 ### 6.3 Success Response (No Content)
 
 ```
-SUCCESS 204 
+SUCCESS 204
 No Content
 ```
 
@@ -467,8 +457,8 @@ Link will be provided later.
 9. PATCH requests are partial updates. Only provided fields are modified.
 10. All timestamps are ISO 8601 UTC strings.
 
-  - Example:
+- Example:
 
-    ```
-    2025-01-01T12:00:00Z
-    ```
+  ```
+  2025-01-01T12:00:00Z
+  ```
