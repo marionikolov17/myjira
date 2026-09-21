@@ -751,6 +751,201 @@
             }
           }
         }
+      },
+      "get": {
+        "operationId": "listUsers",
+        "summary": "List workspace users",
+        "description": "Lists workspace users in the workspace with pagination, filtering, and sorting. The caller must present a valid Bearer token and hold a privileged workspace role: only `Owner`, `Developer` and `Admin` may list users. Any other non-privileged role is rejected with `403 FORBIDDEN`.",
+        "tags": ["Users"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Returns the list of users with the applied filters, sorting, and pagination.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListUsersResponse"
+                }
+              },
+              "examples": {
+                "listUsers": {
+                  "summary": "List users with filters, sorting, and pagination",
+                  "value": {
+                    "data": [
+                      {
+                        "id": "3f1e4c2a-1b2c-4d3e-8f90-1a2b3c4d5e6f",
+                        "name": "Ada Lovelace",
+                        "email": "ada@example.com",
+                        "workspaceRoleId": "c2d3e4f5-a6b7-4c8d-9e0f-1a2b3c4d5e6f",
+                        "status": "Pending",
+                        "createdAt": "2026-01-01T00:00:00.000Z",
+                        "updatedAt": "2026-01-01T00:00:00.000Z"
+                      }
+                    ],
+                    "meta": {
+                      "pagination": {
+                        "pageSize": 10,
+                        "pageNumber": 1,
+                        "totalItems": 1,
+                        "totalPages": 1
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request was malformed or invalid. This is returned when the request query parameters are invalid, when the request query parameters are missing, or when the request query parameters are not supported. No users are returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                },
+                "examples": {
+                  "invalidFilterField": {
+                    "summary": "Filter query parameter's field is not filterable per the configured query configuration",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "status": 400,
+                        "message": "Validation error",
+                        "details": {
+                          "fields": [
+                            {
+                              "name": "filter[wrong]",
+                              "message": "Field \"wrong\" is not filterable"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "invalidFilterFieldOperator": {
+                    "summary": "Filter query parameter's field operator is not supported per the configured query configuration",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "status": 400,
+                        "message": "Validation error",
+                        "details": {
+                          "fields": [
+                            {
+                              "name": "filter[status][gte]",
+                              "message": "Operator \"gte\" is not permitted for field \"status\""
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "invalidSortField": {
+                    "summary": "Sort query parameter's field is not sortable per the configured query configuration",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "status": 400,
+                        "message": "Validation error",
+                        "details": {
+                          "fields": [
+                            {
+                              "name": "sort[wrong]",
+                              "message": "Field \"wrong\" is not sortable"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "excessivePageSize": {
+                    "summary": "Page size is greater than the maximum page size per the configured query configuration",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "status": 400,
+                        "message": "Validation error",
+                        "details": {
+                          "fields": [
+                            {
+                              "name": "pageSize",
+                              "message": "Too big: expected number to be <=100"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token, so no actor context could be established. This is returned when the `Authorization` header is missing, uses a non-`Bearer` scheme, or the token is invalid, expired, or malformed. No users are returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                }
+              },
+              "examples": {
+                "authenticationRequired": {
+                  "summary": "No valid token provided",
+                  "value": {
+                    "error": {
+                      "code": "AUTHENTICATION_REQUIRED",
+                      "status": 401,
+                      "message": "Authentication required"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but does not hold a privileged workspace role: `Owner`, `Developer` and `Admin` may list users. Any other non-privileged role is rejected with `403 FORBIDDEN`. No users are returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Non-privileged caller",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "status": 403,
+                        "message": "Forbidden"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request (for example, a downstream dependency such as the database or the activation-token service failed). No users are returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              },
+              "examples": {
+                "internalServerError": {
+                  "summary": "Unexpected failure",
+                  "value": {
+                    "error": {
+                      "code": "INTERNAL_SERVER_ERROR",
+                      "status": 500,
+                      "message": "Internal server error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   },
@@ -1019,6 +1214,52 @@
                 "$ref": "#/components/schemas/ActivationLink"
               }
             }
+          }
+        }
+      },
+      "ListUsersResponse": {
+        "type": "object",
+        "required": ["data", "meta"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/User"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
+        }
+      },
+      "PaginationMeta": {
+        "type": "object",
+        "required": ["pagination"],
+        "properties": {
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "required": ["pageSize", "pageNumber", "totalItems", "totalPages"],
+        "properties": {
+          "pageSize": {
+            "type": "integer",
+            "description": "The number of items per page."
+          },
+          "pageNumber": {
+            "type": "integer",
+            "description": "The current page number."
+          },
+          "totalItems": {
+            "type": "integer",
+            "description": "The total number of items."
+          },
+          "totalPages": {
+            "type": "integer",
+            "description": "The total number of pages."
           }
         }
       },
