@@ -8,7 +8,7 @@ import {
   HasUsersForWorkspaceRoleIdsParams,
   ListUsersResult,
 } from './user.types';
-import { CreateUserRequestParams } from './user.schema';
+import { CreateUserRequestParams, UpdateUserRoleRequestParams } from './user.schema';
 
 export interface IUserRepository extends IRepository {
   createUser(params: CreateUserParams): Promise<User>;
@@ -17,9 +17,15 @@ export interface IUserRepository extends IRepository {
   getUserByEmailWithPassword(email: string): Promise<(User & { password: string | null }) | null>;
   getUserById(userId: string): Promise<User | null>;
   findUsers(options: QueryOptions): Promise<ListUsersResult>;
+  updateUserWorkspaceRoleById(userId: string, workspaceRoleId: string): Promise<User>;
 }
 
 export interface IUserService {
   createUser(actor: ActorContext, params: CreateUserRequestParams): Promise<CreateUserResult>;
   listUsers(actor: ActorContext, options: QueryOptions): Promise<ListUsersResult>;
+  updateUserRole(
+    actor: ActorContext,
+    userId: string,
+    params: UpdateUserRoleRequestParams,
+  ): Promise<User>;
 }

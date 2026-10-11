@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { ILogger } from '@/common/logger';
 import { IAuthorizationGuard, AuthorizationScope } from '@/common/authorization';
 import { IActivationTokenService } from '@/common/activation-token';
-import { AuthorizationError, BusinessRuleViolationError, ConflictError } from '@/common/errors';
+import {
+  AuthorizationError,
+  BusinessRuleViolationError,
+  ConflictError,
+  ResourceNotFoundError,
+} from '@/common/errors';
 
 import { IUserRepository, IUserService } from '@/modules/users';
 import { UserService } from '@/modules/users/user.service';
@@ -20,11 +25,24 @@ import {
   RAW_TOKEN,
   TOKEN_HASH,
   EXPIRES_AT,
+  TARGET_USER_ID,
+  adminRole,
+  adminTargetUser,
+  assignOwnerInput,
+  assignUnknownRoleInput,
   createdUser,
+  demoteToDeveloperInput,
+  demotedToDeveloperUser,
   developerRole,
+  developerTargetUser,
   generatedActivationToken,
   ownerActor,
   ownerRole,
+  ownerTargetUser,
+  pendingDeveloperTargetUser,
+  promoteToAdminInput,
+  promotedPendingUser,
+  promotedToAdminUser,
   userServiceConfig,
   validInput,
 } from './user.service.mock';
@@ -149,6 +167,141 @@ describe('UserService', () => {
       mockUserRepository.createUser.mockRejectedValue(new ConflictError('email already exists'));
 
       await expect(userService.createUser(ownerActor, validInput)).rejects.toThrow(ConflictError);
+    });
+  });
+
+  describe('updateUserRole', () => {
+    beforeEach(() => {
+      // Happy-path defaults: target exists and is a Developer; the requested
+      // role resolves to Admin.
+      mockUserRepository.getUserById.mockResolvedValue(developerTargetUser);
+      mockUserRepository.updateUserWorkspaceRoleById.mockResolvedValue(promotedToAdminUser);
+
+      mockWorkspaceRoleRepository.getWorkspaceRoleById.mockImplementation(async (id) => {
+        if (id === developerRole.id) return developerRole;
+        if (id === adminRole.id) return adminRole;
+        if (id === ownerRole.id) return ownerRole;
+        return null;
+      });
+    });
+
+    describe('on success', () => {
+      it('promotes a Developer to Workspace Admin and returns the updated user', async () => {
+        const result = await userService.updateUserRole(
+          ownerActor,
+          developerTargetUser.id,
+          promoteToAdminInput,
+        );
+
+        expect(result).toEqual(promotedToAdminUser);
+        expect(mockUserRepository.updateUserWorkspaceRoleById).toHaveBeenCalledWith(
+          developerTargetUser.id,
+          promoteToAdminInput.workspaceRoleId,
+        );
+      });
+
+      it('demotes a Workspace Admin to Developer and returns the updated user', async () => {
+        mockUserRepository.getUserById.mockResolvedValue(adminTargetUser);
+        mockUserRepository.updateUserWorkspaceRoleById.mockResolvedValue(demotedToDeveloperUser);
+
+        const result = await userService.updateUserRole(
+          ownerActor,
+          adminTargetUser.id,
+          demoteToDeveloperInput,
+        );
+
+        expect(result).toEqual(demotedToDeveloperUser);
+        expect(mockUserRepository.updateUserWorkspaceRoleById).toHaveBeenCalledWith(
+          adminTargetUser.id,
+          demoteToDeveloperInput.workspaceRoleId,
+        );
+      });
+
+      it('returns the target unchanged and does not persist when the requested role equals the current role (idempotent no-op)', async () => {
+        const result = await userService.updateUserRole(ownerActor, developerTargetUser.id, {
+          workspaceRoleId: developerTargetUser.workspaceRoleId,
+        });
+
+        expect(result).toBe(developerTargetUser);
+        expect(mockUserRepository.updateUserWorkspaceRoleById).not.toHaveBeenCalled();
+      });
+
+      it('updates the role of a target whose account has not yet been activated', async () => {
+        mockUserRepository.getUserById.mockResolvedValue(pendingDeveloperTargetUser);
+        mockUserRepository.updateUserWorkspaceRoleById.mockResolvedValue(promotedPendingUser);
+
+        const result = await userService.updateUserRole(
+          ownerActor,
+          pendingDeveloperTargetUser.id,
+          promoteToAdminInput,
+        );
+
+        expect(result).toEqual(promotedPendingUser);
+        expect(mockUserRepository.updateUserWorkspaceRoleById).toHaveBeenCalledWith(
+          pendingDeveloperTargetUser.id,
+          promoteToAdminInput.workspaceRoleId,
+        );
+      });
+    });
+
+    describe('on authorization failure', () => {
+      it('throws AuthorizationError and performs no reads or writes when the guard rejects the actor', async () => {
+        mockAuthorizationGuard.authorize.mockImplementation(() => {
+          throw new AuthorizationError();
+        });
+
+        await expect(
+          userService.updateUserRole(ownerActor, developerTargetUser.id, promoteToAdminInput),
+        ).rejects.toThrow(AuthorizationError);
+
+        expect(mockAuthorizationGuard.authorize).toHaveBeenCalledWith({
+          actor: ownerActor,
+          scope: AuthorizationScope.Workspace,
+          action: 'updateUserRole',
+        });
+        expect(mockUserRepository.getUserById).not.toHaveBeenCalled();
+        expect(mockUserRepository.updateUserWorkspaceRoleById).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('on target lookup failures', () => {
+      it('throws ResourceNotFoundError and does not persist when the target user does not exist', async () => {
+        mockUserRepository.getUserById.mockResolvedValue(null);
+
+        await expect(
+          userService.updateUserRole(ownerActor, TARGET_USER_ID, promoteToAdminInput),
+        ).rejects.toThrow(ResourceNotFoundError);
+
+        expect(mockUserRepository.updateUserWorkspaceRoleById).not.toHaveBeenCalled();
+      });
+
+      it('throws AuthorizationError and does not persist when the target currently holds the Workspace Owner role', async () => {
+        mockUserRepository.getUserById.mockResolvedValue(ownerTargetUser);
+
+        await expect(
+          userService.updateUserRole(ownerActor, ownerTargetUser.id, promoteToAdminInput),
+        ).rejects.toThrow(AuthorizationError);
+
+        expect(mockUserRepository.updateUserWorkspaceRoleById).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('on requested-role validation failures', () => {
+      it('throws BusinessRuleViolationError and does not persist when the requested role does not exist', async () => {
+        await expect(
+          userService.updateUserRole(ownerActor, developerTargetUser.id, assignUnknownRoleInput),
+        ).rejects.toThrow(BusinessRuleViolationError);
+
+        expect(mockUserRepository.updateUserWorkspaceRoleById).not.toHaveBeenCalled();
+      });
+
+      it('throws BusinessRuleViolationError and does not persist when the requested role is the Workspace Owner role', async () => {
+        await expect(
+          userService.updateUserRole(ownerActor, developerTargetUser.id, assignOwnerInput),
+        ).rejects.toThrow(BusinessRuleViolationError);
+
+        expect(mockUserRepository.updateUserWorkspaceRoleById).not.toHaveBeenCalled();
+      });
     });
   });
 });

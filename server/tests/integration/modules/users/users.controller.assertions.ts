@@ -65,6 +65,40 @@ interface ExpectedPersistedUser {
   rawToken: string;
 }
 
+interface ExpectedUpdatedRoleUser {
+  id: string;
+  workspaceRoleId: string;
+}
+
+/**
+ * Asserts the body returned by a successful `PATCH /users/:id/role`: it exposes
+ * only the safe-fields user resource (id, name, email, workspaceRoleId, status,
+ * timestamps) and never leaks credential or activation material.
+ */
+export function expectUpdatedUserRoleResponse(
+  response: supertest.Response,
+  expected: ExpectedUpdatedRoleUser,
+): void {
+  expect(response.status).toBe(200);
+
+  const user = response.body.data;
+
+  expect(user).toMatchObject({
+    id: expected.id,
+    workspaceRoleId: expected.workspaceRoleId,
+    name: expect.any(String),
+    email: expect.any(String),
+    status: expect.any(String),
+    createdAt: expect.any(String),
+    updatedAt: expect.any(String),
+  });
+
+  // The response must never leak credential or token material.
+  expect(user).not.toHaveProperty('password');
+  expect(user).not.toHaveProperty('activationTokenHash');
+  expect(user).not.toHaveProperty('activationTokenExpiresAt');
+}
+
 /**
  * Asserts the persisted row for a freshly created workspace user: it is stored
  * `Pending` with no password, carries only the activation-token hash (never the

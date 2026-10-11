@@ -24,6 +24,7 @@ import {
   expectConflictError,
   expectForbiddenError,
   expectInternalServerError,
+  expectResourceNotFoundError,
   expectValidationError,
 } from '../../assertions/errors.assertions';
 import {
@@ -41,6 +42,7 @@ import {
   fetchRawUserByEmail,
   fetchWorkspaceRoleIdByName,
   PersistedUser,
+  seedUserWithRole,
   testUsers,
   UsersTestContext,
 } from './users.controller.fixtures';
@@ -48,6 +50,7 @@ import {
   expectActorContextResponse,
   expectCreatedUserResponse,
   expectPendingUserPersisted,
+  expectUpdatedUserRoleResponse,
   extractActivationToken,
 } from './users.controller.assertions';
 
@@ -1011,6 +1014,350 @@ describe('Users Controller', () => {
 
         expectInternalServerError(response);
         expect(await fetchRawUserByEmail(email)).toBeNull();
+      });
+    });
+  });
+
+  describe('PATCH /:id/role', () => {
+    let ownerRoleId: string;
+    let adminRoleId: string;
+    let developerRoleId: string;
+
+    let ownerActor: ActorContext;
+    let adminActor: ActorContext;
+    let developerActor: ActorContext;
+
+    const unknownUserId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    const unknownRoleId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+
+    beforeAll(async () => {
+      ownerRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.OWNER);
+      adminRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.ADMIN);
+      developerRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.DEVELOPER);
+
+      await createTestUsers(testUsers);
+      const [owner, admin, developer] = await fetchPersistedUsers(testUsers);
+
+      if (!owner || !admin || !developer) {
+        throw new Error('Expected users to be persisted');
+      }
+
+      ownerActor = userToActorContext(owner, []);
+      adminActor = userToActorContext(admin, []);
+      developerActor = userToActorContext(developer, []);
+    });
+
+    afterAll(async () => {
+      await prisma.user.deleteMany();
+    });
+
+    function updateUserRoleRequest(
+      targetId: string,
+      body: Record<string, unknown> | undefined | unknown[],
+      authorizationHeader?: string,
+    ) {
+      const request = supertest(app).patch(`/api/v1/users/${targetId}/role`);
+
+      if (authorizationHeader !== undefined) {
+        request.set('Authorization', authorizationHeader);
+      }
+
+      return request.send(body);
+    }
+
+    describe('on success', () => {
+      it('promotes a Developer to Workspace Admin and returns the updated user', async () => {
+        const target = await seedUserWithRole(
+          'promote-dev-to-admin@example.com',
+          'Promote Target',
+          developerRoleId,
+        );
+
+        const response = await updateUserRoleRequest(
+          target.id,
+          { workspaceRoleId: adminRoleId },
+          tokenFor(ownerActor),
+        );
+
+        expectUpdatedUserRoleResponse(response, {
+          id: target.id,
+          workspaceRoleId: adminRoleId,
+        });
+
+        const persisted = await prisma.user.findUnique({ where: { id: target.id } });
+        expect(persisted?.workspaceRoleId).toBe(adminRoleId);
+      });
+
+      it('demotes a Workspace Admin to Developer and returns the updated user', async () => {
+        const target = await seedUserWithRole(
+          'demote-admin-to-dev@example.com',
+          'Demote Target',
+          adminRoleId,
+        );
+
+        const response = await updateUserRoleRequest(
+          target.id,
+          { workspaceRoleId: developerRoleId },
+          tokenFor(ownerActor),
+        );
+
+        expectUpdatedUserRoleResponse(response, {
+          id: target.id,
+          workspaceRoleId: developerRoleId,
+        });
+
+        const persisted = await prisma.user.findUnique({ where: { id: target.id } });
+        expect(persisted?.workspaceRoleId).toBe(developerRoleId);
+      });
+
+      it('is an idempotent no-op when the requested role equals the current role', async () => {
+        const target = await seedUserWithRole(
+          'noop-same-role@example.com',
+          'Same Role Target',
+          developerRoleId,
+        );
+
+        const response = await updateUserRoleRequest(
+          target.id,
+          { workspaceRoleId: developerRoleId },
+          tokenFor(ownerActor),
+        );
+
+        expectUpdatedUserRoleResponse(response, {
+          id: target.id,
+          workspaceRoleId: developerRoleId,
+        });
+
+        const persisted = await prisma.user.findUnique({ where: { id: target.id } });
+        expect(persisted?.workspaceRoleId).toBe(developerRoleId);
+      });
+
+      it('succeeds when the target has not yet been activated', async () => {
+        const target = await seedUserWithRole(
+          'pending-target@example.com',
+          'Pending Target',
+          developerRoleId,
+          { pending: true },
+        );
+
+        const response = await updateUserRoleRequest(
+          target.id,
+          { workspaceRoleId: adminRoleId },
+          tokenFor(ownerActor),
+        );
+
+        expectUpdatedUserRoleResponse(response, {
+          id: target.id,
+          workspaceRoleId: adminRoleId,
+        });
+
+        const persisted = await prisma.user.findUnique({ where: { id: target.id } });
+        expect(persisted?.workspaceRoleId).toBe(adminRoleId);
+        expect(persisted?.status).toBe(UserStatus.Pending);
+      });
+
+      it('never exposes password, activationTokenHash, or activationTokenExpiresAt on any success response', async () => {
+        const target = await seedUserWithRole(
+          'safe-fields-target@example.com',
+          'Safe Fields Target',
+          developerRoleId,
+          { pending: true },
+        );
+
+        const [promoted, idempotent] = await Promise.all([
+          updateUserRoleRequest(target.id, { workspaceRoleId: adminRoleId }, tokenFor(ownerActor)),
+          // Re-seed another user for the idempotent-case response check (same
+          // workspace, no conflict with the first).
+          (async () => {
+            const other = await seedUserWithRole(
+              'safe-fields-noop@example.com',
+              'Safe Fields No-op',
+              developerRoleId,
+            );
+            return updateUserRoleRequest(
+              other.id,
+              { workspaceRoleId: developerRoleId },
+              tokenFor(ownerActor),
+            );
+          })(),
+        ]);
+
+        for (const response of [promoted, idempotent]) {
+          expect(response.status).toBe(200);
+          expect(response.body.data).not.toHaveProperty('password');
+          expect(response.body.data).not.toHaveProperty('activationTokenHash');
+          expect(response.body.data).not.toHaveProperty('activationTokenExpiresAt');
+        }
+      });
+    });
+
+    describe('on validation failure (400)', () => {
+      it.each<{
+        case: string;
+        body: Record<string, unknown> | undefined | unknown[];
+        expectedFields: string[];
+      }>([
+        {
+          case: 'workspaceRoleId is missing',
+          body: {},
+          expectedFields: ['workspaceRoleId'],
+        },
+        {
+          case: 'workspaceRoleId is null',
+          body: { workspaceRoleId: null },
+          expectedFields: ['workspaceRoleId'],
+        },
+        {
+          case: 'workspaceRoleId is not a uuid',
+          body: { workspaceRoleId: 'not-a-uuid' },
+          expectedFields: ['workspaceRoleId'],
+        },
+        {
+          case: 'the request body is undefined',
+          body: undefined,
+          expectedFields: ['workspaceRoleId'],
+        },
+        {
+          case: 'the request body is not an object',
+          body: [],
+          expectedFields: ['workspaceRoleId'],
+        },
+        {
+          case: 'the body contains an unrecognized field',
+          body: { workspaceRoleId: '11111111-1111-4111-8111-111111111111', extra: 'nope' },
+          expectedFields: ['extra'],
+        },
+      ])(
+        'returns a 400 validation error when $case and does not modify any user',
+        async ({ body, expectedFields }) => {
+          const target = await seedUserWithRole(
+            `validation-${expectedFields.join('-')}-${Date.now()}@example.com`,
+            'Validation Target',
+            developerRoleId,
+          );
+
+          const response = await updateUserRoleRequest(target.id, body, tokenFor(ownerActor));
+
+          expectValidationError(response, expectedFields);
+
+          const persisted = await prisma.user.findUnique({ where: { id: target.id } });
+          expect(persisted?.workspaceRoleId).toBe(developerRoleId);
+        },
+      );
+    });
+
+    describe('on unauthenticated request (401)', () => {
+      it('returns an authentication required error and does not modify any user', async () => {
+        const target = await seedUserWithRole(
+          'unauthenticated-target@example.com',
+          'Unauthenticated Target',
+          developerRoleId,
+        );
+
+        const response = await updateUserRoleRequest(target.id, { workspaceRoleId: adminRoleId });
+
+        expectAuthenticationRequired(response);
+
+        const persisted = await prisma.user.findUnique({ where: { id: target.id } });
+        expect(persisted?.workspaceRoleId).toBe(developerRoleId);
+      });
+    });
+
+    describe('on authorization failures (403)', () => {
+      it.each([
+        { actorLabel: 'Admin', getActor: () => adminActor },
+        { actorLabel: 'Developer', getActor: () => developerActor },
+      ])(
+        'returns a forbidden error when the actor is a $actorLabel and does not modify any user',
+        async ({ actorLabel, getActor }) => {
+          const target = await seedUserWithRole(
+            `forbidden-${actorLabel.toLowerCase()}@example.com`,
+            `Forbidden ${actorLabel} Target`,
+            developerRoleId,
+          );
+
+          const response = await updateUserRoleRequest(
+            target.id,
+            { workspaceRoleId: adminRoleId },
+            tokenFor(getActor()),
+          );
+
+          expectForbiddenError(response);
+
+          const persisted = await prisma.user.findUnique({ where: { id: target.id } });
+          expect(persisted?.workspaceRoleId).toBe(developerRoleId);
+        },
+      );
+
+      it('returns a forbidden error when the target currently holds the Workspace Owner role and does not modify any user', async () => {
+        const target = await seedUserWithRole(
+          'owner-target@example.com',
+          'Owner Target',
+          ownerRoleId,
+        );
+
+        const response = await updateUserRoleRequest(
+          target.id,
+          { workspaceRoleId: adminRoleId },
+          tokenFor(ownerActor),
+        );
+
+        expectForbiddenError(response);
+
+        const persisted = await prisma.user.findUnique({ where: { id: target.id } });
+        expect(persisted?.workspaceRoleId).toBe(ownerRoleId);
+      });
+    });
+
+    describe('on target lookup failure (404)', () => {
+      it('returns a resource-not-found error when the target user does not exist', async () => {
+        const response = await updateUserRoleRequest(
+          unknownUserId,
+          { workspaceRoleId: adminRoleId },
+          tokenFor(ownerActor),
+        );
+
+        expectResourceNotFoundError(response, ctx.userRepository.resourceName);
+      });
+    });
+
+    describe('on business-rule violations (422)', () => {
+      it('returns a business-rule violation when the requested role does not exist and does not modify any user', async () => {
+        const target = await seedUserWithRole(
+          'unknown-role-target@example.com',
+          'Unknown Role Target',
+          developerRoleId,
+        );
+
+        const response = await updateUserRoleRequest(
+          target.id,
+          { workspaceRoleId: unknownRoleId },
+          tokenFor(ownerActor),
+        );
+
+        expectBusinessRuleViolationError(response);
+
+        const persisted = await prisma.user.findUnique({ where: { id: target.id } });
+        expect(persisted?.workspaceRoleId).toBe(developerRoleId);
+      });
+
+      it('returns a business-rule violation when the requested role is the Workspace Owner role and does not modify any user', async () => {
+        const target = await seedUserWithRole(
+          'owner-assignment-target@example.com',
+          'Owner Assignment Target',
+          developerRoleId,
+        );
+
+        const response = await updateUserRoleRequest(
+          target.id,
+          { workspaceRoleId: ownerRoleId },
+          tokenFor(ownerActor),
+        );
+
+        expectBusinessRuleViolationError(response);
+
+        const persisted = await prisma.user.findUnique({ where: { id: target.id } });
+        expect(persisted?.workspaceRoleId).toBe(developerRoleId);
       });
     });
   });

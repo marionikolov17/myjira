@@ -120,6 +120,21 @@ export class UserRepository implements IUserRepository {
     }
   }
 
+  public async updateUserWorkspaceRoleById(userId: string, workspaceRoleId: string): Promise<User> {
+    try {
+      const user = await this.prisma.user.update({
+        where: { id: userId },
+        data: { workspaceRoleId },
+        select: this.select,
+      });
+
+      return UserSchema.parse(user);
+    } catch (error) {
+      this.logError(error);
+      throw mapPrismaError(error);
+    }
+  }
+
   public async findUsers(options: QueryOptions): Promise<ListUsersResult> {
     const { skip, take, orderBy, where } = toPrismaFindArgs(options);
     const stableOrderBy = [...orderBy, { id: 'asc' as const }];

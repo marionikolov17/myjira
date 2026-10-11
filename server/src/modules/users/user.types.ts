@@ -50,3 +50,5 @@ export interface UserServiceConfig {
 }
 
 export type ListUsersResult = Paginated<User>;
+
+export type UpdateUserRoleResult = User;

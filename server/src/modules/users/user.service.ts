@@ -1,13 +1,17 @@
 import { ActorContext } from '@/common/interfaces';
 import { ILogger } from '@/common/logger';
-import { BusinessRuleViolationError } from '@/common/errors';
+import {
+  AuthorizationError,
+  BusinessRuleViolationError,
+  ResourceNotFoundError,
+} from '@/common/errors';
 import { IActivationTokenService } from '@/common/activation-token';
 import { AuthorizationScope, IAuthorizationGuard } from '@/common/authorization';
 import { QueryOptions } from '@/common/query';
 import { IWorkspaceRoleRepository, WorkspaceRoleName } from '@/modules/workspace-roles';
 import { IUserRepository, IUserService } from './user.interface';
 import { CreateUserResult, ListUsersResult, UserServiceConfig } from './user.types';
-import { CreateUserRequestParams } from './user.schema';
+import { CreateUserRequestParams, UpdateUserRoleRequestParams, User } from './user.schema';
 
 export class UserService implements IUserService {
   constructor(
@@ -86,5 +90,60 @@ export class UserService implements IUserService {
     });
 
     return this.userRepository.findUsers(options);
+  }
+
+  public async updateUserRole(
+    actor: ActorContext,
+    userId: string,
+    params: UpdateUserRoleRequestParams,
+  ): Promise<User> {
+    this.authorizationGuard.authorize({
+      actor,
+      scope: AuthorizationScope.Workspace,
+      action: 'updateUserRole',
+    });
+
+    const target = await this.userRepository.getUserById(userId);
+
+    if (!target) {
+      this.logger.warn('Workspace user role update rejected: target user not found', { userId });
+      throw new ResourceNotFoundError({
+        resourceName: this.userRepository.resourceName,
+      });
+    }
+
+    const targetCurrentRole = await this.workspaceRoleRepository.getWorkspaceRoleById(
+      target.workspaceRoleId,
+    );
+
+    if (targetCurrentRole?.name === WorkspaceRoleName.OWNER) {
+      this.logger.warn('Workspace user role update rejected: target user is the Workspace Owner', {
+        userId: target.id,
+      });
+      throw new AuthorizationError();
+    }
+
+    await this.assertAssignableRole(params.workspaceRoleId);
+
+    if (target.workspaceRoleId === params.workspaceRoleId) {
+      this.logger.info('Workspace user role update is a no-op: requested role matches current', {
+        userId: target.id,
+        workspaceRoleId: target.workspaceRoleId,
+      });
+      return target;
+    }
+
+    const updated = await this.userRepository.updateUserWorkspaceRoleById(
+      target.id,
+      params.workspaceRoleId,
+    );
+
+    this.logger.info('Workspace user role updated', {
+      userId: updated.id,
+      from: target.workspaceRoleId,
+      to: updated.workspaceRoleId,
+    });
+
+    return updated;
   }
 }
