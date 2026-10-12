@@ -59,12 +59,6 @@ export function extractActivationToken(response: supertest.Response): string {
   return token;
 }
 
-interface ExpectedPersistedUser {
-  workspaceRoleId: string;
-  responseUserId: string;
-  rawToken: string;
-}
-
 interface ExpectedUpdatedRoleUser {
   id: string;
   workspaceRoleId: string;
@@ -72,8 +66,12 @@ interface ExpectedUpdatedRoleUser {
 
 /**
  * Asserts the body returned by a successful `PATCH /users/:id/role`: it exposes
- * only the safe-fields user resource (id, name, email, workspaceRoleId, status,
- * timestamps) and never leaks credential or activation material.
+ * exactly the safe-fields user resource (id, name, email, workspaceRoleId,
+ * status, timestamps) and nothing else. Using an exact-shape assertion rather
+ * than `toMatchObject` + a credential denylist means any future sensitive
+ * column added to the User row (e.g. `twoFactorSecret`, `refreshTokenHash`)
+ * that leaks into the response will fail this helper immediately, without
+ * requiring the test to be updated to add it to a denylist.
  */
 export function expectUpdatedUserRoleResponse(
   response: supertest.Response,
@@ -83,7 +81,7 @@ export function expectUpdatedUserRoleResponse(
 
   const user = response.body.data;
 
-  expect(user).toMatchObject({
+  expect(user).toEqual({
     id: expected.id,
     workspaceRoleId: expected.workspaceRoleId,
     name: expect.any(String),
@@ -92,11 +90,12 @@ export function expectUpdatedUserRoleResponse(
     createdAt: expect.any(String),
     updatedAt: expect.any(String),
   });
+}
 
-  // The response must never leak credential or token material.
-  expect(user).not.toHaveProperty('password');
-  expect(user).not.toHaveProperty('activationTokenHash');
-  expect(user).not.toHaveProperty('activationTokenExpiresAt');
+interface ExpectedPersistedUser {
+  workspaceRoleId: string;
+  responseUserId: string;
+  rawToken: string;
 }
 
 /**

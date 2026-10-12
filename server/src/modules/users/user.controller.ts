@@ -1,9 +1,9 @@
 import { NextFunction, Request, Response, Router } from 'express';
-import { z } from 'zod';
 import { requireAuthenticationMiddleware } from '@/common/middlewares';
 import { isPlainObject } from '@/common/utils/is-plain-object';
 import { ActorContext } from '@/common/interfaces';
 import { IQueryParser, QueryConfig, buildPaginationMeta } from '@/common/query';
+import { IdSchema } from '@/common/schema';
 import { IUserService } from './user.interface';
 import { CreateUserRequestParamsSchema, UpdateUserRoleRequestParamsSchema } from './user.schema';
 
@@ -66,7 +66,7 @@ export class UsersController {
 
   private async updateUserRole(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const id = z.uuid().parse(req.params['id']);
+      const { id } = IdSchema.parse(req.params);
 
       const body = isPlainObject(req.body) ? req.body : {};
       const validatedParams = UpdateUserRoleRequestParamsSchema.parse(body);

@@ -1155,40 +1155,6 @@ describe('Users Controller', () => {
         expect(persisted?.workspaceRoleId).toBe(adminRoleId);
         expect(persisted?.status).toBe(UserStatus.Pending);
       });
-
-      it('never exposes password, activationTokenHash, or activationTokenExpiresAt on any success response', async () => {
-        const target = await seedUserWithRole(
-          'safe-fields-target@example.com',
-          'Safe Fields Target',
-          developerRoleId,
-          { pending: true },
-        );
-
-        const [promoted, idempotent] = await Promise.all([
-          updateUserRoleRequest(target.id, { workspaceRoleId: adminRoleId }, tokenFor(ownerActor)),
-          // Re-seed another user for the idempotent-case response check (same
-          // workspace, no conflict with the first).
-          (async () => {
-            const other = await seedUserWithRole(
-              'safe-fields-noop@example.com',
-              'Safe Fields No-op',
-              developerRoleId,
-            );
-            return updateUserRoleRequest(
-              other.id,
-              { workspaceRoleId: developerRoleId },
-              tokenFor(ownerActor),
-            );
-          })(),
-        ]);
-
-        for (const response of [promoted, idempotent]) {
-          expect(response.status).toBe(200);
-          expect(response.body.data).not.toHaveProperty('password');
-          expect(response.body.data).not.toHaveProperty('activationTokenHash');
-          expect(response.body.data).not.toHaveProperty('activationTokenExpiresAt');
-        }
-      });
     });
 
     describe('on validation failure (400)', () => {
@@ -1229,9 +1195,10 @@ describe('Users Controller', () => {
         },
       ])(
         'returns a 400 validation error when $case and does not modify any user',
-        async ({ body, expectedFields }) => {
+        async ({ case: caseLabel, body, expectedFields }) => {
+          const slug = caseLabel.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
           const target = await seedUserWithRole(
-            `validation-${expectedFields.join('-')}-${Date.now()}@example.com`,
+            `validation-${slug}@example.com`,
             'Validation Target',
             developerRoleId,
           );
@@ -1244,6 +1211,16 @@ describe('Users Controller', () => {
           expect(persisted?.workspaceRoleId).toBe(developerRoleId);
         },
       );
+
+      it('returns a 400 validation error when the path id is not a uuid', async () => {
+        const response = await updateUserRoleRequest(
+          'not-a-uuid',
+          { workspaceRoleId: adminRoleId },
+          tokenFor(ownerActor),
+        );
+
+        expectValidationError(response, ['id']);
+      });
     });
 
     describe('on unauthenticated request (401)', () => {
@@ -1359,6 +1336,67 @@ describe('Users Controller', () => {
         const persisted = await prisma.user.findUnique({ where: { id: target.id } });
         expect(persisted?.workspaceRoleId).toBe(developerRoleId);
       });
+    });
+
+    describe('on unexpected dependency failure (500)', () => {
+      it.each<{
+        case: string;
+        slug: string;
+        arrange: () => void;
+      }>([
+        {
+          case: 'the user repository getUserById throws',
+          slug: 'get-user-by-id',
+          arrange: () => {
+            jest
+              .spyOn(ctx.userRepository, 'getUserById')
+              .mockRejectedValue(new Error('database unavailable'));
+          },
+        },
+        {
+          case: 'the workspace role repository throws',
+          slug: 'get-workspace-role',
+          arrange: () => {
+            jest
+              .spyOn(ctx.workspaceRoleRepository, 'getWorkspaceRoleById')
+              .mockRejectedValue(new Error('database unavailable'));
+          },
+        },
+        {
+          case: 'the user repository updateUserWorkspaceRoleById throws',
+          slug: 'update-user-role',
+          arrange: () => {
+            jest
+              .spyOn(ctx.userRepository, 'updateUserWorkspaceRoleById')
+              .mockRejectedValue(new Error('database unavailable'));
+          },
+        },
+      ])(
+        'returns an internal server error and does not modify the target when $case',
+        async ({ slug, arrange }) => {
+          const target = await seedUserWithRole(
+            `dependency-failure-${slug}@example.com`,
+            'Dependency Failure Target',
+            developerRoleId,
+          );
+
+          arrange();
+
+          const response = await updateUserRoleRequest(
+            target.id,
+            { workspaceRoleId: adminRoleId },
+            tokenFor(ownerActor),
+          );
+
+          expectInternalServerError(response);
+
+          // The spy only patches the repository method; the raw
+          // `prisma.user.findUnique` below bypasses it and reads the actual
+          // row. Global `afterEach` restores mocks for the next case.
+          const persisted = await prisma.user.findUnique({ where: { id: target.id } });
+          expect(persisted?.workspaceRoleId).toBe(developerRoleId);
+        },
+      );
     });
   });
 });
