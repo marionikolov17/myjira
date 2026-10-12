@@ -947,6 +947,246 @@
           }
         }
       }
+    },
+    "/users/{id}/role": {
+      "patch": {
+        "operationId": "updateUserRole",
+        "summary": "Update a workspace user's role",
+        "description": "Updates the workspace role of an existing workspace user. The caller must present a valid Bearer token and hold the `Workspace Owner` role; any other role is rejected with `403 FORBIDDEN`.\n\nOnly the transitions between `Developer` and `Workspace Admin` are permitted. The target user's current role must not be `Workspace Owner`, and the requested `workspaceRoleId` must reference an existing workspace role that is not the `Workspace Owner` role. When the requested role equals the target's current role, the request is treated as an idempotent no-op and returns the unchanged user resource with a `200` status.\n\nAuthentication runs before validation, which runs before authorization, which runs before the target lookup, which runs before the business-rule checks. In other words a missing token yields `401`, a malformed body yields `400`, an unprivileged caller yields `403`, an unknown target id yields `404`, and a privileged caller whose requested role is missing or non-assignable yields `422`.\n\nThe response reuses the safe-fields user resource and never exposes credential or activation material.",
+        "tags": ["Users"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the target workspace user.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRoleRequest"
+              },
+              "examples": {
+                "promoteToAdmin": {
+                  "summary": "Promote a Developer to Workspace Admin",
+                  "value": {
+                    "workspaceRoleId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The role update was applied (or treated as an idempotent no-op when the requested role equals the current role). Returns the target user as a safe-fields resource, with no credential or activation material.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateUserRoleResponse"
+                },
+                "examples": {
+                  "updated": {
+                    "summary": "Promoted Developer to Workspace Admin",
+                    "value": {
+                      "data": {
+                        "id": "3f1e4c2a-1b2c-4d3e-8f90-1a2b3c4d5e6f",
+                        "name": "Ada Lovelace",
+                        "email": "ada@example.com",
+                        "workspaceRoleId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+                        "status": "Active",
+                        "createdAt": "2026-01-01T00:00:00.000Z",
+                        "updatedAt": "2026-02-01T00:00:00.000Z"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body or path parameter failed validation. `details.fields` lists each offending field. This is returned when `workspaceRoleId` is missing, empty, or not a UUID, when the body contains unrecognized fields (the request body is validated with a strict schema), or when the `{id}` path parameter is not a UUID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                },
+                "examples": {
+                  "missingWorkspaceRoleId": {
+                    "summary": "workspaceRoleId is missing",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "status": 400,
+                        "message": "Validation error",
+                        "details": {
+                          "fields": [
+                            {
+                              "name": "workspaceRoleId",
+                              "message": "Invalid input: expected string, received undefined"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "invalidWorkspaceRoleId": {
+                    "summary": "workspaceRoleId is not a UUID",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "status": 400,
+                        "message": "Validation error",
+                        "details": {
+                          "fields": [
+                            {
+                              "name": "workspaceRoleId",
+                              "message": "Invalid UUID"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token, so no actor context could be established. No user is modified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                },
+                "examples": {
+                  "authenticationRequired": {
+                    "summary": "No valid token provided",
+                    "value": {
+                      "error": {
+                        "code": "AUTHENTICATION_REQUIRED",
+                        "status": 401,
+                        "message": "Authentication required"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but is not permitted to update the target's role. This is returned when the caller does not hold the `Workspace Owner` role, or when the target user's current role is `Workspace Owner` (which cannot be updated through this endpoint). No user is modified. Denial messages do not reveal which transitions would otherwise have been permitted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller is not a Workspace Owner, or target is a Workspace Owner",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "status": 403,
+                        "message": "Forbidden"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No workspace user exists for the supplied `{id}` path parameter. No user is modified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceNotFoundErrorResponse"
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Target user does not exist",
+                    "value": {
+                      "error": {
+                        "code": "RESOURCE_NOT_FOUND",
+                        "status": 404,
+                        "message": "users not found",
+                        "details": {
+                          "resource": {
+                            "resourceName": "users"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was well-formed and the caller was authorized, but it violated a business rule about the requested workspace role. This is returned when `workspaceRoleId` does not match any existing workspace role, or when it refers to the `Workspace Owner` role (which cannot be assigned through this endpoint). No user is modified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse"
+                },
+                "examples": {
+                  "unknownRole": {
+                    "summary": "Workspace role does not exist",
+                    "value": {
+                      "error": {
+                        "code": "BUSINESS_RULE_VIOLATION",
+                        "status": 422,
+                        "message": "The specified workspace role does not exist"
+                      }
+                    }
+                  },
+                  "ownerRoleAssignment": {
+                    "summary": "Attempt to assign the Workspace Owner role",
+                    "value": {
+                      "error": {
+                        "code": "BUSINESS_RULE_VIOLATION",
+                        "status": 422,
+                        "message": "The Workspace Owner role cannot be assigned to a workspace user"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request (for example, a downstream dependency such as the database failed). No user is modified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                },
+                "examples": {
+                  "internalServerError": {
+                    "summary": "Unexpected failure",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "status": 500,
+                        "message": "Internal server error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1137,6 +1377,29 @@
             "format": "uuid",
             "description": "The identifier of the workspace role to assign. Must reference an existing role and must not be the `Owner` role.",
             "example": "c2d3e4f5-a6b7-4c8d-9e0f-1a2b3c4d5e6f"
+          }
+        }
+      },
+      "UpdateUserRoleRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["workspaceRoleId"],
+        "description": "The requested role for the target workspace user. The body is validated with a strict schema, so unrecognized fields are rejected.",
+        "properties": {
+          "workspaceRoleId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The identifier of the workspace role to assign. Must reference an existing role and must not be the `Workspace Owner` role.",
+            "example": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+          }
+        }
+      },
+      "UpdateUserRoleResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/User"
           }
         }
       },

@@ -74,8 +74,13 @@ export { authController };
 
 ## Code Style
 
-- Put parent/exported functions at the top of a file/class; child (helper) functions below them, in call order.
-- Helpers used by multiple parents go at the top of the file/class.
+- Order declarations top-down, from most-depended-on to most-dependent. A reader should be able to follow the call graph by scrolling down.
+  1. **Module-level setup first**: in a class, the `constructor`; in a function file, top-level `type`/`const` declarations.
+  2. **Shared helpers** (private/internal, used by 2+ parents) sit above the parents.
+  3. **Parent/exported functions** follow, in a logical public-API order.
+  4. **Single-parent helpers** sit directly below the one parent that calls them, in call order.
+- Example (class — `src/modules/users/user.service.ts`): `constructor` → `assertAssignableRole` (shared) → `createUser` → `buildActivationUrl` (helper of `createUser`) → `listUsers` → `updateUserRole`.
+- Example (function file — `src/common/utils/map-prisma-error.ts`): `type ErrorMapper` + `PRISMA_ERROR_MAP` + `PG_CHECK_VIOLATION_CODE` (module setup) → `mapPrismaError` (exported parent) → `getUnderlyingPgCode` + `getModelName` (single-parent helpers of `mapPrismaError`).
 - Always run `npm run prettier` after code changes.
 - Always run `npm run lint` after code changes.
 
@@ -88,9 +93,23 @@ export { authController };
 
 ## Tests
 
+### Unit Tests
+
+- **Before creating or editing any file under `server/tests/unit/`, you MUST `Read` the rule file `.cursor/rules/backend/unit-tests-pattern.mdc` into context.** It is auto-attached by its glob when you open an existing unit-test file, but when writing a brand-new test with no sibling test opened, you must read it explicitly. Do not write or edit a unit test without this rule loaded.
 - Follow the unit-test conventions in `.cursor/rules/backend/unit-tests-pattern.mdc` (mock factories, interface-based mocks, structure, fixtures). Match the existing style exactly.
 - Unit tests mirror `src/` under `tests/unit/`; shared mocks live in `tests/unit/mocks/`.
 - Run unit tests with only this command: `npm run test:unit`
 - Run unit tests with coverage with only this command: `npm run test:unit:coverage`
+
+### Integration Tests
+
+- **Before creating or editing any file under `server/tests/integration/`, you MUST `Read` the rule file `.cursor/rules/backend/integration-tests-pattern.mdc` into context.** It is auto-attached by its glob when you open an existing integration-test file, but when writing a brand-new test with no sibling test opened, you must read it explicitly. Do not write or edit an integration test without this rule loaded.
+- Follow the integration-test conventions in `.cursor/rules/backend/integration-tests-pattern.mdc` (real Express + Prisma/Postgres via Supertest, test-context factories wiring real collaborators, co-located fixtures/assertions, shared error assertions). Match the existing style exactly.
+- Integration tests mirror `src/modules/` under `tests/integration/modules/`; shared DB seeding/fixtures live in `tests/integration/fixtures/` and shared error assertions in `tests/integration/assertions/`.
+- Each subject gets three co-located files: `<name>.controller.test.ts` (the only `*.test.ts`), `<name>.controller.fixtures.ts`, and `<name>.controller.assertions.ts`.
+- Do NOT mock collaborators — integration tests exercise the real pipeline against the test DB. Only use `jest.spyOn` on wired-in dependencies to inject failures.
 - Run integration tests with only this command: `npm run test:integration` (spins up the test DB via Docker)
+
+### All Tests
+
 - Run all tests (unit and integration) with only this command: `npm run test`

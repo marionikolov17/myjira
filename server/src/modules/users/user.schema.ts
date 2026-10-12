@@ -18,3 +18,8 @@ export const CreateUserRequestParamsSchema = z.strictObject({
   workspaceRoleId: z.uuid(),
 });
 export type CreateUserRequestParams = z.infer<typeof CreateUserRequestParamsSchema>;
+
+export const UpdateUserRoleRequestParamsSchema = z.strictObject({
+  workspaceRoleId: z.uuid(),
+});
+export type UpdateUserRoleRequestParams = z.infer<typeof UpdateUserRoleRequestParamsSchema>;

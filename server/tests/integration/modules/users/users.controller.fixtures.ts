@@ -2,6 +2,7 @@ import express, { Application } from 'express';
 
 import { errorMiddleware, createAuthenticationMiddleware } from '@/common/middlewares';
 import { prisma } from '@/common/lib/prisma';
+import { UserStatus } from '@/generated/prisma/enums';
 import { JsonwebtokenTokenService } from '@/common/token-service/jsonwebtoken-token-service';
 import { ITokenService } from '@/common/token-service/token-service.interface';
 import { authorizationGuard } from '@/common/authorization';
@@ -155,6 +156,37 @@ export async function fetchWorkspaceRoleIdByName(name: WorkspaceRoleName): Promi
     throw new Error(`Expected workspace role ${name} to exist`);
   }
   return role.id;
+}
+
+/**
+ * Seeds a user with the given role directly, bypassing the controller/service.
+ * Used by role-update integration tests to arrange target users with specific
+ * workspace roles without relying on activation flows.
+ */
+export async function seedUserWithRole(
+  email: string,
+  name: string,
+  workspaceRoleId: string,
+  options: { pending?: boolean } = {},
+): Promise<{ id: string; workspaceRoleId: string }> {
+  const user = await prisma.user.create({
+    data: {
+      email,
+      name,
+      workspaceRoleId,
+      status: options.pending ? UserStatus.Pending : UserStatus.Active,
+      password: null,
+      ...(options.pending
+        ? {
+            activationTokenHash: 'test-activation-token-hash',
+            activationTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+          }
+        : {}),
+    },
+    select: { id: true, workspaceRoleId: true },
+  });
+
+  return user;
 }
 
 /**
