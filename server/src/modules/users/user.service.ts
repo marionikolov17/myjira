@@ -23,6 +23,26 @@ export class UserService implements IUserService {
     private readonly config: UserServiceConfig,
   ) {}
 
+  private async assertAssignableRole(workspaceRoleId: string): Promise<void> {
+    const workspaceRole = await this.workspaceRoleRepository.getWorkspaceRoleById(workspaceRoleId);
+
+    if (!workspaceRole) {
+      this.logger.warn('Workspace user creation rejected: unknown workspace role', {
+        workspaceRoleId,
+      });
+      throw new BusinessRuleViolationError('The specified workspace role does not exist');
+    }
+
+    if (workspaceRole.name === WorkspaceRoleName.OWNER) {
+      this.logger.warn('Workspace user creation rejected: Owner role cannot be assigned', {
+        workspaceRoleId,
+      });
+      throw new BusinessRuleViolationError(
+        'The Workspace Owner role cannot be assigned to a workspace user',
+      );
+    }
+  }
+
   public async createUser(
     actor: ActorContext,
     params: CreateUserRequestParams,
@@ -54,26 +74,6 @@ export class UserService implements IUserService {
         expiresAt: activationToken.expiresAt,
       },
     };
-  }
-
-  private async assertAssignableRole(workspaceRoleId: string): Promise<void> {
-    const workspaceRole = await this.workspaceRoleRepository.getWorkspaceRoleById(workspaceRoleId);
-
-    if (!workspaceRole) {
-      this.logger.warn('Workspace user creation rejected: unknown workspace role', {
-        workspaceRoleId,
-      });
-      throw new BusinessRuleViolationError('The specified workspace role does not exist');
-    }
-
-    if (workspaceRole.name === WorkspaceRoleName.OWNER) {
-      this.logger.warn('Workspace user creation rejected: Owner role cannot be assigned', {
-        workspaceRoleId,
-      });
-      throw new BusinessRuleViolationError(
-        'The Workspace Owner role cannot be assigned to a workspace user',
-      );
-    }
   }
 
   private buildActivationUrl(token: string): string {
