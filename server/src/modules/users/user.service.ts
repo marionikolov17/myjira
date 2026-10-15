@@ -92,6 +92,25 @@ export class UserService implements IUserService {
     return this.userRepository.findUsers(options);
   }
 
+  public async getUserById(actor: ActorContext, userId: string): Promise<User> {
+    this.authorizationGuard.authorize({
+      actor,
+      scope: AuthorizationScope.Workspace,
+      action: 'getUserById',
+    });
+
+    const user = await this.userRepository.getUserById(userId);
+
+    if (!user) {
+      this.logger.warn('Workspace user retrieval rejected: target user not found', { userId });
+      throw new ResourceNotFoundError({
+        resourceName: this.userRepository.resourceName,
+      });
+    }
+
+    return user;
+  }
+
   public async updateUserRole(
     actor: ActorContext,
     userId: string,

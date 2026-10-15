@@ -92,6 +92,40 @@ export function expectUpdatedUserRoleResponse(
   });
 }
 
+interface ExpectedUserDetails {
+  id: string;
+  name: string;
+  email: string;
+  workspaceRoleId: string;
+}
+
+/**
+ * Asserts the body returned by a successful `GET /users/:id`: it exposes exactly
+ * the safe-fields user resource (id, name, email, workspaceRoleId, status,
+ * timestamps) and nothing else. Mirrors `expectUpdatedUserRoleResponse` — an
+ * exact-shape `toEqual` ensures any future sensitive column that leaks into the
+ * response (e.g. password, activation-token hash) fails the assertion
+ * immediately, without requiring the test to be updated to add it to a denylist.
+ */
+export function expectUserDetailsResponse(
+  response: supertest.Response,
+  expected: ExpectedUserDetails,
+): void {
+  expect(response.status).toBe(200);
+
+  const user = response.body.data;
+
+  expect(user).toEqual({
+    id: expected.id,
+    name: expected.name,
+    email: expected.email,
+    workspaceRoleId: expected.workspaceRoleId,
+    status: expect.any(String),
+    createdAt: expect.any(String),
+    updatedAt: expect.any(String),
+  });
+}
+
 interface ExpectedPersistedUser {
   workspaceRoleId: string;
   responseUserId: string;

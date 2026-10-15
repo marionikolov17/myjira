@@ -24,6 +24,7 @@ export class UsersController {
     this.router.get('/me', requireAuthenticationMiddleware, this.getMe.bind(this));
     this.router.post('/', requireAuthenticationMiddleware, this.createUser.bind(this));
     this.router.patch('/:id/role', requireAuthenticationMiddleware, this.updateUserRole.bind(this));
+    this.router.get('/:id', requireAuthenticationMiddleware, this.getUserById.bind(this));
   }
 
   private getMe(req: Request, res: Response): void {
@@ -76,6 +77,18 @@ export class UsersController {
         id,
         validatedParams,
       );
+
+      res.status(200).json({ data: user });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  private async getUserById(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = IdSchema.parse(req.params);
+
+      const user = await this.userService.getUserById(req.actor as ActorContext, id);
 
       res.status(200).json({ data: user });
     } catch (error) {

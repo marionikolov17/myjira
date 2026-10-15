@@ -51,6 +51,7 @@ import {
   expectCreatedUserResponse,
   expectPendingUserPersisted,
   expectUpdatedUserRoleResponse,
+  expectUserDetailsResponse,
   extractActivationToken,
 } from './users.controller.assertions';
 
@@ -1397,6 +1398,139 @@ describe('Users Controller', () => {
           expect(persisted?.workspaceRoleId).toBe(developerRoleId);
         },
       );
+    });
+  });
+
+  describe('GET /:id', () => {
+    let developerRoleId: string;
+
+    let ownerActor: ActorContext;
+    let adminActor: ActorContext;
+    let developerActor: ActorContext;
+
+    const targetEmail = 'get-by-id-target@example.com';
+    const targetName = 'Get By Id Target';
+    let target: { id: string; workspaceRoleId: string };
+
+    const unknownUserId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    const validUuid = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+
+    beforeAll(async () => {
+      developerRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.DEVELOPER);
+
+      await createTestUsers(testUsers);
+      const [owner, admin, developer] = await fetchPersistedUsers(testUsers);
+
+      if (!owner || !admin || !developer) {
+        throw new Error('Expected users to be persisted');
+      }
+
+      ownerActor = userToActorContext(owner, []);
+      adminActor = userToActorContext(admin, []);
+      developerActor = userToActorContext(developer, []);
+
+      target = await seedUserWithRole(targetEmail, targetName, developerRoleId);
+    });
+
+    afterAll(async () => {
+      await prisma.user.deleteMany();
+    });
+
+    function getUserByIdRequest(id: string, authorizationHeader?: string) {
+      const request = supertest(app).get(`/api/v1/users/${id}`);
+
+      if (authorizationHeader !== undefined) {
+        request.set('Authorization', authorizationHeader);
+      }
+
+      return request;
+    }
+
+    describe('on success', () => {
+      it.each([
+        { actorLabel: 'Owner', getActor: () => ownerActor },
+        { actorLabel: 'Admin', getActor: () => adminActor },
+        { actorLabel: 'Developer', getActor: () => developerActor },
+      ])(
+        'returns 200 with the target user resource for a $actorLabel actor',
+        async ({ getActor }) => {
+          const response = await getUserByIdRequest(target.id, tokenFor(getActor()));
+
+          expectUserDetailsResponse(response, {
+            id: target.id,
+            name: targetName,
+            email: targetEmail,
+            workspaceRoleId: target.workspaceRoleId,
+          });
+        },
+      );
+
+      it('exposes only safe fields and no credential or activation material', async () => {
+        const response = await getUserByIdRequest(target.id, tokenFor(ownerActor));
+
+        expect(response.status).toBe(200);
+        const user = response.body.data as Record<string, unknown>;
+
+        expect(Object.keys(user).sort()).toEqual(
+          ['id', 'name', 'email', 'workspaceRoleId', 'status', 'createdAt', 'updatedAt'].sort(),
+        );
+        expect(user).not.toHaveProperty('password');
+        expect(user).not.toHaveProperty('activationTokenHash');
+        expect(user).not.toHaveProperty('activationTokenExpiresAt');
+      });
+    });
+
+    describe('on validation failure (400)', () => {
+      it('returns a 400 validation error when the path id is not a uuid', async () => {
+        const response = await getUserByIdRequest('not-a-uuid', tokenFor(ownerActor));
+
+        expectValidationError(response, ['id']);
+      });
+    });
+
+    describe('on unauthenticated request (401)', () => {
+      it('returns an authentication required error when no token is provided', async () => {
+        const response = await getUserByIdRequest(validUuid);
+
+        expectAuthenticationRequired(response);
+      });
+    });
+
+    describe('on authorization failures (403)', () => {
+      it("returns a forbidden error when the actor's workspace role is not in the getUserById matrix and does not query the repository for the target", async () => {
+        const unsupportedWorkspaceRoleName = 'Viewer' as WorkspaceRoleName;
+
+        jest.spyOn(ctx.workspaceRoleRepository, 'getWorkspaceRoleById').mockResolvedValue({
+          id: ownerActor.workspaceRole.id,
+          name: unsupportedWorkspaceRoleName,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        const response = await getUserByIdRequest(target.id, tokenFor(ownerActor));
+
+        expectForbiddenError(response);
+      });
+    });
+
+    describe('on target lookup failure (404)', () => {
+      it('returns a resource-not-found error when the target user does not exist', async () => {
+        const response = await getUserByIdRequest(unknownUserId, tokenFor(ownerActor));
+
+        expectResourceNotFoundError(response, ctx.userRepository.resourceName);
+      });
+    });
+
+    describe('on unexpected dependency failure (500)', () => {
+      it('returns an internal server error when the user repository getUserById throws for the target lookup', async () => {
+        jest
+          .spyOn(ctx.userRepository, 'getUserById')
+          .mockRejectedValue(new Error('database unavailable'));
+
+        const response = await getUserByIdRequest(target.id, tokenFor(ownerActor));
+
+        expectInternalServerError(response);
+      });
     });
   });
 });
