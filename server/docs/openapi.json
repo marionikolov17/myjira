@@ -948,6 +948,178 @@
         }
       }
     },
+    "/users/{id}": {
+      "get": {
+        "operationId": "getUserById",
+        "summary": "Retrieve a workspace user by id",
+        "description": "Returns a single workspace user by id. The caller must present a valid Bearer token and hold a workspace role permitted to read users: `Workspace Owner`, `Workspace Admin`, and `Developer` are allowed. Any other role is rejected with `403 FORBIDDEN`.\n\nAuthentication runs before validation, which runs before authorization, which runs before the target lookup. In other words a missing token yields `401`, a non-UUID `{id}` yields `400`, an unprivileged caller yields `403`, and an authorized caller for a well-formed but unknown id yields `404`.\n\nThe response reuses the safe-fields user resource and never exposes credential or activation material.",
+        "tags": ["Users"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the target workspace user.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The target workspace user as a safe-fields resource, with no credential or activation material.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserByIdResponse"
+                },
+                "examples": {
+                  "retrieved": {
+                    "summary": "Retrieved an active Developer",
+                    "value": {
+                      "data": {
+                        "id": "3f1e4c2a-1b2c-4d3e-8f90-1a2b3c4d5e6f",
+                        "name": "Ada Lovelace",
+                        "email": "ada@example.com",
+                        "workspaceRoleId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+                        "status": "Active",
+                        "createdAt": "2026-01-01T00:00:00.000Z",
+                        "updatedAt": "2026-02-01T00:00:00.000Z"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The path parameter failed validation. `details.fields` lists each offending field. This is returned when the `{id}` path parameter is not a UUID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                },
+                "examples": {
+                  "invalidId": {
+                    "summary": "{id} path parameter is not a UUID",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "status": 400,
+                        "message": "Validation error",
+                        "details": {
+                          "fields": [
+                            {
+                              "name": "id",
+                              "message": "Invalid UUID"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token, so no actor context could be established. No user is returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                },
+                "examples": {
+                  "authenticationRequired": {
+                    "summary": "No valid token provided",
+                    "value": {
+                      "error": {
+                        "code": "AUTHENTICATION_REQUIRED",
+                        "status": 401,
+                        "message": "Authentication required"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but is not permitted to read users by id. Only `Workspace Owner`, `Workspace Admin`, and `Developer` may call this endpoint; any other role is rejected. No user is returned. Denial messages do not reveal whether the target user exists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller's workspace role is not permitted to read users by id",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "status": 403,
+                        "message": "Forbidden"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No workspace user exists for the supplied `{id}` path parameter. No user is returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceNotFoundErrorResponse"
+                },
+                "examples": {
+                  "notFound": {
+                    "summary": "Target user does not exist",
+                    "value": {
+                      "error": {
+                        "code": "RESOURCE_NOT_FOUND",
+                        "status": 404,
+                        "message": "users not found",
+                        "details": {
+                          "resource": {
+                            "resourceName": "users"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request (for example, a downstream dependency such as the database failed). No user is returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                },
+                "examples": {
+                  "internalServerError": {
+                    "summary": "Unexpected failure",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "status": 500,
+                        "message": "Internal server error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/users/{id}/role": {
       "patch": {
         "operationId": "updateUserRole",
@@ -1395,6 +1567,15 @@
         }
       },
       "UpdateUserRoleResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "GetUserByIdResponse": {
         "type": "object",
         "required": ["data"],
         "properties": {

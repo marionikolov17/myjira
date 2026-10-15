@@ -23,6 +23,7 @@ export interface IUserRepository extends IRepository {
 export interface IUserService {
   createUser(actor: ActorContext, params: CreateUserRequestParams): Promise<CreateUserResult>;
   listUsers(actor: ActorContext, options: QueryOptions): Promise<ListUsersResult>;
+  getUserById(actor: ActorContext, userId: string): Promise<User>;
   updateUserRole(
     actor: ActorContext,
     userId: string,
