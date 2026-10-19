@@ -1359,6 +1359,367 @@
           }
         }
       }
+    },
+    "/projects": {
+      "post": {
+        "operationId": "createProject",
+        "summary": "Create a project",
+        "description": "Creates a new project and atomically enrolls the acting user as a `Project Owner` member. The caller must present a valid Bearer token and hold either the `Workspace Owner` or `Workspace Admin` role; any other role is rejected with `403 FORBIDDEN`.\n\nAuthentication runs before validation, which runs before authorization, which runs before persistence. In other words a missing token yields `401`, a malformed body yields `400`, and an unprivileged caller yields `403`. If the project row persists but the owner-member write fails, both writes roll back and `500` is returned.\n\nThe body is validated with a strict schema, so unrecognized fields (including client-supplied `id`, `creatorId`, timestamps, or membership fields) are rejected.",
+        "tags": ["Projects"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateProjectRequest" },
+              "examples": {
+                "valid": {
+                  "summary": "Valid project creation",
+                  "value": { "name": "Payments", "description": "Payments integration workstream" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The project was created and the acting user was enrolled as its `Project Owner`.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProjectResponse" },
+                "examples": {
+                  "created": {
+                    "summary": "Created project",
+                    "value": {
+                      "data": {
+                        "id": "6e8b1c7d-9f0a-4b2c-8d3e-4f5a6b7c8d9e",
+                        "name": "Payments",
+                        "description": "Payments integration workstream",
+                        "creatorId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+                        "createdAt": "2026-10-19T10:00:00.000Z",
+                        "updatedAt": "2026-10-19T10:00:00.000Z"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body failed validation. `details.fields` lists each offending field.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token. No project is created.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to create projects. No project is created.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred, or the owner-member write failed and the whole creation was rolled back. No project is created.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listProjects",
+        "summary": "List projects",
+        "description": "Returns a paginated list of projects. The caller must present a valid Bearer token and hold a workspace role permitted to list projects: `Workspace Owner`, `Workspace Admin`, and `Developer` are all allowed. The returned set is scoped by the caller's workspace role: `Workspace Owner` and `Workspace Admin` see every project; `Developer` sees only projects where they are a project member. Scoping is applied before pagination, so `meta.pagination` reflects the scoped total.\n\nSupported query parameters:\n\n- `page`, `pageSize` (defaults: `page=1`, `pageSize=10`; `pageSize` max 100)\n- `sort`: one of `name`, `createdAt`, `updatedAt`, optionally prefixed with `-` for descending\n- `filter[creatorId]` with operators `eq`, `ne`, `in`\n- `filter[createdAt]`, `filter[updatedAt]` with operators `eq`, `gt`, `gte`, `lt`, `lte`\n\n`name` is sortable but not filterable. `description` is neither sortable nor filterable.",
+        "tags": ["Projects"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 10 }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "example": "-createdAt" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of projects, scoped by the caller's workspace role.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListProjectsResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "A query parameter failed validation (unknown sort field, disallowed filter field or operator, `pageSize` above the cap, non-integer `page`/`pageSize`, etc.).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller's workspace role is not permitted to list projects.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{id}": {
+      "get": {
+        "operationId": "getProjectById",
+        "summary": "Retrieve a project by id",
+        "description": "Returns a single project by id. The caller must present a valid Bearer token. The authorization decision for the `getProjectById` action is: callers whose workspace role is `Workspace Owner` or `Workspace Admin` are permitted regardless of project membership (workspace bypass); otherwise the caller must hold a project role on the target project among `Project Owner`, `Project Admin`, or `Developer`.\n\nAuthentication runs before validation, which runs before authorization, which runs before the target lookup. A missing token yields `401`, a non-UUID `{id}` yields `400`, an unauthorized caller yields `403`, and an authorized caller for a well-formed but unknown id yields `404`.",
+        "tags": ["Projects"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the target project.",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The target project.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProjectResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "The `{id}` path parameter is not a UUID.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to read the target project.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "No project exists for the supplied `{id}`.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateProject",
+        "summary": "Update a project",
+        "description": "Partially updates a project's `name` and/or `description`. At least one of the two must be present in the body; unspecified fields are left unchanged. The caller must present a valid Bearer token. Authorization: callers whose workspace role is `Workspace Owner` are permitted regardless of project membership (workspace bypass); otherwise the caller must hold the `Project Owner` project role on the target project. `Workspace Admin`, `Project Admin`, and `Developer` are not permitted to update projects in this iteration.\n\nThe body is validated with a strict schema, so unrecognized fields are rejected. Empty-string values for `name` or `description` are rejected.",
+        "tags": ["Projects"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the target project.",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateProjectRequest" },
+              "examples": {
+                "renameOnly": { "summary": "Rename only", "value": { "name": "Payments v2" } },
+                "retargetDescription": {
+                  "summary": "Change description only",
+                  "value": { "description": "Expanded scope" }
+                },
+                "both": {
+                  "summary": "Update both",
+                  "value": { "name": "Payments v2", "description": "Expanded scope" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated project.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProjectResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "The body or path parameter failed validation (missing both fields, empty-string field, unrecognized field, non-UUID `{id}`, etc.).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to update the target project.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "No project exists for the supplied `{id}`.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request. No project is modified.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteProject",
+        "summary": "Delete a project",
+        "description": "Hard-deletes a project. The deletion cascades at the database level to the project's `project_members`, its `issues`, and the subtasks of those issues. The caller must present a valid Bearer token. Authorization matches `PATCH /projects/{id}`: `Workspace Owner` bypass, otherwise the caller must hold the `Project Owner` project role on the target.\n\nOn success the response is `204 No Content` with an empty body.",
+        "tags": ["Projects"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the target project.",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "The project was deleted. The response body is empty." },
+          "400": {
+            "description": "The `{id}` path parameter is not a UUID.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to delete the target project.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "No project exists for the supplied `{id}`.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request. No project is deleted.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1674,6 +2035,92 @@
           "meta": {
             "$ref": "#/components/schemas/PaginationMeta"
           }
+        }
+      },
+      "Project": {
+        "type": "object",
+        "required": ["id", "name", "description", "creatorId", "createdAt", "updatedAt"],
+        "description": "A project. The project resource is the header-level record and never embeds members, issues, or subtasks.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The identifier of the project."
+          },
+          "name": { "type": "string", "description": "The project's display name." },
+          "description": { "type": "string", "description": "The project's description." },
+          "creatorId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The identifier of the user that created the project."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the project was created."
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the project was last updated."
+          }
+        }
+      },
+      "CreateProjectRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "description"],
+        "description": "The details of the project to create. The body is validated with a strict schema, so unrecognized fields (including any client-supplied `id`, `creatorId`, timestamps, or membership fields) are rejected.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A non-empty project name.",
+            "example": "Payments"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A non-empty project description.",
+            "example": "Payments integration workstream"
+          }
+        }
+      },
+      "UpdateProjectRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "A partial project update. At least one of `name` or `description` must be present. Unspecified fields are left unchanged.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The new project name.",
+            "example": "Payments v2"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The new project description.",
+            "example": "Expanded scope"
+          }
+        }
+      },
+      "ProjectResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": { "$ref": "#/components/schemas/Project" }
+        }
+      },
+      "ListProjectsResponse": {
+        "type": "object",
+        "required": ["data", "meta"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Project" }
+          },
+          "meta": { "$ref": "#/components/schemas/PaginationMeta" }
         }
       },
       "PaginationMeta": {

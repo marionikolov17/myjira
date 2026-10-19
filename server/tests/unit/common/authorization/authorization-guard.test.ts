@@ -155,6 +155,153 @@ describe('AuthorizationGuard', () => {
           }),
         ).toThrow(AuthorizationError);
       });
+
+      describe('workspaceBypass', () => {
+        it.each([
+          { case: 'Workspace Owner', workspaceRoleName: WorkspaceRoleName.OWNER },
+          { case: 'Workspace Admin', workspaceRoleName: WorkspaceRoleName.ADMIN },
+        ])(
+          'should permit a $case bypass regardless of project membership',
+          ({ workspaceRoleName }) => {
+            const actor = buildMockActor({ workspaceRoleName, projectRoles: [] });
+
+            expect(
+              authorizationGuard.authorize({
+                actor,
+                scope: AuthorizationScope.Project,
+                action: 'getProjectById',
+                resource: PROJECT_ID,
+              }),
+            ).toBeUndefined();
+          },
+        );
+
+        it('should permit a workspaceBypass actor even when their project role would be denied', () => {
+          const actor = buildMockActor({
+            workspaceRoleName: WorkspaceRoleName.ADMIN,
+            // `DEVELOPER` is NOT in `getProjectById`'s projectRoles.
+            projectRoles: [buildMockProjectRole(ProjectRoleName.DEVELOPER)],
+          });
+
+          expect(
+            authorizationGuard.authorize({
+              actor,
+              scope: AuthorizationScope.Project,
+              action: 'getProjectById',
+              resource: PROJECT_ID,
+            }),
+          ).toBeUndefined();
+        });
+
+        it('should fall through to the project-role check when the workspace role is not in bypass', () => {
+          const actor = buildMockActor({
+            workspaceRoleName: WorkspaceRoleName.DEVELOPER,
+            projectRoles: [buildMockProjectRole(ProjectRoleName.PROJECT_ADMIN)],
+          });
+
+          expect(
+            authorizationGuard.authorize({
+              actor,
+              scope: AuthorizationScope.Project,
+              action: 'getProjectById',
+              resource: PROJECT_ID,
+            }),
+          ).toBeUndefined();
+        });
+
+        it('should deny when the workspace role is not in bypass and the project role is not allowed', () => {
+          const actor = buildMockActor({
+            workspaceRoleName: WorkspaceRoleName.DEVELOPER,
+            projectRoles: [buildMockProjectRole(ProjectRoleName.DEVELOPER)],
+          });
+
+          expect(() =>
+            authorizationGuard.authorize({
+              actor,
+              scope: AuthorizationScope.Project,
+              action: 'getProjectById',
+              resource: PROJECT_ID,
+            }),
+          ).toThrow(AuthorizationError);
+        });
+
+        it('should deny a non-member when the workspace role is not in bypass', () => {
+          const actor = buildMockActor({
+            workspaceRoleName: WorkspaceRoleName.DEVELOPER,
+            projectRoles: [],
+          });
+
+          expect(() =>
+            authorizationGuard.authorize({
+              actor,
+              scope: AuthorizationScope.Project,
+              action: 'getProjectById',
+              resource: PROJECT_ID,
+            }),
+          ).toThrow(AuthorizationError);
+        });
+
+        it('should preserve old deny-when-not-member behavior for a config without bypass (object shape)', () => {
+          const actor = buildMockActor({
+            workspaceRoleName: WorkspaceRoleName.OWNER,
+            projectRoles: [],
+          });
+
+          expect(() =>
+            authorizationGuard.authorize({
+              actor,
+              scope: AuthorizationScope.Project,
+              action: 'deleteProject',
+              resource: PROJECT_ID,
+            }),
+          ).toThrow(AuthorizationError);
+        });
+
+        it('should permit via project role for a config without bypass (object shape)', () => {
+          const actor = buildMockActor({
+            workspaceRoleName: WorkspaceRoleName.DEVELOPER,
+            projectRoles: [buildMockProjectRole(ProjectRoleName.PROJECT_OWNER)],
+          });
+
+          expect(
+            authorizationGuard.authorize({
+              actor,
+              scope: AuthorizationScope.Project,
+              action: 'deleteProject',
+              resource: PROJECT_ID,
+            }),
+          ).toBeUndefined();
+        });
+
+        it('should preserve old array-shape behavior (no bypass considered) for a workspace Owner on a project they do not belong to', () => {
+          const actor = buildMockActor({
+            workspaceRoleName: WorkspaceRoleName.OWNER,
+            projectRoles: [],
+          });
+
+          expect(() =>
+            authorizationGuard.authorize({
+              actor,
+              scope: AuthorizationScope.Project,
+              action: 'addProjectMember',
+              resource: PROJECT_ID,
+            }),
+          ).toThrow(AuthorizationError);
+        });
+
+        it('should not consult workspaceBypass for workspace-scope actions', () => {
+          // `createUser` is a workspace-scope action; bypass is irrelevant.
+          const actor = buildMockActor({ workspaceRoleName: WorkspaceRoleName.DEVELOPER });
+
+          expect(() =>
+            authorizationGuard.authorize({
+              actor,
+              scope: AuthorizationScope.Workspace,
+              action: 'createUser',
+            }),
+          ).toThrow(AuthorizationError);
+        });
+      });
     });
 
     describe('unknown scope', () => {

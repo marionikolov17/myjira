@@ -5,5 +5,7 @@ export function createMockProjectMemberRepository(): jest.Mocked<IProjectMemberR
   return {
     resourceName: 'project_members',
     getProjectMembersByUserId: jest.fn(),
+    createProjectMember: jest.fn(),
+    getProjectRoleIdByName: jest.fn(),
   };
 }

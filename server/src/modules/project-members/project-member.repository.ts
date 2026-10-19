@@ -2,8 +2,15 @@ import type { PrismaClient } from '@/generated/prisma/client';
 import { ILogger, logger } from '@/common/logger';
 import { prisma } from '@/common/lib/prisma';
 import { mapPrismaError } from '@/common/utils/map-prisma-error';
-import { ProjectMemberWithRole, ProjectMemberWithRoleSchema } from './project-member.schema';
-import { IProjectMemberRepository } from './project-member.interface';
+import { BusinessRuleViolationError } from '@/common/errors';
+import {
+  ProjectMemberWithRole,
+  ProjectMemberWithRoleSchema,
+  ProjectRoleName,
+} from './project-member.schema';
+import { CreateProjectMemberParams, IProjectMemberRepository } from './project-member.interface';
+
+type ProjectMemberPrismaClient = Pick<PrismaClient, 'projectMember' | 'projectRole'>;
 
 export class ProjectMemberRepository implements IProjectMemberRepository {
   public readonly resourceName: string = 'project_members';
@@ -21,7 +28,7 @@ export class ProjectMemberRepository implements IProjectMemberRepository {
   } as const;
 
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly prisma: ProjectMemberPrismaClient,
     private readonly logger: ILogger,
   ) {}
 
@@ -34,6 +41,42 @@ export class ProjectMemberRepository implements IProjectMemberRepository {
 
       return members.map((member) => ProjectMemberWithRoleSchema.parse(member));
     } catch (error) {
+      this.logError(error);
+      throw mapPrismaError(error);
+    }
+  }
+
+  public async createProjectMember(params: CreateProjectMemberParams): Promise<void> {
+    try {
+      await this.prisma.projectMember.create({
+        data: {
+          projectId: params.projectId,
+          userId: params.userId,
+          projectRoleId: params.projectRoleId,
+        },
+      });
+    } catch (error) {
+      this.logError(error);
+      throw mapPrismaError(error);
+    }
+  }
+
+  public async getProjectRoleIdByName(name: ProjectRoleName): Promise<string> {
+    try {
+      const role = await this.prisma.projectRole.findFirst({
+        where: { name },
+        select: { id: true },
+      });
+
+      if (!role) {
+        throw new BusinessRuleViolationError(`Project role ${name} does not exist`);
+      }
+
+      return role.id;
+    } catch (error) {
+      if (error instanceof BusinessRuleViolationError) {
+        throw error;
+      }
       this.logError(error);
       throw mapPrismaError(error);
     }
