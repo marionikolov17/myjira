@@ -21,6 +21,12 @@ import { IssuePriority, IssueStatus } from '@/generated/prisma/enums';
 import { createTestUsers } from '../../fixtures/users.fixtures';
 import { ensureWorkspaceRolesSeeded } from '../../fixtures/workspace-roles.fixtures';
 import { ensureProjectRolesSeeded } from '../../fixtures/project-members.fixtures';
+import {
+  bearer,
+  fetchPersistedUsers,
+  tokenFor,
+  userToActorContext,
+} from '../../fixtures/actor-context.fixtures';
 
 import {
   expectAuthenticationRequired,
@@ -39,9 +45,7 @@ import {
   createExpiredToken,
   createProjectsTestContext,
   createTokenWithWrongSecret,
-  fetchPersistedUser,
   fetchProjectRoleIdByName,
-  PersistedUser,
   ProjectsTestContext,
   seedProject,
   testUsers,
@@ -55,17 +59,6 @@ import {
   expectProjectResponseById,
 } from './project.controller.assertions';
 
-function userToActorContext(
-  user: PersistedUser,
-  projectRoles: ActorContext['projectRoles'],
-): ActorContext {
-  return {
-    userId: user.id,
-    workspaceRole: { id: user.workspaceRoleId, name: user.workspaceRoleName },
-    projectRoles,
-  };
-}
-
 function toProjectRoles(
   memberships: { projectId: string; projectRoleId: string; projectRoleName: ProjectRoleName }[],
 ): ActorContext['projectRoles'] {
@@ -74,20 +67,6 @@ function toProjectRoles(
     projectRoleId: membership.projectRoleId,
     projectRoleName: membership.projectRoleName,
   }));
-}
-
-async function fetchPersistedUsers(): Promise<{
-  owner: PersistedUser;
-  admin: PersistedUser;
-  developer: PersistedUser;
-}> {
-  const [owner, admin, developer] = await Promise.all(
-    testUsers.map((testUser) => fetchPersistedUser(testUser.email)),
-  );
-  if (!owner || !admin || !developer) {
-    throw new Error('Expected seeded users to exist');
-  }
-  return { owner, admin, developer };
 }
 
 describe('Projects Controller', () => {
@@ -102,19 +81,6 @@ describe('Projects Controller', () => {
     await ensureProjectRolesSeeded();
   });
 
-  function bearer(token: string): string {
-    return `Bearer ${token}`;
-  }
-
-  function tokenFor(actor: ActorContext): string {
-    return bearer(
-      ctx.tokenService.generateToken({
-        userId: actor.userId,
-        workspaceRoleId: actor.workspaceRole.id,
-      }),
-    );
-  }
-
   describe('POST /', () => {
     let ownerActor: ActorContext;
     let adminActor: ActorContext;
@@ -122,7 +88,10 @@ describe('Projects Controller', () => {
 
     beforeAll(async () => {
       await createTestUsers(testUsers);
-      const { owner, admin, developer } = await fetchPersistedUsers();
+      const [owner, admin, developer] = await fetchPersistedUsers(testUsers);
+      if (!owner || !admin || !developer) {
+        throw new Error('Expected seeded users to exist');
+      }
       ownerActor = userToActorContext(owner, []);
       adminActor = userToActorContext(admin, []);
       developerActor = userToActorContext(developer, []);
@@ -163,7 +132,7 @@ describe('Projects Controller', () => {
           const actor = getActor();
           const response = await createProjectRequest(
             { name: 'Alpha', description: 'Alpha description' },
-            tokenFor(actor),
+            tokenFor(ctx.tokenService, actor),
           );
 
           expectProjectResponse(response, 201, {
@@ -183,13 +152,13 @@ describe('Projects Controller', () => {
       it('allows duplicate project names', async () => {
         const first = await createProjectRequest(
           { name: 'Duplicate', description: 'first' },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
         expect(first.status).toBe(201);
 
         const second = await createProjectRequest(
           { name: 'Duplicate', description: 'second' },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectProjectResponse(second, 201, {
@@ -205,7 +174,7 @@ describe('Projects Controller', () => {
       it('ignores client-supplied id, creatorId, timestamps, and membership fields', async () => {
         const response = await createProjectRequest(
           { name: 'Clean', description: 'Clean description' },
-          tokenFor(adminActor),
+          tokenFor(ctx.tokenService, adminActor),
         );
 
         expectProjectResponse(response, 201, {
@@ -263,7 +232,7 @@ describe('Projects Controller', () => {
           expectedFields: ['creatorId'],
         },
       ])('returns a validation error when $case', async ({ body, expectedFields }) => {
-        const response = await createProjectRequest(body, tokenFor(ownerActor));
+        const response = await createProjectRequest(body, tokenFor(ctx.tokenService, ownerActor));
 
         expectValidationError(response, expectedFields);
         await expectNoProjectWithName((body as { name?: string })?.name ?? '');
@@ -283,7 +252,7 @@ describe('Projects Controller', () => {
       it('returns a forbidden error for a Developer actor', async () => {
         const response = await createProjectRequest(
           { name: 'Forbidden', description: 'forbidden' },
-          tokenFor(developerActor),
+          tokenFor(ctx.tokenService, developerActor),
         );
 
         expectForbiddenError(response);
@@ -302,7 +271,7 @@ describe('Projects Controller', () => {
 
         const response = await createProjectRequest(
           { name: 'Rollback', description: 'Rollback description' },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectInternalServerError(response);
@@ -325,7 +294,10 @@ describe('Projects Controller', () => {
 
     beforeAll(async () => {
       await createTestUsers(testUsers);
-      const { owner, admin, developer } = await fetchPersistedUsers();
+      const [owner, admin, developer] = await fetchPersistedUsers(testUsers);
+      if (!owner || !admin || !developer) {
+        throw new Error('Expected seeded users to exist');
+      }
 
       // Seed 25 projects — the owner is the creator of all of them; project
       // membership is seeded separately below.
@@ -414,7 +386,7 @@ describe('Projects Controller', () => {
       ])('returns all projects for a $case', async ({ getActor }) => {
         const response = await listProjects(
           { page: '1', pageSize: String(pageSize) },
-          tokenFor(getActor()),
+          tokenFor(ctx.tokenService, getActor()),
         );
 
         expectPaginatedEnvelope(response, {
@@ -427,7 +399,10 @@ describe('Projects Controller', () => {
       });
 
       it('returns only member projects for a Developer actor', async () => {
-        const response = await listProjects({ pageSize: '100' }, tokenFor(developerActor));
+        const response = await listProjects(
+          { pageSize: '100' },
+          tokenFor(ctx.tokenService, developerActor),
+        );
 
         expectDataIds(response, developerMemberProjects);
         expect(response.body.meta.pagination.totalItems).toBe(developerMemberProjects.length);
@@ -442,7 +417,10 @@ describe('Projects Controller', () => {
         await prisma.projectMember.deleteMany({ where: { userId: developerActor.userId } });
 
         try {
-          const response = await listProjects(undefined, tokenFor(developerActor));
+          const response = await listProjects(
+            undefined,
+            tokenFor(ctx.tokenService, developerActor),
+          );
 
           expectEmptyPaginatedEnvelope(response);
         } finally {
@@ -459,7 +437,7 @@ describe('Projects Controller', () => {
       });
 
       it('applies the users query-config defaults (page=1, pageSize=10) when neither is supplied', async () => {
-        const response = await listProjects(undefined, tokenFor(ownerActor));
+        const response = await listProjects(undefined, tokenFor(ctx.tokenService, ownerActor));
 
         expectPaginatedEnvelope(response, { page: 1, pageSize: 10 });
       });
@@ -469,7 +447,7 @@ describe('Projects Controller', () => {
 
         const response = await listProjects(
           { page: String(expectedTotalPages), pageSize: String(pageSize) },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectPaginatedEnvelope(response, {
@@ -484,7 +462,7 @@ describe('Projects Controller', () => {
       it('orders rows by createdAt descending for sort=-createdAt', async () => {
         const response = await listProjects(
           { sort: '-createdAt', pageSize: '100' },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectPaginatedEnvelope(response, { totalItems: totalProjects });
@@ -503,7 +481,7 @@ describe('Projects Controller', () => {
       it('filters by creatorId with eq', async () => {
         const response = await listProjects(
           { 'filter[creatorId]': adminActor.userId, pageSize: '100' },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         const expected = seededProjects
@@ -518,7 +496,7 @@ describe('Projects Controller', () => {
             'filter[creatorId][in]': `${ownerActor.userId},${adminActor.userId}`,
             pageSize: '100',
           },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectDataIds(
@@ -534,7 +512,7 @@ describe('Projects Controller', () => {
         const since = new Date('2000-01-01T00:00:00Z').toISOString();
         const response = await listProjects(
           { 'filter[createdAt][gte]': since, pageSize: '100' },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectPaginatedEnvelope(response, { totalItems: totalProjects });
@@ -571,7 +549,7 @@ describe('Projects Controller', () => {
           expectedFields: ['filter[creatorId][gte]'],
         },
       ])('returns a 400 when $case', async ({ query, expectedFields }) => {
-        const response = await listProjects(query, tokenFor(ownerActor));
+        const response = await listProjects(query, tokenFor(ctx.tokenService, ownerActor));
 
         expectValidationError(response, expectedFields);
       });
@@ -596,7 +574,7 @@ describe('Projects Controller', () => {
           updatedAt: new Date(),
         });
 
-        const response = await listProjects(undefined, tokenFor(ownerActor));
+        const response = await listProjects(undefined, tokenFor(ctx.tokenService, ownerActor));
 
         expectForbiddenError(response);
       });
@@ -608,7 +586,7 @@ describe('Projects Controller', () => {
           .spyOn(ctx.projectRepository, 'findProjects')
           .mockRejectedValueOnce(new Error('database unavailable'));
 
-        const response = await listProjects(undefined, tokenFor(ownerActor));
+        const response = await listProjects(undefined, tokenFor(ctx.tokenService, ownerActor));
 
         expectInternalServerError(response);
       });
@@ -627,7 +605,10 @@ describe('Projects Controller', () => {
 
     beforeAll(async () => {
       await createTestUsers(testUsers);
-      const { owner, admin, developer } = await fetchPersistedUsers();
+      const [owner, admin, developer] = await fetchPersistedUsers(testUsers);
+      if (!owner || !admin || !developer) {
+        throw new Error('Expected seeded users to exist');
+      }
 
       const project = await seedProject(owner.id, 'Target Project', 'Target description');
       projectId = project.id;
@@ -701,7 +682,7 @@ describe('Projects Controller', () => {
           spyProjectRoles(actor);
         }
 
-        const response = await getProjectById(projectId, tokenFor(actor));
+        const response = await getProjectById(projectId, tokenFor(ctx.tokenService, actor));
 
         expectProjectResponseById(response, {
           id: projectId,
@@ -714,7 +695,7 @@ describe('Projects Controller', () => {
 
     describe('on validation failure (400)', () => {
       it('returns a 400 when the path id is not a uuid', async () => {
-        const response = await getProjectById('not-a-uuid', tokenFor(ownerActor));
+        const response = await getProjectById('not-a-uuid', tokenFor(ctx.tokenService, ownerActor));
 
         expectValidationError(response, ['id']);
       });
@@ -752,7 +733,10 @@ describe('Projects Controller', () => {
 
     describe('on authorization failures (403)', () => {
       it('returns 403 for a Developer actor who is not a member of the project', async () => {
-        const response = await getProjectById(projectId, tokenFor(developerNonMemberActor));
+        const response = await getProjectById(
+          projectId,
+          tokenFor(ctx.tokenService, developerNonMemberActor),
+        );
 
         expectForbiddenError(response);
       });
@@ -762,7 +746,7 @@ describe('Projects Controller', () => {
       it('returns 404 for a well-formed id with no matching project', async () => {
         const response = await getProjectById(
           '11111111-1111-4111-8111-111111111111',
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectResourceNotFoundError(response, ctx.projectRepository.resourceName);
@@ -775,7 +759,7 @@ describe('Projects Controller', () => {
           .spyOn(ctx.projectRepository, 'getProjectById')
           .mockRejectedValueOnce(new Error('database unavailable'));
 
-        const response = await getProjectById(projectId, tokenFor(ownerActor));
+        const response = await getProjectById(projectId, tokenFor(ctx.tokenService, ownerActor));
 
         expectInternalServerError(response);
       });
@@ -812,7 +796,10 @@ describe('Projects Controller', () => {
       await prisma.projectMember.deleteMany();
       await prisma.project.deleteMany();
 
-      const { owner, admin, developer } = await fetchPersistedUsers();
+      const [owner, admin, developer] = await fetchPersistedUsers(testUsers);
+      if (!owner || !admin || !developer) {
+        throw new Error('Expected seeded users to exist');
+      }
 
       const project = await seedProject(owner.id, projectOriginalName, projectOriginalDescription);
       projectId = project.id;
@@ -872,7 +859,7 @@ describe('Projects Controller', () => {
         const response = await updateProjectRequest(
           projectId,
           { name: 'Renamed', description: 'Renamed description' },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectProjectResponseById(response, {
@@ -893,7 +880,7 @@ describe('Projects Controller', () => {
         const response = await updateProjectRequest(
           projectId,
           { name: 'ByOwner', description: 'byOwner' },
-          tokenFor(projectOwnerActor),
+          tokenFor(ctx.tokenService, projectOwnerActor),
         );
 
         expectProjectResponseById(response, {
@@ -908,7 +895,7 @@ describe('Projects Controller', () => {
         const response = await updateProjectRequest(
           projectId,
           { name: 'OnlyName' },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectProjectResponseById(response, {
@@ -923,7 +910,7 @@ describe('Projects Controller', () => {
         const response = await updateProjectRequest(
           projectId,
           { description: 'OnlyDesc' },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectProjectResponseById(response, {
@@ -940,7 +927,7 @@ describe('Projects Controller', () => {
         const response = await updateProjectRequest(
           'not-a-uuid',
           { name: 'x' },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectValidationError(response, ['id']);
@@ -957,7 +944,11 @@ describe('Projects Controller', () => {
         { case: 'request body is undefined', body: undefined },
         { case: 'request body is not an object', body: [] },
       ])('returns a 400 validation error when $case', async ({ body }) => {
-        const response = await updateProjectRequest(projectId, body, tokenFor(ownerActor));
+        const response = await updateProjectRequest(
+          projectId,
+          body,
+          tokenFor(ctx.tokenService, ownerActor),
+        );
 
         expectValidationError(response);
 
@@ -1005,7 +996,7 @@ describe('Projects Controller', () => {
         const response = await updateProjectRequest(
           projectId,
           { name: 'forbidden' },
-          tokenFor(actor),
+          tokenFor(ctx.tokenService, actor),
         );
 
         expectForbiddenError(response);
@@ -1020,7 +1011,7 @@ describe('Projects Controller', () => {
         const response = await updateProjectRequest(
           '11111111-1111-4111-8111-111111111111',
           { name: 'ghost' },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectResourceNotFoundError(response, ctx.projectRepository.resourceName);
@@ -1036,7 +1027,7 @@ describe('Projects Controller', () => {
         const response = await updateProjectRequest(
           projectId,
           { name: 'boom' },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectInternalServerError(response);
@@ -1072,7 +1063,10 @@ describe('Projects Controller', () => {
       await prisma.projectMember.deleteMany();
       await prisma.project.deleteMany();
 
-      const { owner, admin, developer } = await fetchPersistedUsers();
+      const [owner, admin, developer] = await fetchPersistedUsers(testUsers);
+      if (!owner || !admin || !developer) {
+        throw new Error('Expected seeded users to exist');
+      }
 
       const project = await seedProject(owner.id, 'Deletable', 'deletable description');
       projectId = project.id;
@@ -1126,7 +1120,10 @@ describe('Projects Controller', () => {
 
     describe('on success', () => {
       it('returns 204 and deletes the project for Workspace Owner (bypass)', async () => {
-        const response = await deleteProjectRequest(projectId, tokenFor(ownerActor));
+        const response = await deleteProjectRequest(
+          projectId,
+          tokenFor(ctx.tokenService, ownerActor),
+        );
 
         expectNoContentResponse(response);
         await expectProjectAbsent(projectId);
@@ -1135,14 +1132,20 @@ describe('Projects Controller', () => {
       it('returns 204 and deletes the project for Project Owner member', async () => {
         spyProjectRoles(projectOwnerActor);
 
-        const response = await deleteProjectRequest(projectId, tokenFor(projectOwnerActor));
+        const response = await deleteProjectRequest(
+          projectId,
+          tokenFor(ctx.tokenService, projectOwnerActor),
+        );
 
         expectNoContentResponse(response);
         await expectProjectAbsent(projectId);
       });
 
       it('cascades removal to project_members, issues, and subtasks', async () => {
-        const { owner, developer } = await fetchPersistedUsers();
+        const [owner, , developer] = await fetchPersistedUsers(testUsers);
+        if (!owner || !developer) {
+          throw new Error('Expected seeded users to exist');
+        }
 
         // Seed an issue and a subtask referencing the target project.
         const issue = await prisma.issue.create({
@@ -1168,7 +1171,10 @@ describe('Projects Controller', () => {
           },
         });
 
-        const response = await deleteProjectRequest(projectId, tokenFor(ownerActor));
+        const response = await deleteProjectRequest(
+          projectId,
+          tokenFor(ctx.tokenService, ownerActor),
+        );
 
         expectNoContentResponse(response);
 
@@ -1181,7 +1187,10 @@ describe('Projects Controller', () => {
 
     describe('on validation failure (400)', () => {
       it('returns 400 when the path id is not a uuid', async () => {
-        const response = await deleteProjectRequest('not-a-uuid', tokenFor(ownerActor));
+        const response = await deleteProjectRequest(
+          'not-a-uuid',
+          tokenFor(ctx.tokenService, ownerActor),
+        );
 
         expectValidationError(response, ['id']);
       });
@@ -1210,7 +1219,7 @@ describe('Projects Controller', () => {
           spyProjectRoles(actor);
         }
 
-        const response = await deleteProjectRequest(projectId, tokenFor(actor));
+        const response = await deleteProjectRequest(projectId, tokenFor(ctx.tokenService, actor));
 
         expectForbiddenError(response);
 
@@ -1223,7 +1232,7 @@ describe('Projects Controller', () => {
       it('returns 404 for a well-formed id with no matching project', async () => {
         const response = await deleteProjectRequest(
           '11111111-1111-4111-8111-111111111111',
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectResourceNotFoundError(response, ctx.projectRepository.resourceName);
@@ -1236,7 +1245,10 @@ describe('Projects Controller', () => {
           .spyOn(ctx.projectRepository, 'deleteProject')
           .mockRejectedValueOnce(new Error('database unavailable'));
 
-        const response = await deleteProjectRequest(projectId, tokenFor(ownerActor));
+        const response = await deleteProjectRequest(
+          projectId,
+          tokenFor(ctx.tokenService, ownerActor),
+        );
 
         expectInternalServerError(response);
       });

@@ -17,6 +17,11 @@ import {
   ensureProjectRolesSeeded,
   SeededProjectMembership,
 } from '../../fixtures/project-members.fixtures';
+import {
+  fetchPersistedUsers,
+  tokenFor,
+  userToActorContext,
+} from '../../fixtures/actor-context.fixtures';
 
 import {
   expectAuthenticationRequired,
@@ -38,10 +43,8 @@ import {
   createExpiredToken,
   createTokenWithWrongSecret,
   createUsersTestContext,
-  fetchPersistedUser,
   fetchRawUserByEmail,
   fetchWorkspaceRoleIdByName,
-  PersistedUser,
   seedUserWithRole,
   testUsers,
   UsersTestContext,
@@ -55,27 +58,6 @@ import {
   extractActivationToken,
 } from './users.controller.assertions';
 
-import { TestUser } from '../workspace/workspace.controller.fixtures';
-
-function fetchPersistedUsers(testUsers: TestUser[]): Promise<PersistedUser[]> {
-  return Promise.all(testUsers.map(async (testUser) => fetchPersistedUser(testUser.email)));
-}
-
-function userToActorContext(
-  user: PersistedUser,
-  projectRoles: SeededProjectMembership[],
-): ActorContext {
-  return {
-    userId: user.id,
-    workspaceRole: { id: user.workspaceRoleId, name: user.workspaceRoleName },
-    projectRoles: projectRoles.map((projectRole) => ({
-      projectId: projectRole.projectId,
-      projectRoleId: projectRole.projectRoleId,
-      projectRoleName: projectRole.projectRoleName,
-    })),
-  };
-}
-
 describe('Users Controller', () => {
   let app: Application;
   let ctx: UsersTestContext;
@@ -87,19 +69,6 @@ describe('Users Controller', () => {
     await ensureWorkspaceRolesSeeded();
     await ensureProjectRolesSeeded();
   });
-
-  function bearer(token: string): string {
-    return `Bearer ${token}`;
-  }
-
-  function tokenFor(actor: ActorContext): string {
-    return bearer(
-      ctx.tokenService.generateToken({
-        userId: actor.userId,
-        workspaceRoleId: actor.workspaceRole.id,
-      }),
-    );
-  }
 
   describe('GET /me', () => {
     let ownerActor: ActorContext;
@@ -151,13 +120,13 @@ describe('Users Controller', () => {
           getExpectedActor: () => developerActor,
         },
       ])('returns the actor context for a $actor', async ({ getActor, getExpectedActor }) => {
-        const response = await getMe(tokenFor(getActor()));
+        const response = await getMe(tokenFor(ctx.tokenService, getActor()));
 
         expectActorContextResponse(response, getExpectedActor());
       });
 
       it('returns the project roles for a user that is a member of a project', async () => {
-        const response = await getMe(tokenFor(ownerActor));
+        const response = await getMe(tokenFor(ctx.tokenService, ownerActor));
 
         expect(response.status).toBe(200);
         expect(response.body.data.projectRoles).toEqual(ownerActor.projectRoles);
@@ -165,7 +134,7 @@ describe('Users Controller', () => {
       });
 
       it('returns an empty project roles array for a user with no memberships', async () => {
-        const response = await getMe(tokenFor(adminActor));
+        const response = await getMe(tokenFor(ctx.tokenService, adminActor));
 
         expect(response.status).toBe(200);
         expect(response.body.data.projectRoles).toEqual([]);
@@ -221,7 +190,7 @@ describe('Users Controller', () => {
       ])('returns an authentication required error when $case', async ({ arrange }) => {
         arrange();
 
-        const response = await getMe(tokenFor(ownerActor));
+        const response = await getMe(tokenFor(ctx.tokenService, ownerActor));
 
         expectAuthenticationRequired(response);
       });
@@ -253,7 +222,7 @@ describe('Users Controller', () => {
       ])('returns an internal server error when $case', async ({ arrange }) => {
         arrange();
 
-        const response = await getMe(tokenFor(ownerActor));
+        const response = await getMe(tokenFor(ctx.tokenService, ownerActor));
 
         expectInternalServerError(response);
       });
@@ -390,7 +359,7 @@ describe('Users Controller', () => {
         it('returns the first page with correct data length and pagination totals', async () => {
           const response = await listUsers(
             { page: '1', pageSize: String(pageSize) },
-            tokenFor(ownerActor),
+            tokenFor(ctx.tokenService, ownerActor),
           );
 
           expectPaginatedEnvelope(response, {
@@ -407,7 +376,7 @@ describe('Users Controller', () => {
 
           const response = await listUsers(
             { page: String(expectedTotalPages), pageSize: String(pageSize) },
-            tokenFor(ownerActor),
+            tokenFor(ctx.tokenService, ownerActor),
           );
 
           expectPaginatedEnvelope(response, {
@@ -423,7 +392,7 @@ describe('Users Controller', () => {
       it('returns an empty envelope with zeroed totals when no users match the filter', async () => {
         const response = await listUsers(
           { 'filter[workspaceRoleId]': '11111111-1111-4111-8111-111111111111' },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectEmptyPaginatedEnvelope(response);
@@ -432,7 +401,7 @@ describe('Users Controller', () => {
 
     describe('on pagination defaults', () => {
       it('applies the users query-config defaults (page=1, pageSize=10) when neither is supplied', async () => {
-        const response = await listUsers(undefined, tokenFor(ownerActor));
+        const response = await listUsers(undefined, tokenFor(ctx.tokenService, ownerActor));
 
         expectPaginatedEnvelope(response, { page: 1, pageSize: 10 });
       });
@@ -444,7 +413,7 @@ describe('Users Controller', () => {
         { case: 'Admin', getActor: () => adminActor },
         { case: 'Developer', getActor: () => developerActor },
       ])('returns 200 with a valid envelope for a $case actor', async ({ getActor }) => {
-        const response = await listUsers(undefined, tokenFor(getActor()));
+        const response = await listUsers(undefined, tokenFor(ctx.tokenService, getActor()));
 
         expectPaginatedEnvelope(response);
       });
@@ -452,7 +421,7 @@ describe('Users Controller', () => {
 
     describe('on safe fields', () => {
       it('every user in data exposes only safe fields and no credential material', async () => {
-        const response = await listUsers(undefined, tokenFor(ownerActor));
+        const response = await listUsers(undefined, tokenFor(ctx.tokenService, ownerActor));
 
         expectPaginatedEnvelope(response);
         for (const user of response.body.data as Record<string, unknown>[]) {
@@ -498,7 +467,10 @@ describe('Users Controller', () => {
       });
 
       it('returns exactly the Pending users for filter[status]=Pending (enum coercion)', async () => {
-        const response = await listUsers({ 'filter[status]': 'Pending' }, tokenFor(ownerActor));
+        const response = await listUsers(
+          { 'filter[status]': 'Pending' },
+          tokenFor(ctx.tokenService, ownerActor),
+        );
 
         expectDataIds(response, pendingUserIds);
         expect(response.body.meta.pagination.totalItems).toBe(pendingUserIds.length);
@@ -507,7 +479,7 @@ describe('Users Controller', () => {
       it('returns exactly the users matching filter[workspaceRoleId] (uuid coercion) for a given workspace role', async () => {
         const response = await listUsers(
           { 'filter[workspaceRoleId]': adminWorkspaceRoleId, pageSize: '100' },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectDataIds(
@@ -522,7 +494,7 @@ describe('Users Controller', () => {
             'filter[workspaceRoleId][in]': `${adminWorkspaceRoleId},${developerWorkspaceRoleId}`,
             pageSize: '100',
           },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectDataIds(response, [
@@ -538,7 +510,7 @@ describe('Users Controller', () => {
             'filter[createdAt][lte]': RANGE_UPPER.toISOString(),
             pageSize: '100',
           },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectDataIds(response, recentUserIds);
@@ -594,7 +566,7 @@ describe('Users Controller', () => {
         it('orders rows by createdAt descending for sort=-createdAt', async () => {
           const response = await listUsers(
             { sort: '-createdAt', pageSize: '100' },
-            tokenFor(ownerActor),
+            tokenFor(ctx.tokenService, ownerActor),
           );
 
           expectDataIdsInOrder(response, orderedNewestFirst);
@@ -649,7 +621,7 @@ describe('Users Controller', () => {
         it('breaks createdAt ties with a stable id ascending order', async () => {
           const response = await listUsers(
             { sort: '-createdAt', pageSize: '100' },
-            tokenFor(ownerActor),
+            tokenFor(ctx.tokenService, ownerActor),
           );
 
           expectDataIdsInOrder(response, tiedIdsAscending);
@@ -664,7 +636,10 @@ describe('Users Controller', () => {
       // the users query-config and that its ValidationError surfaces as a 400
       // through the error middleware.
       it('returns 400 naming the offending field when the query fails validation', async () => {
-        const response = await listUsers({ sort: 'disallowed' }, tokenFor(ownerActor));
+        const response = await listUsers(
+          { sort: 'disallowed' },
+          tokenFor(ctx.tokenService, ownerActor),
+        );
 
         expectValidationError(response, ['sort']);
       });
@@ -681,7 +656,7 @@ describe('Users Controller', () => {
           updatedAt: new Date(),
         });
 
-        const response = await listUsers(undefined, tokenFor(ownerActor));
+        const response = await listUsers(undefined, tokenFor(ctx.tokenService, ownerActor));
 
         expectForbiddenError(response);
       });
@@ -699,7 +674,7 @@ describe('Users Controller', () => {
           .spyOn(ctx.userRepository, 'findUsers')
           .mockRejectedValue(new Error('database unavailable'));
 
-        const response = await listUsers(undefined, tokenFor(ownerActor));
+        const response = await listUsers(undefined, tokenFor(ctx.tokenService, ownerActor));
 
         expectInternalServerError(response);
       });
@@ -804,7 +779,7 @@ describe('Users Controller', () => {
 
           const response = await createUserRequest(
             { name, email, workspaceRoleId },
-            tokenFor(getActor()),
+            tokenFor(ctx.tokenService, getActor()),
           );
 
           expectCreatedUserResponse(response, {
@@ -830,7 +805,7 @@ describe('Users Controller', () => {
 
         const response = await createUserRequest(
           { name: 'Should Not Exist', email, workspaceRoleId: developerActor.workspaceRole.id },
-          tokenFor(developerActor),
+          tokenFor(ctx.tokenService, developerActor),
         );
 
         expectForbiddenError(response);
@@ -925,7 +900,10 @@ describe('Users Controller', () => {
       ])('returns a validation error when $case', async ({ body, expectedFields }) => {
         const resolvedBody = resolveRolePlaceholder(body, developerActor.workspaceRole.id);
 
-        const response = await createUserRequest(resolvedBody, tokenFor(ownerActor));
+        const response = await createUserRequest(
+          resolvedBody,
+          tokenFor(ctx.tokenService, ownerActor),
+        );
 
         expectValidationError(response, expectedFields);
       });
@@ -938,7 +916,7 @@ describe('Users Controller', () => {
 
         const response = await createUserRequest(
           { name: 'Unknown Role', email, workspaceRoleId: unknownRoleId },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectBusinessRuleViolationError(response);
@@ -950,7 +928,7 @@ describe('Users Controller', () => {
 
         const response = await createUserRequest(
           { name: 'Owner Assignment', email, workspaceRoleId: ownerActor.workspaceRole.id },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectBusinessRuleViolationError(response);
@@ -964,13 +942,13 @@ describe('Users Controller', () => {
 
         const first = await createUserRequest(
           { name: 'First', email, workspaceRoleId: developerActor.workspaceRole.id },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
         expect(first.status).toBe(201);
 
         const second = await createUserRequest(
           { name: 'Second', email, workspaceRoleId: developerActor.workspaceRole.id },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectConflictError(second);
@@ -1010,7 +988,7 @@ describe('Users Controller', () => {
 
         const response = await createUserRequest(
           { name: 'Dependency Failure', email, workspaceRoleId: developerActor.workspaceRole.id },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectInternalServerError(response);
@@ -1077,7 +1055,7 @@ describe('Users Controller', () => {
         const response = await updateUserRoleRequest(
           target.id,
           { workspaceRoleId: adminRoleId },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectUpdatedUserRoleResponse(response, {
@@ -1099,7 +1077,7 @@ describe('Users Controller', () => {
         const response = await updateUserRoleRequest(
           target.id,
           { workspaceRoleId: developerRoleId },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectUpdatedUserRoleResponse(response, {
@@ -1121,7 +1099,7 @@ describe('Users Controller', () => {
         const response = await updateUserRoleRequest(
           target.id,
           { workspaceRoleId: developerRoleId },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectUpdatedUserRoleResponse(response, {
@@ -1144,7 +1122,7 @@ describe('Users Controller', () => {
         const response = await updateUserRoleRequest(
           target.id,
           { workspaceRoleId: adminRoleId },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectUpdatedUserRoleResponse(response, {
@@ -1204,7 +1182,11 @@ describe('Users Controller', () => {
             developerRoleId,
           );
 
-          const response = await updateUserRoleRequest(target.id, body, tokenFor(ownerActor));
+          const response = await updateUserRoleRequest(
+            target.id,
+            body,
+            tokenFor(ctx.tokenService, ownerActor),
+          );
 
           expectValidationError(response, expectedFields);
 
@@ -1217,7 +1199,7 @@ describe('Users Controller', () => {
         const response = await updateUserRoleRequest(
           'not-a-uuid',
           { workspaceRoleId: adminRoleId },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectValidationError(response, ['id']);
@@ -1257,7 +1239,7 @@ describe('Users Controller', () => {
           const response = await updateUserRoleRequest(
             target.id,
             { workspaceRoleId: adminRoleId },
-            tokenFor(getActor()),
+            tokenFor(ctx.tokenService, getActor()),
           );
 
           expectForbiddenError(response);
@@ -1277,7 +1259,7 @@ describe('Users Controller', () => {
         const response = await updateUserRoleRequest(
           target.id,
           { workspaceRoleId: adminRoleId },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectForbiddenError(response);
@@ -1292,7 +1274,7 @@ describe('Users Controller', () => {
         const response = await updateUserRoleRequest(
           unknownUserId,
           { workspaceRoleId: adminRoleId },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectResourceNotFoundError(response, ctx.userRepository.resourceName);
@@ -1310,7 +1292,7 @@ describe('Users Controller', () => {
         const response = await updateUserRoleRequest(
           target.id,
           { workspaceRoleId: unknownRoleId },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectBusinessRuleViolationError(response);
@@ -1329,7 +1311,7 @@ describe('Users Controller', () => {
         const response = await updateUserRoleRequest(
           target.id,
           { workspaceRoleId: ownerRoleId },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectBusinessRuleViolationError(response);
@@ -1386,7 +1368,7 @@ describe('Users Controller', () => {
           const response = await updateUserRoleRequest(
             target.id,
             { workspaceRoleId: adminRoleId },
-            tokenFor(ownerActor),
+            tokenFor(ctx.tokenService, ownerActor),
           );
 
           expectInternalServerError(response);
@@ -1454,7 +1436,10 @@ describe('Users Controller', () => {
       ])(
         'returns 200 with the target user resource for a $actorLabel actor',
         async ({ getActor }) => {
-          const response = await getUserByIdRequest(target.id, tokenFor(getActor()));
+          const response = await getUserByIdRequest(
+            target.id,
+            tokenFor(ctx.tokenService, getActor()),
+          );
 
           expectUserDetailsResponse(response, {
             id: target.id,
@@ -1466,7 +1451,10 @@ describe('Users Controller', () => {
       );
 
       it('exposes only safe fields and no credential or activation material', async () => {
-        const response = await getUserByIdRequest(target.id, tokenFor(ownerActor));
+        const response = await getUserByIdRequest(
+          target.id,
+          tokenFor(ctx.tokenService, ownerActor),
+        );
 
         expect(response.status).toBe(200);
         const user = response.body.data as Record<string, unknown>;
@@ -1482,7 +1470,10 @@ describe('Users Controller', () => {
 
     describe('on validation failure (400)', () => {
       it('returns a 400 validation error when the path id is not a uuid', async () => {
-        const response = await getUserByIdRequest('not-a-uuid', tokenFor(ownerActor));
+        const response = await getUserByIdRequest(
+          'not-a-uuid',
+          tokenFor(ctx.tokenService, ownerActor),
+        );
 
         expectValidationError(response, ['id']);
       });
@@ -1507,7 +1498,10 @@ describe('Users Controller', () => {
           updatedAt: new Date(),
         });
 
-        const response = await getUserByIdRequest(target.id, tokenFor(ownerActor));
+        const response = await getUserByIdRequest(
+          target.id,
+          tokenFor(ctx.tokenService, ownerActor),
+        );
 
         expectForbiddenError(response);
       });
@@ -1515,7 +1509,10 @@ describe('Users Controller', () => {
 
     describe('on target lookup failure (404)', () => {
       it('returns a resource-not-found error when the target user does not exist', async () => {
-        const response = await getUserByIdRequest(unknownUserId, tokenFor(ownerActor));
+        const response = await getUserByIdRequest(
+          unknownUserId,
+          tokenFor(ctx.tokenService, ownerActor),
+        );
 
         expectResourceNotFoundError(response, ctx.userRepository.resourceName);
       });
@@ -1527,7 +1524,10 @@ describe('Users Controller', () => {
           .spyOn(ctx.userRepository, 'getUserById')
           .mockRejectedValue(new Error('database unavailable'));
 
-        const response = await getUserByIdRequest(target.id, tokenFor(ownerActor));
+        const response = await getUserByIdRequest(
+          target.id,
+          tokenFor(ctx.tokenService, ownerActor),
+        );
 
         expectInternalServerError(response);
       });

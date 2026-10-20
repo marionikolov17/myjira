@@ -16,28 +16,23 @@ import {
   ProjectRoleName,
 } from '@/modules/project-members';
 import { ActorContextService } from '@/modules/auth/actor-context.service';
-import { WorkspaceRoleName } from '@/modules/workspace-roles';
 import { IProjectRepository, ProjectRepository } from '@/modules/projects';
 import { ProjectService } from '@/modules/projects';
 import { ProjectsController } from '@/modules/projects/project.controller';
 import { projectsQueryConfig } from '@/modules/projects/project.query-config';
 
-import { TestUser } from '../../fixtures/users.fixtures';
 import { silentLogger } from '../../fixtures/logger.fixtures';
+import { buildTestUsers } from '../../fixtures/actor-context.fixtures';
+import {
+  createExpiredToken as sharedCreateExpiredToken,
+  createTokenWithWrongSecret as sharedCreateTokenWithWrongSecret,
+} from '../../fixtures/tokens.fixtures';
 
 export const SECRET_KEY = 'projects-test-secret-key';
 export const WRONG_SECRET_KEY = 'projects-test-wrong-secret-key';
 export const TOKEN_EXPIRES_IN_SECONDS = 3600;
 
-export const testUsers: TestUser[] = Object.values(WorkspaceRoleName).map((roleName) => {
-  const slug = roleName.toLowerCase();
-  return {
-    email: `projects-${slug}@example.com`,
-    name: `projects-${slug}`,
-    password: `projects-${slug}-password`,
-    workspaceRoleName: roleName,
-  };
-});
+export const testUsers = buildTestUsers('projects-');
 
 export interface ProjectsTestContext {
   app: Application;
@@ -114,34 +109,6 @@ export function createProjectsTestContext(): ProjectsTestContext {
   };
 }
 
-export interface PersistedUser {
-  id: string;
-  workspaceRoleId: string;
-  workspaceRoleName: WorkspaceRoleName;
-}
-
-export async function fetchPersistedUser(email: string): Promise<PersistedUser> {
-  const user = await prisma.user.findUnique({ where: { email } });
-
-  if (!user) {
-    throw new Error(`Expected seeded user ${email} to exist`);
-  }
-
-  const workspaceRole = await prisma.workspaceRole.findUnique({
-    where: { id: user.workspaceRoleId },
-  });
-
-  if (!workspaceRole) {
-    throw new Error(`Expected workspace role ${user.workspaceRoleId} to exist`);
-  }
-
-  return {
-    id: user.id,
-    workspaceRoleId: user.workspaceRoleId,
-    workspaceRoleName: workspaceRole.name as WorkspaceRoleName,
-  };
-}
-
 export async function fetchProjectRoleIdByName(name: ProjectRoleName): Promise<string> {
   const role = await prisma.projectRole.findFirst({ where: { name } });
   if (!role) {
@@ -181,23 +148,27 @@ export async function seedProjectMembership(
 }
 
 /**
- * Mints an already-expired token for the given claims.
+ * Mints an already-expired token for the given claims, bound to this fixture's
+ * `SECRET_KEY` and `TOKEN_EXPIRES_IN_SECONDS`.
  */
 export function createExpiredToken(userId: string, workspaceRoleId: string): string {
-  const expiredTokenService = JsonwebtokenTokenService.create({
+  return sharedCreateExpiredToken({
     secretKey: SECRET_KEY,
-    expiresIn: -TOKEN_EXPIRES_IN_SECONDS,
+    expiresInSeconds: TOKEN_EXPIRES_IN_SECONDS,
+    userId,
+    workspaceRoleId,
   });
-  return expiredTokenService.generateToken({ userId, workspaceRoleId });
 }
 
 /**
- * Mints a token signed with a secret the middleware does not recognize.
+ * Mints a token signed with a secret the middleware does not recognize, bound
+ * to this fixture's `WRONG_SECRET_KEY` and `TOKEN_EXPIRES_IN_SECONDS`.
  */
 export function createTokenWithWrongSecret(userId: string, workspaceRoleId: string): string {
-  const wrongSecretTokenService = JsonwebtokenTokenService.create({
-    secretKey: WRONG_SECRET_KEY,
-    expiresIn: TOKEN_EXPIRES_IN_SECONDS,
+  return sharedCreateTokenWithWrongSecret({
+    wrongSecretKey: WRONG_SECRET_KEY,
+    expiresInSeconds: TOKEN_EXPIRES_IN_SECONDS,
+    userId,
+    workspaceRoleId,
   });
-  return wrongSecretTokenService.generateToken({ userId, workspaceRoleId });
 }
