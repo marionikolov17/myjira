@@ -48,7 +48,7 @@ import {
   seedUserWithRole,
   testUsers,
   UsersTestContext,
-} from './users.controller.fixtures';
+} from './user.controller.fixtures';
 import {
   expectActorContextResponse,
   expectCreatedUserResponse,
@@ -56,7 +56,7 @@ import {
   expectUpdatedUserRoleResponse,
   expectUserDetailsResponse,
   extractActivationToken,
-} from './users.controller.assertions';
+} from './user.controller.assertions';
 
 describe('Users Controller', () => {
   let app: Application;
