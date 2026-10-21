@@ -14,7 +14,6 @@ import { Application } from 'express';
 
 import { ActorContext } from '@/common/interfaces';
 import { prisma } from '@/common/lib/prisma';
-import { WorkspaceRoleName } from '@/modules/workspace-roles';
 import { ProjectMemberRepository, ProjectRoleName } from '@/modules/project-members';
 import { IssuePriority, IssueStatus } from '@/generated/prisma/enums';
 
@@ -34,11 +33,8 @@ import {
   expectResourceNotFoundError,
   expectValidationError,
 } from '../../assertions/errors.assertions';
-import {
-  expectDataIds,
-  expectEmptyPaginatedEnvelope,
-  expectPaginatedEnvelope,
-} from '../../assertions/list.assertions';
+
+import { describeListEndpoint } from '../../suites/list-endpoint.suite';
 
 import {
   createProjectsTestContext,
@@ -285,7 +281,6 @@ describe('Projects Controller', () => {
   describe('GET /', () => {
     const totalProjects = 25;
     const pageSize = 10;
-    const expectedTotalPages = Math.ceil(totalProjects / pageSize);
 
     let ownerActor: ActorContext;
     let adminActor: ActorContext;
@@ -367,231 +362,53 @@ describe('Projects Controller', () => {
       await prisma.user.deleteMany();
     });
 
-    function listProjects(query?: Record<string, unknown>, authorizationHeader?: string) {
-      let request = supertest(app).get('/api/v1/projects');
-
-      if (authorizationHeader !== undefined) {
-        request = request.set('Authorization', authorizationHeader);
-      }
-
-      if (query) {
-        request = request.query(query);
-      }
-
-      return request;
-    }
-
-    describe('on success', () => {
-      it.each([
-        { case: 'Workspace Owner', getActor: () => ownerActor },
-        { case: 'Workspace Admin', getActor: () => adminActor },
-      ])('returns all projects for a $case', async ({ getActor }) => {
-        const response = await listProjects(
-          { page: '1', pageSize: String(pageSize) },
-          tokenFor(ctx.tokenService, getActor()),
-        );
-
-        expectPaginatedEnvelope(response, {
-          page: 1,
-          pageSize,
-          totalItems: totalProjects,
-          totalPages: expectedTotalPages,
-          dataLength: pageSize,
-        });
-      });
-
-      it('returns only member projects for a Developer actor', async () => {
-        const response = await listProjects(
-          { pageSize: '100' },
-          tokenFor(ctx.tokenService, developerActor),
-        );
-
-        expectDataIds(response, developerMemberProjects);
-        expect(response.body.meta.pagination.totalItems).toBe(developerMemberProjects.length);
-      });
-
-      it('returns an empty envelope for a Developer with no memberships', async () => {
-        // Make the developer membership-free in the DB for this test so the
-        // repository scoping filter actually returns no rows. Restore after.
-        const removed = await prisma.projectMember.findMany({
-          where: { userId: developerActor.userId },
-        });
-        await prisma.projectMember.deleteMany({ where: { userId: developerActor.userId } });
-
-        try {
-          const response = await listProjects(
-            undefined,
-            tokenFor(ctx.tokenService, developerActor),
-          );
-
-          expectEmptyPaginatedEnvelope(response);
-        } finally {
-          if (removed.length > 0) {
-            await prisma.projectMember.createMany({
-              data: removed.map((row) => ({
-                projectId: row.projectId,
-                userId: row.userId,
-                projectRoleId: row.projectRoleId,
-              })),
-            });
-          }
-        }
-      });
-
-      it('applies the users query-config defaults (page=1, pageSize=10) when neither is supplied', async () => {
-        const response = await listProjects(undefined, tokenFor(ctx.tokenService, ownerActor));
-
-        expectPaginatedEnvelope(response, { page: 1, pageSize: 10 });
-      });
-
-      it('reports a partial final page in pagination metadata', async () => {
-        const remainder = totalProjects - (expectedTotalPages - 1) * pageSize;
-
-        const response = await listProjects(
-          { page: String(expectedTotalPages), pageSize: String(pageSize) },
-          tokenFor(ctx.tokenService, ownerActor),
-        );
-
-        expectPaginatedEnvelope(response, {
-          page: expectedTotalPages,
-          pageSize,
-          totalItems: totalProjects,
-          totalPages: expectedTotalPages,
-          dataLength: remainder,
-        });
-      });
-
-      it('orders rows by createdAt descending for sort=-createdAt', async () => {
-        const response = await listProjects(
-          { sort: '-createdAt', pageSize: '100' },
-          tokenFor(ctx.tokenService, ownerActor),
-        );
-
-        expectPaginatedEnvelope(response, { totalItems: totalProjects });
-        const ids = (response.body.data as { id: string; createdAt: string }[]).map((p) => p.id);
-
-        const sortedExpected = (
-          await prisma.project.findMany({
-            orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
-            select: { id: true },
-          })
-        ).map((p) => p.id);
-
-        expect(ids).toEqual(sortedExpected);
-      });
-
-      it('filters by creatorId with eq', async () => {
-        const response = await listProjects(
-          { 'filter[creatorId]': adminActor.userId, pageSize: '100' },
-          tokenFor(ctx.tokenService, ownerActor),
-        );
-
-        const expected = seededProjects
+    describeListEndpoint({
+      path: '/api/v1/projects',
+      getApp: () => app,
+      getTokenService: () => ctx.tokenService,
+      totalItems: totalProjects,
+      pageSize,
+      defaults: { page: 1, pageSize: 10 },
+      getDefaultActor: () => ownerActor,
+      // Workspace owners/admins see the full population; the Developer actor is
+      // scoped to its 5 member projects, so `expectedIds` doubles as the
+      // end-to-end proof that per-actor scoping is wired for this resource.
+      getAuthorizedActorMatrix: () => [
+        { label: 'Workspace Owner', actor: ownerActor },
+        { label: 'Workspace Admin', actor: adminActor },
+        {
+          label: 'Developer (scoped to memberships)',
+          actor: developerActor,
+          expectedIds: developerMemberProjects,
+        },
+      ],
+      getFilterProbe: () => ({
+        label: 'filter[creatorId] (uuid eq)',
+        query: { 'filter[creatorId]': adminActor.userId, pageSize: '100' },
+        expectedIds: seededProjects
           .filter((p) => p.creatorId === adminActor.userId)
-          .map((p) => p.id);
-        expectDataIds(response, expected);
-      });
-
-      it('filters by creatorId with in', async () => {
-        const response = await listProjects(
-          {
-            'filter[creatorId][in]': `${ownerActor.userId},${adminActor.userId}`,
-            pageSize: '100',
-          },
-          tokenFor(ctx.tokenService, ownerActor),
-        );
-
-        expectDataIds(
-          response,
-          seededProjects.map((p) => p.id),
-        );
-      });
-
-      it('filters by createdAt with gte', async () => {
-        // All seeded projects are new, so a timestamp in the far past should
-        // include everything, and a timestamp in the far future should exclude
-        // everything. We assert inclusion via the "past" window.
-        const since = new Date('2000-01-01T00:00:00Z').toISOString();
-        const response = await listProjects(
-          { 'filter[createdAt][gte]': since, pageSize: '100' },
-          tokenFor(ctx.tokenService, ownerActor),
-        );
-
-        expectPaginatedEnvelope(response, { totalItems: totalProjects });
-      });
-    });
-
-    describe('on validation failure (400)', () => {
-      it.each([
-        {
-          case: 'filter[name]',
-          query: { 'filter[name]': 'Alpha' },
-          expectedFields: ['filter[name]'],
-        },
-        { case: 'sort=description', query: { sort: 'description' }, expectedFields: ['sort'] },
-        {
-          case: 'filter[description]',
-          query: { 'filter[description]': 'x' },
-          expectedFields: ['filter[description]'],
-        },
-        {
-          case: 'pageSize > max',
-          query: { pageSize: '101' },
-          expectedFields: ['pageSize'],
-        },
-        { case: 'non-integer page', query: { page: '1.5' }, expectedFields: ['page'] },
-        {
-          case: 'non-integer pageSize',
-          query: { pageSize: '1.5' },
-          expectedFields: ['pageSize'],
-        },
-        {
-          case: 'unknown operator',
-          query: { 'filter[creatorId][gte]': ownerActor?.userId ?? '' },
-          expectedFields: ['filter[creatorId][gte]'],
-        },
-      ])('returns a 400 when $case', async ({ query, expectedFields }) => {
-        const response = await listProjects(query, tokenFor(ctx.tokenService, ownerActor));
-
-        expectValidationError(response, expectedFields);
-      });
-    });
-
-    describe('on unauthenticated request (401)', () => {
-      it('returns an authentication required error', async () => {
-        const response = await listProjects();
-
-        expectAuthenticationRequired(response);
-      });
-    });
-
-    describe('on authorization failures (403)', () => {
-      it('returns 403 for an actor whose workspace role is not in the listProjects matrix', async () => {
-        const unsupportedWorkspaceRoleName = 'Viewer' as WorkspaceRoleName;
-
-        jest.spyOn(ctx.workspaceRoleRepository, 'getWorkspaceRoleById').mockResolvedValue({
-          id: ownerActor.workspaceRole.id,
-          name: unsupportedWorkspaceRoleName,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
-
-        const response = await listProjects(undefined, tokenFor(ctx.tokenService, ownerActor));
-
-        expectForbiddenError(response);
-      });
-    });
-
-    describe('on unexpected dependency failure (500)', () => {
-      it('returns an internal server error when the project repository throws', async () => {
+          .map((p) => p.id),
+      }),
+      getEmptyEnvelopeQuery: () => ({
+        'filter[creatorId]': '11111111-1111-4111-8111-111111111111',
+      }),
+      getSortProbe: () => ({
+        query: { sort: '-createdAt', pageSize: '100' },
+        getExpectedIdsInOrder: async () =>
+          (
+            await prisma.project.findMany({
+              orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+              select: { id: true },
+            })
+          ).map((p) => p.id),
+      }),
+      validationProbe: { query: { sort: 'description' }, expectedFields: ['sort'] },
+      getWorkspaceRoleRepository: () => ctx.workspaceRoleRepository,
+      arrangeRepositoryFailure: () => {
         jest
           .spyOn(ctx.projectRepository, 'findProjects')
           .mockRejectedValueOnce(new Error('database unavailable'));
-
-        const response = await listProjects(undefined, tokenFor(ctx.tokenService, ownerActor));
-
-        expectInternalServerError(response);
-      });
+      },
     });
   });
 
