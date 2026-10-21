@@ -123,7 +123,7 @@ model ProjectMember {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
-  project     Project     @relation(fields: [projectId], references: [id])
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user        User        @relation(fields: [userId], references: [id])
   projectRole ProjectRole @relation(fields: [projectRoleId], references: [id])
 
@@ -148,7 +148,7 @@ model Issue {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   creator  User      @relation("IssueCreator", fields: [creatorId], references: [id])
-  project  Project   @relation(fields: [projectId], references: [id])
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   assignee User      @relation("IssueAssignee", fields: [assigneeId], references: [id])
   subtasks Subtask[]
 
@@ -172,7 +172,7 @@ model Subtask {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   creator  User  @relation("SubtaskCreator", fields: [creatorId], references: [id])
-  issue    Issue @relation(fields: [issueId], references: [id])
+  issue    Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
   assignee User  @relation("SubtaskAssignee", fields: [assigneeId], references: [id])
 
   @@index([issueId])

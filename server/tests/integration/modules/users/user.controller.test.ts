@@ -17,6 +17,11 @@ import {
   ensureProjectRolesSeeded,
   SeededProjectMembership,
 } from '../../fixtures/project-members.fixtures';
+import {
+  fetchPersistedUsers,
+  tokenFor,
+  userToActorContext,
+} from '../../fixtures/actor-context.fixtures';
 
 import {
   expectAuthenticationRequired,
@@ -27,25 +32,20 @@ import {
   expectResourceNotFoundError,
   expectValidationError,
 } from '../../assertions/errors.assertions';
-import {
-  expectDataIds,
-  expectDataIdsInOrder,
-  expectEmptyPaginatedEnvelope,
-  expectPaginatedEnvelope,
-} from '../../assertions/list.assertions';
+import { expectPaginatedEnvelope } from '../../assertions/list.assertions';
+
+import { describeListEndpoint } from '../../suites/list-endpoint.suite';
 
 import {
   createExpiredToken,
   createTokenWithWrongSecret,
   createUsersTestContext,
-  fetchPersistedUser,
   fetchRawUserByEmail,
   fetchWorkspaceRoleIdByName,
-  PersistedUser,
   seedUserWithRole,
   testUsers,
   UsersTestContext,
-} from './users.controller.fixtures';
+} from './user.controller.fixtures';
 import {
   expectActorContextResponse,
   expectCreatedUserResponse,
@@ -53,28 +53,7 @@ import {
   expectUpdatedUserRoleResponse,
   expectUserDetailsResponse,
   extractActivationToken,
-} from './users.controller.assertions';
-
-import { TestUser } from '../workspace/workspace.controller.fixtures';
-
-function fetchPersistedUsers(testUsers: TestUser[]): Promise<PersistedUser[]> {
-  return Promise.all(testUsers.map(async (testUser) => fetchPersistedUser(testUser.email)));
-}
-
-function userToActorContext(
-  user: PersistedUser,
-  projectRoles: SeededProjectMembership[],
-): ActorContext {
-  return {
-    userId: user.id,
-    workspaceRole: { id: user.workspaceRoleId, name: user.workspaceRoleName },
-    projectRoles: projectRoles.map((projectRole) => ({
-      projectId: projectRole.projectId,
-      projectRoleId: projectRole.projectRoleId,
-      projectRoleName: projectRole.projectRoleName,
-    })),
-  };
-}
+} from './user.controller.assertions';
 
 describe('Users Controller', () => {
   let app: Application;
@@ -87,19 +66,6 @@ describe('Users Controller', () => {
     await ensureWorkspaceRolesSeeded();
     await ensureProjectRolesSeeded();
   });
-
-  function bearer(token: string): string {
-    return `Bearer ${token}`;
-  }
-
-  function tokenFor(actor: ActorContext): string {
-    return bearer(
-      ctx.tokenService.generateToken({
-        userId: actor.userId,
-        workspaceRoleId: actor.workspaceRole.id,
-      }),
-    );
-  }
 
   describe('GET /me', () => {
     let ownerActor: ActorContext;
@@ -151,13 +117,13 @@ describe('Users Controller', () => {
           getExpectedActor: () => developerActor,
         },
       ])('returns the actor context for a $actor', async ({ getActor, getExpectedActor }) => {
-        const response = await getMe(tokenFor(getActor()));
+        const response = await getMe(tokenFor(ctx.tokenService, getActor()));
 
         expectActorContextResponse(response, getExpectedActor());
       });
 
       it('returns the project roles for a user that is a member of a project', async () => {
-        const response = await getMe(tokenFor(ownerActor));
+        const response = await getMe(tokenFor(ctx.tokenService, ownerActor));
 
         expect(response.status).toBe(200);
         expect(response.body.data.projectRoles).toEqual(ownerActor.projectRoles);
@@ -165,7 +131,7 @@ describe('Users Controller', () => {
       });
 
       it('returns an empty project roles array for a user with no memberships', async () => {
-        const response = await getMe(tokenFor(adminActor));
+        const response = await getMe(tokenFor(ctx.tokenService, adminActor));
 
         expect(response.status).toBe(200);
         expect(response.body.data.projectRoles).toEqual([]);
@@ -221,7 +187,7 @@ describe('Users Controller', () => {
       ])('returns an authentication required error when $case', async ({ arrange }) => {
         arrange();
 
-        const response = await getMe(tokenFor(ownerActor));
+        const response = await getMe(tokenFor(ctx.tokenService, ownerActor));
 
         expectAuthenticationRequired(response);
       });
@@ -253,7 +219,7 @@ describe('Users Controller', () => {
       ])('returns an internal server error when $case', async ({ arrange }) => {
         arrange();
 
-        const response = await getMe(tokenFor(ownerActor));
+        const response = await getMe(tokenFor(ctx.tokenService, ownerActor));
 
         expectInternalServerError(response);
       });
@@ -262,10 +228,7 @@ describe('Users Controller', () => {
 
   describe('GET /', () => {
     const usersCount = 25;
-
     const pageSize = 10;
-    const expectedTotal = usersCount;
-    const expectedTotalPages = Math.ceil(expectedTotal / pageSize);
 
     const ownerUsersCount = 10;
     const adminUsersCount = 10;
@@ -274,10 +237,9 @@ describe('Users Controller', () => {
     const oldDate = new Date('2020-01-01T00:00:00Z');
     const recentDate = new Date('2020-06-01T00:00:00Z');
 
-    let allUsers: User[] = [];
     let ownerUsers: User[] = [];
     let adminUsers: User[] = [];
-    let developerUsers: User[] = [];
+    let adminWorkspaceRoleId: string;
 
     let ownerActor: ActorContext;
     let adminActor: ActorContext;
@@ -285,10 +247,10 @@ describe('Users Controller', () => {
 
     beforeAll(async () => {
       const ownerRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.OWNER);
-      const adminRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.ADMIN);
+      adminWorkspaceRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.ADMIN);
       const developerRoleId = await fetchWorkspaceRoleIdByName(WorkspaceRoleName.DEVELOPER);
 
-      if (!ownerRoleId || !adminRoleId || !developerRoleId) {
+      if (!ownerRoleId || !adminWorkspaceRoleId || !developerRoleId) {
         throw new Error('Expected workspace roles to be seeded');
       }
 
@@ -309,14 +271,14 @@ describe('Users Controller', () => {
           return {
             email: `admin-user-${i}@example.com`,
             name: `Admin User ${i}`,
-            workspaceRoleId: adminRoleId,
+            workspaceRoleId: adminWorkspaceRoleId,
             status: i < 5 ? UserStatus.Active : UserStatus.Pending,
             password: null as string | null,
             createdAt: i % 2 === 0 ? oldDate : recentDate,
           };
         }),
       });
-      developerUsers = await prisma.user.createManyAndReturn({
+      const developerUsers = await prisma.user.createManyAndReturn({
         data: Array.from({ length: developerUsersCount }, (_, i) => {
           return {
             email: `developer-user-${i}@example.com`,
@@ -328,8 +290,6 @@ describe('Users Controller', () => {
           };
         }),
       });
-
-      allUsers = [...ownerUsers, ...adminUsers, ...developerUsers];
 
       const activeOwnerUser = ownerUsers.find((user) => user.status === UserStatus.Active);
       const activeAdminUser = adminUsers.find((user) => user.status === UserStatus.Active);
@@ -371,88 +331,55 @@ describe('Users Controller', () => {
       await prisma.user.deleteMany();
     });
 
-    function listUsers(query?: Record<string, unknown>, authorizationHeader?: string) {
-      let request = supertest(app).get('/api/v1/users');
-
-      if (authorizationHeader !== undefined) {
-        request = request.set('Authorization', authorizationHeader);
-      }
-
-      if (query) {
-        request = request.query(query);
-      }
-
-      return request;
-    }
-
-    describe('on success', () => {
-      describe('envelope and pagination over a known population', () => {
-        it('returns the first page with correct data length and pagination totals', async () => {
-          const response = await listUsers(
-            { page: '1', pageSize: String(pageSize) },
-            tokenFor(ownerActor),
-          );
-
-          expectPaginatedEnvelope(response, {
-            page: 1,
-            pageSize: pageSize,
-            totalItems: expectedTotal,
-            totalPages: expectedTotalPages,
-            dataLength: pageSize,
-          });
-        });
-
-        it('applies skip/take so the final page returns only the remaining users', async () => {
-          const remainder = expectedTotal - (expectedTotalPages - 1) * pageSize;
-
-          const response = await listUsers(
-            { page: String(expectedTotalPages), pageSize: String(pageSize) },
-            tokenFor(ownerActor),
-          );
-
-          expectPaginatedEnvelope(response, {
-            page: expectedTotalPages,
-            pageSize: pageSize,
-            totalItems: expectedTotal,
-            totalPages: expectedTotalPages,
-            dataLength: remainder,
-          });
-        });
-      });
-
-      it('returns an empty envelope with zeroed totals when no users match the filter', async () => {
-        const response = await listUsers(
-          { 'filter[workspaceRoleId]': '11111111-1111-4111-8111-111111111111' },
-          tokenFor(ownerActor),
-        );
-
-        expectEmptyPaginatedEnvelope(response);
-      });
+    describeListEndpoint({
+      path: '/api/v1/users',
+      getApp: () => app,
+      getTokenService: () => ctx.tokenService,
+      totalItems: usersCount,
+      pageSize,
+      defaults: { page: 1, pageSize: 10 },
+      getDefaultActor: () => ownerActor,
+      // Users list is global — every workspace role sees the full population,
+      // so no entry sets `expectedIds` (envelope-only assertion is enough).
+      getAuthorizedActorMatrix: () => [
+        { label: 'Owner', actor: ownerActor },
+        { label: 'Admin', actor: adminActor },
+        { label: 'Developer', actor: developerActor },
+      ],
+      getFilterProbe: () => ({
+        label: 'filter[workspaceRoleId] (uuid eq)',
+        query: { 'filter[workspaceRoleId]': adminWorkspaceRoleId, pageSize: '100' },
+        expectedIds: adminUsers.map((user) => user.id),
+      }),
+      getEmptyEnvelopeQuery: () => ({
+        'filter[workspaceRoleId]': '11111111-1111-4111-8111-111111111111',
+      }),
+      getSortProbe: () => ({
+        query: { sort: '-createdAt', pageSize: '100' },
+        getExpectedIdsInOrder: async () =>
+          (
+            await prisma.user.findMany({
+              orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+              select: { id: true },
+            })
+          ).map((user) => user.id),
+      }),
+      validationProbe: { query: { sort: 'disallowed' }, expectedFields: ['sort'] },
+      getWorkspaceRoleRepository: () => ctx.workspaceRoleRepository,
+      arrangeRepositoryFailure: () => {
+        jest
+          .spyOn(ctx.userRepository, 'findUsers')
+          .mockRejectedValue(new Error('database unavailable'));
+      },
     });
 
-    describe('on pagination defaults', () => {
-      it('applies the users query-config defaults (page=1, pageSize=10) when neither is supplied', async () => {
-        const response = await listUsers(undefined, tokenFor(ownerActor));
-
-        expectPaginatedEnvelope(response, { page: 1, pageSize: 10 });
-      });
-    });
-
-    describe('on authorized roles', () => {
-      it.each([
-        { case: 'Owner', getActor: () => ownerActor },
-        { case: 'Admin', getActor: () => adminActor },
-        { case: 'Developer', getActor: () => developerActor },
-      ])('returns 200 with a valid envelope for a $case actor', async ({ getActor }) => {
-        const response = await listUsers(undefined, tokenFor(getActor()));
-
-        expectPaginatedEnvelope(response);
-      });
-    });
-
+    // Resource-specific response-shape check kept alongside the shared suite:
+    // proves the users controller never leaks credential or activation material.
     describe('on safe fields', () => {
       it('every user in data exposes only safe fields and no credential material', async () => {
-        const response = await listUsers(undefined, tokenFor(ownerActor));
+        const response = await supertest(app)
+          .get('/api/v1/users')
+          .set('Authorization', tokenFor(ctx.tokenService, ownerActor));
 
         expectPaginatedEnvelope(response);
         for (const user of response.body.data as Record<string, unknown>[]) {
@@ -467,241 +394,6 @@ describe('Users Controller', () => {
           expect(user).not.toHaveProperty('activationTokenHash');
           expect(user).not.toHaveProperty('activationTokenExpiresAt');
         }
-      });
-    });
-
-    describe('on filtering', () => {
-      // A controlled population that lets each filter assert BOTH inclusion
-      // (matching rows returned) and exclusion (non-matching rows absent). The
-      // generic parse/coerce rules are covered by the query-parser unit tests;
-      // here we prove the users query-config filters real rows against the real
-      // column and enum types end to end.
-      let pendingUserIds: string[] = [];
-      let recentUserIds: string[] = [];
-
-      let adminWorkspaceRoleId: string;
-      let developerWorkspaceRoleId: string;
-
-      const RANGE_LOWER = new Date('2020-03-01T00:00:00Z');
-      const RANGE_UPPER = new Date('2020-12-31T00:00:00Z');
-
-      beforeAll(async () => {
-        pendingUserIds = allUsers
-          .filter((user) => user.status === UserStatus.Pending)
-          .map((user) => user.id);
-        recentUserIds = allUsers
-          .filter((user) => user.createdAt >= RANGE_LOWER && user.createdAt <= RANGE_UPPER)
-          .map((user) => user.id);
-
-        adminWorkspaceRoleId = adminUsers[0]?.workspaceRoleId ?? '';
-        developerWorkspaceRoleId = developerUsers[0]?.workspaceRoleId ?? '';
-      });
-
-      it('returns exactly the Pending users for filter[status]=Pending (enum coercion)', async () => {
-        const response = await listUsers({ 'filter[status]': 'Pending' }, tokenFor(ownerActor));
-
-        expectDataIds(response, pendingUserIds);
-        expect(response.body.meta.pagination.totalItems).toBe(pendingUserIds.length);
-      });
-
-      it('returns exactly the users matching filter[workspaceRoleId] (uuid coercion) for a given workspace role', async () => {
-        const response = await listUsers(
-          { 'filter[workspaceRoleId]': adminWorkspaceRoleId, pageSize: '100' },
-          tokenFor(ownerActor),
-        );
-
-        expectDataIds(
-          response,
-          adminUsers.map((user) => user.id),
-        );
-      });
-
-      it('returns exactly the users whose role is in filter[workspaceRoleId][in]', async () => {
-        const response = await listUsers(
-          {
-            'filter[workspaceRoleId][in]': `${adminWorkspaceRoleId},${developerWorkspaceRoleId}`,
-            pageSize: '100',
-          },
-          tokenFor(ownerActor),
-        );
-
-        expectDataIds(response, [
-          ...adminUsers.map((user) => user.id),
-          ...developerUsers.map((user) => user.id),
-        ]);
-      });
-
-      it('excludes rows outside a createdAt window (date coercion, gte + lte)', async () => {
-        const response = await listUsers(
-          {
-            'filter[createdAt][gte]': RANGE_LOWER.toISOString(),
-            'filter[createdAt][lte]': RANGE_UPPER.toISOString(),
-            pageSize: '100',
-          },
-          tokenFor(ownerActor),
-        );
-
-        expectDataIds(response, recentUserIds);
-      });
-    });
-
-    describe('on sorting', () => {
-      describe('with users at distinct timestamps', () => {
-        let allUsersOriginal: User[] = [];
-
-        let orderedNewestFirst: string[] = [];
-
-        beforeAll(async () => {
-          allUsersOriginal = allUsers.slice();
-
-          let createdAt = new Date('2021-01-01T00:00:00Z');
-
-          for (const user of allUsers) {
-            await prisma.user.update({
-              where: { id: user.id },
-              data: {
-                createdAt: createdAt,
-              },
-            });
-
-            createdAt = new Date(createdAt.getTime() + 60 * 60 * 24 * 1000); // 1 day apart
-          }
-
-          allUsers = await prisma.user.findMany();
-          orderedNewestFirst = allUsers
-            .slice()
-            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-            .map((user) => user.id);
-        });
-
-        afterAll(async () => {
-          await Promise.all(
-            allUsers.map(async (user) => {
-              const originalCreatedAt = allUsersOriginal.find((u) => u.id === user.id)?.createdAt;
-
-              await prisma.user.update({
-                where: { id: user.id },
-                data: {
-                  createdAt: originalCreatedAt,
-                },
-              });
-            }),
-          );
-
-          allUsers = await prisma.user.findMany();
-        });
-
-        it('orders rows by createdAt descending for sort=-createdAt', async () => {
-          const response = await listUsers(
-            { sort: '-createdAt', pageSize: '100' },
-            tokenFor(ownerActor),
-          );
-
-          expectDataIdsInOrder(response, orderedNewestFirst);
-        });
-      });
-
-      describe('with users sharing a timestamp', () => {
-        let allUsersOriginal: User[] = [];
-
-        let tiedIdsAscending: string[] = [];
-
-        beforeAll(async () => {
-          allUsersOriginal = allUsers.slice();
-
-          const sharedCreatedAt = new Date('2021-05-01T00:00:00Z');
-
-          await Promise.all(
-            allUsers.map((user) =>
-              prisma.user.update({
-                where: { id: user.id },
-                data: {
-                  createdAt: sharedCreatedAt,
-                },
-              }),
-            ),
-          );
-
-          allUsers = await prisma.user.findMany();
-          tiedIdsAscending = allUsers
-            .slice()
-            .sort((a, b) => a.id.localeCompare(b.id))
-            .map((user) => user.id);
-        });
-
-        afterAll(async () => {
-          await Promise.all(
-            allUsers.map(async (user) => {
-              const originalCreatedAt = allUsersOriginal.find((u) => u.id === user.id)?.createdAt;
-
-              await prisma.user.update({
-                where: { id: user.id },
-                data: {
-                  createdAt: originalCreatedAt,
-                },
-              });
-            }),
-          );
-
-          allUsers = await prisma.user.findMany();
-        });
-
-        it('breaks createdAt ties with a stable id ascending order', async () => {
-          const response = await listUsers(
-            { sort: '-createdAt', pageSize: '100' },
-            tokenFor(ownerActor),
-          );
-
-          expectDataIdsInOrder(response, tiedIdsAscending);
-        });
-      });
-    });
-
-    describe('on query-validation failures', () => {
-      // The exhaustive validation matrix (bad sort field, unknown filter,
-      // disallowed operator, oversized pageSize, non-UUID value, ...) lives in
-      // the query-parser unit tests. Here we only prove the parser is wired to
-      // the users query-config and that its ValidationError surfaces as a 400
-      // through the error middleware.
-      it('returns 400 naming the offending field when the query fails validation', async () => {
-        const response = await listUsers({ sort: 'disallowed' }, tokenFor(ownerActor));
-
-        expectValidationError(response, ['sort']);
-      });
-    });
-
-    describe('on authorization failures', () => {
-      it('returns 403 for an actor whose workspace role is not in the listUsers matrix', async () => {
-        const unsupportedWorkspaceRoleName = 'Viewer' as WorkspaceRoleName;
-
-        jest.spyOn(ctx.workspaceRoleRepository, 'getWorkspaceRoleById').mockResolvedValue({
-          id: ownerActor.workspaceRole.id,
-          name: unsupportedWorkspaceRoleName,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
-
-        const response = await listUsers(undefined, tokenFor(ownerActor));
-
-        expectForbiddenError(response);
-      });
-
-      it('returns 401 for an unauthenticated request', async () => {
-        const response = await listUsers();
-
-        expectAuthenticationRequired(response);
-      });
-    });
-
-    describe('on unexpected dependency failure', () => {
-      it('returns 500 when the user repository throws', async () => {
-        jest
-          .spyOn(ctx.userRepository, 'findUsers')
-          .mockRejectedValue(new Error('database unavailable'));
-
-        const response = await listUsers(undefined, tokenFor(ownerActor));
-
-        expectInternalServerError(response);
       });
     });
   });
@@ -804,7 +496,7 @@ describe('Users Controller', () => {
 
           const response = await createUserRequest(
             { name, email, workspaceRoleId },
-            tokenFor(getActor()),
+            tokenFor(ctx.tokenService, getActor()),
           );
 
           expectCreatedUserResponse(response, {
@@ -830,7 +522,7 @@ describe('Users Controller', () => {
 
         const response = await createUserRequest(
           { name: 'Should Not Exist', email, workspaceRoleId: developerActor.workspaceRole.id },
-          tokenFor(developerActor),
+          tokenFor(ctx.tokenService, developerActor),
         );
 
         expectForbiddenError(response);
@@ -925,7 +617,10 @@ describe('Users Controller', () => {
       ])('returns a validation error when $case', async ({ body, expectedFields }) => {
         const resolvedBody = resolveRolePlaceholder(body, developerActor.workspaceRole.id);
 
-        const response = await createUserRequest(resolvedBody, tokenFor(ownerActor));
+        const response = await createUserRequest(
+          resolvedBody,
+          tokenFor(ctx.tokenService, ownerActor),
+        );
 
         expectValidationError(response, expectedFields);
       });
@@ -938,7 +633,7 @@ describe('Users Controller', () => {
 
         const response = await createUserRequest(
           { name: 'Unknown Role', email, workspaceRoleId: unknownRoleId },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectBusinessRuleViolationError(response);
@@ -950,7 +645,7 @@ describe('Users Controller', () => {
 
         const response = await createUserRequest(
           { name: 'Owner Assignment', email, workspaceRoleId: ownerActor.workspaceRole.id },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectBusinessRuleViolationError(response);
@@ -964,13 +659,13 @@ describe('Users Controller', () => {
 
         const first = await createUserRequest(
           { name: 'First', email, workspaceRoleId: developerActor.workspaceRole.id },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
         expect(first.status).toBe(201);
 
         const second = await createUserRequest(
           { name: 'Second', email, workspaceRoleId: developerActor.workspaceRole.id },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectConflictError(second);
@@ -1010,7 +705,7 @@ describe('Users Controller', () => {
 
         const response = await createUserRequest(
           { name: 'Dependency Failure', email, workspaceRoleId: developerActor.workspaceRole.id },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectInternalServerError(response);
@@ -1077,7 +772,7 @@ describe('Users Controller', () => {
         const response = await updateUserRoleRequest(
           target.id,
           { workspaceRoleId: adminRoleId },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectUpdatedUserRoleResponse(response, {
@@ -1099,7 +794,7 @@ describe('Users Controller', () => {
         const response = await updateUserRoleRequest(
           target.id,
           { workspaceRoleId: developerRoleId },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectUpdatedUserRoleResponse(response, {
@@ -1121,7 +816,7 @@ describe('Users Controller', () => {
         const response = await updateUserRoleRequest(
           target.id,
           { workspaceRoleId: developerRoleId },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectUpdatedUserRoleResponse(response, {
@@ -1144,7 +839,7 @@ describe('Users Controller', () => {
         const response = await updateUserRoleRequest(
           target.id,
           { workspaceRoleId: adminRoleId },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectUpdatedUserRoleResponse(response, {
@@ -1204,7 +899,11 @@ describe('Users Controller', () => {
             developerRoleId,
           );
 
-          const response = await updateUserRoleRequest(target.id, body, tokenFor(ownerActor));
+          const response = await updateUserRoleRequest(
+            target.id,
+            body,
+            tokenFor(ctx.tokenService, ownerActor),
+          );
 
           expectValidationError(response, expectedFields);
 
@@ -1217,7 +916,7 @@ describe('Users Controller', () => {
         const response = await updateUserRoleRequest(
           'not-a-uuid',
           { workspaceRoleId: adminRoleId },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectValidationError(response, ['id']);
@@ -1257,7 +956,7 @@ describe('Users Controller', () => {
           const response = await updateUserRoleRequest(
             target.id,
             { workspaceRoleId: adminRoleId },
-            tokenFor(getActor()),
+            tokenFor(ctx.tokenService, getActor()),
           );
 
           expectForbiddenError(response);
@@ -1277,7 +976,7 @@ describe('Users Controller', () => {
         const response = await updateUserRoleRequest(
           target.id,
           { workspaceRoleId: adminRoleId },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectForbiddenError(response);
@@ -1292,7 +991,7 @@ describe('Users Controller', () => {
         const response = await updateUserRoleRequest(
           unknownUserId,
           { workspaceRoleId: adminRoleId },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectResourceNotFoundError(response, ctx.userRepository.resourceName);
@@ -1310,7 +1009,7 @@ describe('Users Controller', () => {
         const response = await updateUserRoleRequest(
           target.id,
           { workspaceRoleId: unknownRoleId },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectBusinessRuleViolationError(response);
@@ -1329,7 +1028,7 @@ describe('Users Controller', () => {
         const response = await updateUserRoleRequest(
           target.id,
           { workspaceRoleId: ownerRoleId },
-          tokenFor(ownerActor),
+          tokenFor(ctx.tokenService, ownerActor),
         );
 
         expectBusinessRuleViolationError(response);
@@ -1386,7 +1085,7 @@ describe('Users Controller', () => {
           const response = await updateUserRoleRequest(
             target.id,
             { workspaceRoleId: adminRoleId },
-            tokenFor(ownerActor),
+            tokenFor(ctx.tokenService, ownerActor),
           );
 
           expectInternalServerError(response);
@@ -1454,7 +1153,10 @@ describe('Users Controller', () => {
       ])(
         'returns 200 with the target user resource for a $actorLabel actor',
         async ({ getActor }) => {
-          const response = await getUserByIdRequest(target.id, tokenFor(getActor()));
+          const response = await getUserByIdRequest(
+            target.id,
+            tokenFor(ctx.tokenService, getActor()),
+          );
 
           expectUserDetailsResponse(response, {
             id: target.id,
@@ -1466,7 +1168,10 @@ describe('Users Controller', () => {
       );
 
       it('exposes only safe fields and no credential or activation material', async () => {
-        const response = await getUserByIdRequest(target.id, tokenFor(ownerActor));
+        const response = await getUserByIdRequest(
+          target.id,
+          tokenFor(ctx.tokenService, ownerActor),
+        );
 
         expect(response.status).toBe(200);
         const user = response.body.data as Record<string, unknown>;
@@ -1482,7 +1187,10 @@ describe('Users Controller', () => {
 
     describe('on validation failure (400)', () => {
       it('returns a 400 validation error when the path id is not a uuid', async () => {
-        const response = await getUserByIdRequest('not-a-uuid', tokenFor(ownerActor));
+        const response = await getUserByIdRequest(
+          'not-a-uuid',
+          tokenFor(ctx.tokenService, ownerActor),
+        );
 
         expectValidationError(response, ['id']);
       });
@@ -1507,7 +1215,10 @@ describe('Users Controller', () => {
           updatedAt: new Date(),
         });
 
-        const response = await getUserByIdRequest(target.id, tokenFor(ownerActor));
+        const response = await getUserByIdRequest(
+          target.id,
+          tokenFor(ctx.tokenService, ownerActor),
+        );
 
         expectForbiddenError(response);
       });
@@ -1515,7 +1226,10 @@ describe('Users Controller', () => {
 
     describe('on target lookup failure (404)', () => {
       it('returns a resource-not-found error when the target user does not exist', async () => {
-        const response = await getUserByIdRequest(unknownUserId, tokenFor(ownerActor));
+        const response = await getUserByIdRequest(
+          unknownUserId,
+          tokenFor(ctx.tokenService, ownerActor),
+        );
 
         expectResourceNotFoundError(response, ctx.userRepository.resourceName);
       });
@@ -1527,7 +1241,10 @@ describe('Users Controller', () => {
           .spyOn(ctx.userRepository, 'getUserById')
           .mockRejectedValue(new Error('database unavailable'));
 
-        const response = await getUserByIdRequest(target.id, tokenFor(ownerActor));
+        const response = await getUserByIdRequest(
+          target.id,
+          tokenFor(ctx.tokenService, ownerActor),
+        );
 
         expectInternalServerError(response);
       });

@@ -54,5 +54,18 @@ export const testAuthorizationMatrix: AuthorizationMatrix = {
       ProjectRoleName.PROJECT_ADMIN,
       ProjectRoleName.DEVELOPER,
     ],
+    // Project-scope action with a workspaceBypass set. `OWNER` and `ADMIN` are
+    // allowed to bypass; `PROJECT_OWNER` and `PROJECT_ADMIN` are allowed via a
+    // project role. Developers (workspace or project) are denied unless they
+    // bypass.
+    getProjectById: {
+      projectRoles: [ProjectRoleName.PROJECT_OWNER, ProjectRoleName.PROJECT_ADMIN],
+      workspaceBypass: [WorkspaceRoleName.OWNER, WorkspaceRoleName.ADMIN],
+    },
+    // Project-scope action using the object shape but WITHOUT a workspaceBypass
+    // set, so the only path is the project-role check.
+    deleteProject: {
+      projectRoles: [ProjectRoleName.PROJECT_OWNER],
+    },
   },
 };
