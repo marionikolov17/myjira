@@ -23,10 +23,6 @@ import { projectsQueryConfig } from '@/modules/projects/project.query-config';
 
 import { silentLogger } from '../../fixtures/logger.fixtures';
 import { buildTestUsers } from '../../fixtures/actor-context.fixtures';
-import {
-  createExpiredToken as sharedCreateExpiredToken,
-  createTokenWithWrongSecret as sharedCreateTokenWithWrongSecret,
-} from '../../fixtures/tokens.fixtures';
 
 export const SECRET_KEY = 'projects-test-secret-key';
 export const WRONG_SECRET_KEY = 'projects-test-wrong-secret-key';
@@ -145,30 +141,4 @@ export async function seedProjectMembership(
     data: { projectId, userId, projectRoleId },
   });
   return { projectId, projectRoleId, projectRoleName };
-}
-
-/**
- * Mints an already-expired token for the given claims, bound to this fixture's
- * `SECRET_KEY` and `TOKEN_EXPIRES_IN_SECONDS`.
- */
-export function createExpiredToken(userId: string, workspaceRoleId: string): string {
-  return sharedCreateExpiredToken({
-    secretKey: SECRET_KEY,
-    expiresInSeconds: TOKEN_EXPIRES_IN_SECONDS,
-    userId,
-    workspaceRoleId,
-  });
-}
-
-/**
- * Mints a token signed with a secret the middleware does not recognize, bound
- * to this fixture's `WRONG_SECRET_KEY` and `TOKEN_EXPIRES_IN_SECONDS`.
- */
-export function createTokenWithWrongSecret(userId: string, workspaceRoleId: string): string {
-  return sharedCreateTokenWithWrongSecret({
-    wrongSecretKey: WRONG_SECRET_KEY,
-    expiresInSeconds: TOKEN_EXPIRES_IN_SECONDS,
-    userId,
-    workspaceRoleId,
-  });
 }

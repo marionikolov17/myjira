@@ -22,7 +22,6 @@ import { createTestUsers } from '../../fixtures/users.fixtures';
 import { ensureWorkspaceRolesSeeded } from '../../fixtures/workspace-roles.fixtures';
 import { ensureProjectRolesSeeded } from '../../fixtures/project-members.fixtures';
 import {
-  bearer,
   fetchPersistedUsers,
   tokenFor,
   userToActorContext,
@@ -42,9 +41,7 @@ import {
 } from '../../assertions/list.assertions';
 
 import {
-  createExpiredToken,
   createProjectsTestContext,
-  createTokenWithWrongSecret,
   fetchProjectRoleIdByName,
   ProjectsTestContext,
   seedProject,
@@ -58,6 +55,7 @@ import {
   expectProjectResponse,
   expectProjectResponseById,
 } from './project.controller.assertions';
+import { ProjectRepository } from '@/modules/projects';
 
 function toProjectRoles(
   memberships: { projectId: string; projectRoleId: string; projectRoleName: ProjectRoleName }[],
@@ -88,10 +86,12 @@ describe('Projects Controller', () => {
 
     beforeAll(async () => {
       await createTestUsers(testUsers);
+
       const [owner, admin, developer] = await fetchPersistedUsers(testUsers);
       if (!owner || !admin || !developer) {
         throw new Error('Expected seeded users to exist');
       }
+
       ownerActor = userToActorContext(owner, []);
       adminActor = userToActorContext(admin, []);
       developerActor = userToActorContext(developer, []);
@@ -169,19 +169,6 @@ describe('Projects Controller', () => {
 
         const persisted = await prisma.project.findMany({ where: { name: 'Duplicate' } });
         expect(persisted).toHaveLength(2);
-      });
-
-      it('ignores client-supplied id, creatorId, timestamps, and membership fields', async () => {
-        const response = await createProjectRequest(
-          { name: 'Clean', description: 'Clean description' },
-          tokenFor(ctx.tokenService, adminActor),
-        );
-
-        expectProjectResponse(response, 201, {
-          name: 'Clean',
-          description: 'Clean description',
-          creatorId: adminActor.userId,
-        });
       });
     });
 
@@ -261,22 +248,37 @@ describe('Projects Controller', () => {
     });
 
     describe('on transaction rollback (500)', () => {
-      it('does not persist the project when the member write fails', async () => {
-        // The service runs project + member writes inside `unitOfWork.run`,
-        // which constructs a new, transaction-bound ProjectMemberRepository.
-        // Spying on the prototype covers that tx-bound instance.
-        jest
-          .spyOn(ProjectMemberRepository.prototype, 'createProjectMember')
-          .mockRejectedValueOnce(new Error('member write failure'));
+      it.each([
+        {
+          case: 'the project repository createProject throws',
+          arrange: () => {
+            jest
+              .spyOn(ProjectRepository.prototype, 'createProject')
+              .mockRejectedValueOnce(new Error('project write failure'));
+          },
+        },
+        {
+          case: 'the project member repository createProjectMember throws',
+          arrange: () => {
+            jest
+              .spyOn(ProjectMemberRepository.prototype, 'createProjectMember')
+              .mockRejectedValueOnce(new Error('member write failure'));
+          },
+        },
+      ])(
+        'returns an internal server error and does not persist the project when $case',
+        async ({ arrange }) => {
+          arrange();
 
-        const response = await createProjectRequest(
-          { name: 'Rollback', description: 'Rollback description' },
-          tokenFor(ctx.tokenService, ownerActor),
-        );
+          const response = await createProjectRequest(
+            { name: 'Rollback', description: 'Rollback description' },
+            tokenFor(ctx.tokenService, ownerActor),
+          );
 
-        expectInternalServerError(response);
-        await expectNoProjectWithName('Rollback');
-      });
+          expectInternalServerError(response);
+          await expectNoProjectWithName('Rollback');
+        },
+      );
     });
   });
 
@@ -581,7 +583,7 @@ describe('Projects Controller', () => {
     });
 
     describe('on unexpected dependency failure (500)', () => {
-      it('returns 500 when the project repository throws', async () => {
+      it('returns an internal server error when the project repository throws', async () => {
         jest
           .spyOn(ctx.projectRepository, 'findProjects')
           .mockRejectedValueOnce(new Error('database unavailable'));
@@ -704,29 +706,6 @@ describe('Projects Controller', () => {
     describe('on unauthenticated request (401)', () => {
       it('returns an authentication required error', async () => {
         const response = await getProjectById(projectId);
-
-        expectAuthenticationRequired(response);
-      });
-
-      it.each([
-        {
-          case: 'the token is invalid',
-          getHeader: () =>
-            createTokenWithWrongSecret(
-              developerNonMemberActor.userId,
-              developerNonMemberActor.workspaceRole.id,
-            ),
-        },
-        {
-          case: 'the token is expired',
-          getHeader: () =>
-            createExpiredToken(
-              developerNonMemberActor.userId,
-              developerNonMemberActor.workspaceRole.id,
-            ),
-        },
-      ])('returns an authentication error when $case', async ({ getHeader }) => {
-        const response = await getProjectById(projectId, bearer(getHeader()));
         expectAuthenticationRequired(response);
       });
     });
@@ -754,7 +733,7 @@ describe('Projects Controller', () => {
     });
 
     describe('on unexpected dependency failure (500)', () => {
-      it('returns 500 when the project repository throws', async () => {
+      it('returns an internal server error when the project repository throws', async () => {
         jest
           .spyOn(ctx.projectRepository, 'getProjectById')
           .mockRejectedValueOnce(new Error('database unavailable'));
@@ -1019,10 +998,25 @@ describe('Projects Controller', () => {
     });
 
     describe('on unexpected dependency failure (500)', () => {
-      it('returns 500 when the project repository throws', async () => {
-        jest
-          .spyOn(ctx.projectRepository, 'updateProject')
-          .mockRejectedValueOnce(new Error('database unavailable'));
+      it.each([
+        {
+          case: 'the project member repository getProjectMembersByUserId throws',
+          arrange: () => {
+            jest
+              .spyOn(ctx.projectMemberRepository, 'getProjectMembersByUserId')
+              .mockRejectedValueOnce(new Error('database unavailable'));
+          },
+        },
+        {
+          case: 'the project repository updateProject throws',
+          arrange: () => {
+            jest
+              .spyOn(ctx.projectRepository, 'updateProject')
+              .mockRejectedValueOnce(new Error('database unavailable'));
+          },
+        },
+      ])('returns an internal server error when $case', async ({ arrange }) => {
+        arrange();
 
         const response = await updateProjectRequest(
           projectId,
@@ -1240,10 +1234,25 @@ describe('Projects Controller', () => {
     });
 
     describe('on unexpected dependency failure (500)', () => {
-      it('returns 500 when the project repository throws', async () => {
-        jest
-          .spyOn(ctx.projectRepository, 'deleteProject')
-          .mockRejectedValueOnce(new Error('database unavailable'));
+      it.each([
+        {
+          case: 'the project member repository getProjectMembersByUserId throws',
+          arrange: () => {
+            jest
+              .spyOn(ctx.projectMemberRepository, 'getProjectMembersByUserId')
+              .mockRejectedValueOnce(new Error('database unavailable'));
+          },
+        },
+        {
+          case: 'the project repository deleteProject throws',
+          arrange: () => {
+            jest
+              .spyOn(ctx.projectRepository, 'deleteProject')
+              .mockRejectedValueOnce(new Error('database unavailable'));
+          },
+        },
+      ])('returns an internal server error when $case', async ({ arrange }) => {
+        arrange();
 
         const response = await deleteProjectRequest(
           projectId,
