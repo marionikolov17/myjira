@@ -1121,33 +1121,32 @@ describe('ProjectMembers Controller', () => {
       });
 
       it("returns 422 when the target is the actor's own membership (self-mutation)", async () => {
-        // The Workspace Owner's seeded membership IS the Project Owner. Create
-        // a separate self-targeting case using the Admin actor as the target
-        // through a dedicated Admin membership + Admin actor.
-        const selfMemberId = projectAdminMemberId;
-        const actor: ActorContext = {
-          ...workspaceOwnerActor,
-          userId: adminUserId,
-          projectRoles: [
-            {
-              projectId,
-              projectRoleId: projectAdminRoleId,
-              projectRoleName: ProjectRoleName.PROJECT_ADMIN,
-            },
-          ],
-        };
-        // Workspace Owner bypass still permits authorization; the self-mutation
-        // check runs after authorization and before persistence.
+        // PATCH self-mutation is only reachable when the actor is authorized
+        // (WO bypass or Project Owner) AND the target is the actor's own
+        // non-Owner membership — owner-immutable fires first on the Owner row.
+        // Seed: developer owns the project; Workspace Owner is enrolled as
+        // Project Admin and attempts to change their own role.
+        await prisma.projectMember.deleteMany({ where: { projectId } });
+        await seedProjectMembership(
+          projectId,
+          workspaceDeveloperActor.userId,
+          ProjectRoleName.PROJECT_OWNER,
+        );
+        const selfMembership = await seedProjectMembership(
+          projectId,
+          workspaceOwnerActor.userId,
+          ProjectRoleName.PROJECT_ADMIN,
+        );
 
         const response = await updateRoleRequest(
           projectId,
-          selfMemberId,
+          selfMembership.id,
           { projectRoleId: developerProjectRoleId },
-          tokenFor(ctx.tokenService, actor),
+          tokenFor(ctx.tokenService, workspaceOwnerActor),
         );
 
         expectBusinessRuleViolationError(response);
-        await expectMemberWithRole(projectAdminMemberId, ProjectRoleName.PROJECT_ADMIN);
+        await expectMemberWithRole(selfMembership.id, ProjectRoleName.PROJECT_ADMIN);
       });
 
       it('returns 422 when projectRoleId does not resolve to any project role', async () => {
@@ -1481,25 +1480,33 @@ describe('ProjectMembers Controller', () => {
       });
 
       it("returns 422 when the target is the actor's own membership (self-mutation)", async () => {
-        const actor: ActorContext = {
-          ...workspaceOwnerActor,
-          userId: adminUserId,
-          projectRoles: [
-            {
-              projectId,
-              projectRoleId: projectAdminRoleId,
-              projectRoleName: ProjectRoleName.PROJECT_ADMIN,
-            },
-          ],
-        };
+        // DELETE self-mutation for a non-Owner membership: developer owns the
+        // project; Workspace Owner is enrolled as Project Admin and attempts to
+        // remove themselves. WO bypass authorizes the call and skips the ladder,
+        // so only the self-mutation rule rejects.
+        await prisma.projectMember.deleteMany({ where: { projectId } });
+        await seedProjectMembership(
+          projectId,
+          workspaceDeveloperActor.userId,
+          ProjectRoleName.PROJECT_OWNER,
+        );
+        const selfMembership = await seedProjectMembership(
+          projectId,
+          workspaceOwnerActor.userId,
+          ProjectRoleName.PROJECT_ADMIN,
+        );
 
         const response = await deleteMemberRequest(
           projectId,
-          projectAdminMemberId,
-          tokenFor(ctx.tokenService, actor),
+          selfMembership.id,
+          tokenFor(ctx.tokenService, workspaceOwnerActor),
         );
 
         expectBusinessRuleViolationError(response);
+        const row = await prisma.projectMember.findUnique({
+          where: { id: selfMembership.id },
+        });
+        expect(row).not.toBeNull();
       });
 
       it('returns 422 when a Project Admin attempts to remove a Project Admin target (ladder)', async () => {
