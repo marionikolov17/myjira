@@ -6,7 +6,7 @@ import { AuthorizationGuard } from '@/common/authorization';
 import { AuthorizationScope } from '@/common/authorization';
 import { AuthorizeInput } from '@/common/authorization';
 import { WorkspaceRoleName } from '@/modules/workspace-roles';
-import { ProjectRoleName } from '@/modules/project-members';
+import { ProjectRoleName } from '@/modules/project-roles';
 
 import {
   OTHER_PROJECT_ID,
@@ -150,7 +150,7 @@ describe('AuthorizationGuard', () => {
           authorizationGuard.authorize({
             actor,
             scope: AuthorizationScope.Project,
-            action: 'updateProjectRole',
+            action: 'updateProjectMemberRole',
             resource: PROJECT_ID,
           }),
         ).toThrow(AuthorizationError);

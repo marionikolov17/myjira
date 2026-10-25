@@ -14,7 +14,9 @@ import { Application } from 'express';
 
 import { ActorContext } from '@/common/interfaces';
 import { prisma } from '@/common/lib/prisma';
-import { ProjectMemberRepository, ProjectRoleName } from '@/modules/project-members';
+import { ProjectRepository } from '@/modules/projects';
+import { ProjectMemberRepository } from '@/modules/project-members';
+import { ProjectRoleName } from '@/modules/project-roles';
 import { IssuePriority, IssueStatus } from '@/generated/prisma/enums';
 
 import { createTestUsers } from '../../fixtures/users.fixtures';
@@ -51,7 +53,6 @@ import {
   expectProjectResponse,
   expectProjectResponseById,
 } from './project.controller.assertions';
-import { ProjectRepository } from '@/modules/projects';
 
 function toProjectRoles(
   memberships: { projectId: string; projectRoleId: string; projectRoleName: ProjectRoleName }[],
@@ -275,6 +276,25 @@ describe('Projects Controller', () => {
           await expectNoProjectWithName('Rollback');
         },
       );
+    });
+
+    describe('on unexpected dependency failure (500)', () => {
+      // The Owner-bootstrap role lookup fires BEFORE `unitOfWork.run`, so there
+      // is nothing to roll back — this failure is kept separate from the
+      // transaction-rollback cases above.
+      it('returns an internal server error when projectRoleRepository.getProjectRoleIdByName throws', async () => {
+        jest
+          .spyOn(ctx.projectRoleRepository, 'getProjectRoleIdByName')
+          .mockRejectedValueOnce(new Error('project role lookup failure'));
+
+        const response = await createProjectRequest(
+          { name: 'RoleLookupFail', description: 'role lookup failure description' },
+          tokenFor(ctx.tokenService, ownerActor),
+        );
+
+        expectInternalServerError(response);
+        await expectNoProjectWithName('RoleLookupFail');
+      });
     });
   });
 

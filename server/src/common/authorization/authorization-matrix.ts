@@ -1,5 +1,5 @@
 import { WorkspaceRoleName } from '@/modules/workspace-roles';
-import { ProjectRoleName } from '@/modules/project-members';
+import { ProjectRoleName } from '@/modules/project-roles';
 import { AuthorizationAction, AuthorizationScope } from './authorization.types';
 
 export type ProjectActionConfig =
@@ -29,8 +29,26 @@ export const authorizationMatrix: AuthorizationMatrix = {
       ],
       workspaceBypass: [WorkspaceRoleName.OWNER, WorkspaceRoleName.ADMIN],
     },
-    addProjectMember: [ProjectRoleName.PROJECT_OWNER, ProjectRoleName.PROJECT_ADMIN],
-    updateProjectRole: [ProjectRoleName.PROJECT_OWNER, ProjectRoleName.PROJECT_ADMIN],
+    addProjectMember: {
+      projectRoles: [ProjectRoleName.PROJECT_OWNER, ProjectRoleName.PROJECT_ADMIN],
+      workspaceBypass: [WorkspaceRoleName.OWNER],
+    },
+    updateProjectMemberRole: {
+      projectRoles: [ProjectRoleName.PROJECT_OWNER],
+      workspaceBypass: [WorkspaceRoleName.OWNER],
+    },
+    removeProjectMember: {
+      projectRoles: [ProjectRoleName.PROJECT_OWNER, ProjectRoleName.PROJECT_ADMIN],
+      workspaceBypass: [WorkspaceRoleName.OWNER],
+    },
+    listProjectMembers: {
+      projectRoles: [
+        ProjectRoleName.PROJECT_OWNER,
+        ProjectRoleName.PROJECT_ADMIN,
+        ProjectRoleName.DEVELOPER,
+      ],
+      workspaceBypass: [WorkspaceRoleName.OWNER, WorkspaceRoleName.ADMIN],
+    },
     updateProject: {
       projectRoles: [ProjectRoleName.PROJECT_OWNER],
       workspaceBypass: [WorkspaceRoleName.OWNER],

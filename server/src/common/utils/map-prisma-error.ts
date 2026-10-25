@@ -8,7 +8,7 @@ type ErrorMapper = (error: Prisma.PrismaClientKnownRequestError) => AppError;
 
 const PRISMA_ERROR_MAP: Record<string, ErrorMapper> = {
   P2002: (error) => new ConflictError(error.message),
-  P2003: (error) => new ConflictError(error.message),
+  P2003: (error) => new BusinessRuleViolationError(error.message),
   P2025: (error) => new ResourceNotFoundError({ resourceName: getModelName(error) }),
 };
 

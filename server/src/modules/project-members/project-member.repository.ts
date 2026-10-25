@@ -2,15 +2,15 @@ import type { PrismaClient } from '@/generated/prisma/client';
 import { ILogger, logger } from '@/common/logger';
 import { prisma } from '@/common/lib/prisma';
 import { mapPrismaError } from '@/common/utils/map-prisma-error';
-import { BusinessRuleViolationError } from '@/common/errors';
 import {
+  ProjectMemberExpanded,
+  ProjectMemberExpandedSchema,
   ProjectMemberWithRole,
   ProjectMemberWithRoleSchema,
-  ProjectRoleName,
 } from './project-member.schema';
 import { CreateProjectMemberParams, IProjectMemberRepository } from './project-member.interface';
 
-type ProjectMemberPrismaClient = Pick<PrismaClient, 'projectMember' | 'projectRole'>;
+type ProjectMemberPrismaClient = Pick<PrismaClient, 'projectMember'>;
 
 export class ProjectMemberRepository implements IProjectMemberRepository {
   public readonly resourceName: string = 'project_members';
@@ -19,6 +19,24 @@ export class ProjectMemberRepository implements IProjectMemberRepository {
     projectId: true,
     userId: true,
     projectRoleId: true,
+    projectRole: {
+      select: {
+        id: true,
+        name: true,
+      },
+    },
+  } as const;
+
+  private readonly expandedSelect = {
+    id: true,
+    projectId: true,
+    user: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    },
     projectRole: {
       select: {
         id: true,
@@ -46,37 +64,80 @@ export class ProjectMemberRepository implements IProjectMemberRepository {
     }
   }
 
-  public async createProjectMember(params: CreateProjectMemberParams): Promise<void> {
+  public async createProjectMember(
+    params: CreateProjectMemberParams,
+  ): Promise<ProjectMemberExpanded> {
     try {
-      await this.prisma.projectMember.create({
+      const member = await this.prisma.projectMember.create({
         data: {
           projectId: params.projectId,
           userId: params.userId,
           projectRoleId: params.projectRoleId,
         },
+        select: this.expandedSelect,
       });
+
+      return ProjectMemberExpandedSchema.parse(member);
     } catch (error) {
       this.logError(error);
       throw mapPrismaError(error);
     }
   }
 
-  public async getProjectRoleIdByName(name: ProjectRoleName): Promise<string> {
+  public async listProjectMembers(projectId: string): Promise<ProjectMemberExpanded[]> {
     try {
-      const role = await this.prisma.projectRole.findFirst({
-        where: { name },
-        select: { id: true },
+      const members = await this.prisma.projectMember.findMany({
+        where: { projectId },
+        orderBy: { id: 'asc' },
+        select: this.expandedSelect,
       });
 
-      if (!role) {
-        throw new BusinessRuleViolationError(`Project role ${name} does not exist`);
-      }
-
-      return role.id;
+      return members.map((member) => ProjectMemberExpandedSchema.parse(member));
     } catch (error) {
-      if (error instanceof BusinessRuleViolationError) {
-        throw error;
-      }
+      this.logError(error);
+      throw mapPrismaError(error);
+    }
+  }
+
+  public async getProjectMemberById(
+    memberId: string,
+    projectId: string,
+  ): Promise<ProjectMemberExpanded | null> {
+    try {
+      const member = await this.prisma.projectMember.findFirst({
+        where: { id: memberId, projectId },
+        select: this.expandedSelect,
+      });
+
+      return member ? ProjectMemberExpandedSchema.parse(member) : null;
+    } catch (error) {
+      this.logError(error);
+      throw mapPrismaError(error);
+    }
+  }
+
+  public async updateProjectMemberRole(
+    memberId: string,
+    projectRoleId: string,
+  ): Promise<ProjectMemberExpanded> {
+    try {
+      const member = await this.prisma.projectMember.update({
+        where: { id: memberId },
+        data: { projectRoleId },
+        select: this.expandedSelect,
+      });
+
+      return ProjectMemberExpandedSchema.parse(member);
+    } catch (error) {
+      this.logError(error);
+      throw mapPrismaError(error);
+    }
+  }
+
+  public async deleteProjectMember(memberId: string): Promise<void> {
+    try {
+      await this.prisma.projectMember.delete({ where: { id: memberId } });
+    } catch (error) {
       this.logError(error);
       throw mapPrismaError(error);
     }

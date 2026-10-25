@@ -6,6 +6,9 @@ export function createMockProjectMemberRepository(): jest.Mocked<IProjectMemberR
     resourceName: 'project_members',
     getProjectMembersByUserId: jest.fn(),
     createProjectMember: jest.fn(),
-    getProjectRoleIdByName: jest.fn(),
+    listProjectMembers: jest.fn(),
+    getProjectMemberById: jest.fn(),
+    updateProjectMemberRole: jest.fn(),
+    deleteProjectMember: jest.fn(),
   };
 }

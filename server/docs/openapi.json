@@ -1720,6 +1720,346 @@
           }
         }
       }
+    },
+    "/projects/{projectId}/members": {
+      "post": {
+        "operationId": "addProjectMember",
+        "summary": "Add a user to a project",
+        "description": "Adds a user as a member of the target project with the supplied project role. The caller must present a valid Bearer token and be authorized to `addProjectMember`: callers whose workspace role is `Workspace Owner` are permitted regardless of project membership (workspace bypass); otherwise the caller must hold either the `Project Owner` or `Project Admin` project role on the target project.\n\nAuthentication runs before validation, which runs before authorization, which runs before business-rule checks. A missing token yields `401`, a non-object body / missing or malformed fields / unrecognized fields / non-UUID `{projectId}` yield `400`, an unauthorized caller yields `403`, a well-formed but unknown `{projectId}` yields `404`, a duplicate `(projectId, userId)` yields `409`, and the following business-rule violations yield `422`: `userId` references no existing user; `projectRoleId` references no existing project role; `projectRoleId` resolves to the `Project Owner` role (the project owner is bootstrapped once at project creation and cannot be added or promoted via this endpoint); the acting Project Admin tries to add a Project Admin target (the target-role ladder restricts a Project Admin to Developer targets).",
+        "tags": ["Project members"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the target project.",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AddProjectMemberRequest" },
+              "examples": {
+                "addDeveloper": {
+                  "summary": "Add a Developer member",
+                  "value": {
+                    "userId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+                    "projectRoleId": "9c0d1e2f-3a4b-4c5d-8e6f-7a8b9c0d1e2f"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The user was added to the project. The response contains the newly created project-member row with the user and project-role joined.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProjectMemberResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "The body or path parameter failed validation (missing or malformed `userId`/`projectRoleId`, unrecognized field, non-object body, non-UUID `{projectId}`).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token. No member is added.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to add members to the target project. No member is added.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "No project exists for the supplied `{projectId}`. No member is added.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+              }
+            }
+          },
+          "409": {
+            "description": "The target user is already a member of the project. No member is added.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ConflictErrorResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "A business rule rejected the request: `userId` references no existing user, `projectRoleId` references no existing project role, `projectRoleId` resolves to the `Project Owner` role, or a Project Admin caller attempted to add a Project Admin target (ladder).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request. No member is added.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listProjectMembers",
+        "summary": "List project members",
+        "description": "Returns every member of the target project. The response is NOT paginated: the full list is returned under `data` and `meta.pagination` is omitted. The entries are ordered by the stable `id` ascending.\n\nThe caller must present a valid Bearer token and be authorized to `listProjectMembers`: callers whose workspace role is `Workspace Owner` or `Workspace Admin` are permitted regardless of project membership (workspace bypass); otherwise the caller must hold one of the `Project Owner`, `Project Admin`, or `Developer` project roles on the target project.\n\nThis endpoint does not accept `?page`, `?pageSize`, `?sort`, or `?filter[...]` query parameters; any such parameter yields `400`.",
+        "tags": ["Project members"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the target project.",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every member of the project, each with the user and project-role joined. The response is NOT paginated and has no `meta.pagination`.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListProjectMembersResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "The `{projectId}` path parameter is not a UUID, or the request includes a disallowed query parameter such as `?page`, `?pageSize`, `?sort`, or `?filter[...]`.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to list members of the target project.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "No project exists for the supplied `{projectId}`.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/members/{memberId}": {
+      "patch": {
+        "operationId": "updateProjectMemberRole",
+        "summary": "Update a project member's role",
+        "description": "Replaces the target member's project role with the supplied `projectRoleId`. The caller must present a valid Bearer token and be authorized to `updateProjectMemberRole`: callers whose workspace role is `Workspace Owner` are permitted regardless of project membership (workspace bypass); otherwise the caller must hold the `Project Owner` project role on the target project. `Workspace Admin`, `Project Admin`, and `Developer` are not permitted.\n\nAuthentication runs before validation, which runs before authorization, which runs before the target lookup, which runs before business-rule checks. A missing token yields `401`, a malformed `{projectId}` / `{memberId}` or malformed body yields `400`, an unauthorized caller yields `403`, a `{memberId}` that does not exist OR belongs to a different project than `{projectId}` yields `404`, and the following business-rule violations yield `422`: the target is the `Project Owner` (owner-immutable); the target is the caller themselves (self-mutation); `projectRoleId` references no existing project role; `projectRoleId` resolves to the `Project Owner` role.",
+        "tags": ["Project members"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the target project.",
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "memberId",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the project-member row to update.",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateProjectMemberRoleRequest" },
+              "examples": {
+                "promoteToAdmin": {
+                  "summary": "Promote a Developer to Project Admin",
+                  "value": {
+                    "projectRoleId": "7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c0d"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The target member's role was updated. The response contains the updated project-member row with the user and project-role joined.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProjectMemberResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "The body or path parameters failed validation (missing or malformed `projectRoleId`, unrecognized field, non-object body, non-UUID `{projectId}` or `{memberId}`).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token. No member is modified.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to update members of the target project. No member is modified.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "No member row exists for the supplied `{memberId}`, or the row exists but belongs to a project other than `{projectId}`. No member is modified.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "A business rule rejected the request: the target is the `Project Owner` (owner-immutable), the target is the caller themselves (self-mutation), `projectRoleId` references no existing project role, or `projectRoleId` resolves to the `Project Owner` role.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request. No member is modified.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "removeProjectMember",
+        "summary": "Remove a user from a project",
+        "description": "Removes the target member from the project. The caller must present a valid Bearer token and be authorized to `removeProjectMember`: callers whose workspace role is `Workspace Owner` are permitted regardless of project membership (workspace bypass); otherwise the caller must hold either the `Project Owner` or `Project Admin` project role on the target project.\n\nAuthentication runs before validation, which runs before authorization, which runs before the target lookup, which runs before business-rule checks. A missing token yields `401`, a non-UUID `{projectId}` or `{memberId}` yields `400`, an unauthorized caller yields `403`, a `{memberId}` that does not exist OR belongs to a different project than `{projectId}` yields `404`, and the following business-rule violations yield `422`: the target is the `Project Owner` (owner-protection); the target is the caller themselves (self-mutation); the acting `Project Admin` tries to remove a `Project Admin` target (the target-role ladder restricts a Project Admin to Developer targets).\n\nOn success the response is `204 No Content` with an empty body.",
+        "tags": ["Project members"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the target project.",
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "memberId",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the project-member row to remove.",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "The project member was removed. The response body is empty." },
+          "400": {
+            "description": "The `{projectId}` or `{memberId}` path parameter is not a UUID.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token. No member is removed.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to remove members from the target project. No member is removed.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "No member row exists for the supplied `{memberId}`, or the row exists but belongs to a project other than `{projectId}`. No member is removed.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "A business rule rejected the request: the target is the `Project Owner` (owner-protection), the target is the caller themselves (self-mutation), or an acting Project Admin tried to remove a Project Admin target (ladder).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request. No member is removed.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2110,6 +2450,97 @@
         "required": ["data"],
         "properties": {
           "data": { "$ref": "#/components/schemas/Project" }
+        }
+      },
+      "AddProjectMemberRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["userId", "projectRoleId"],
+        "description": "The user to add and the project role to assign. The body is validated with a strict schema, so unrecognized fields are rejected.",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The identifier of the user to add as a project member.",
+            "example": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+          },
+          "projectRoleId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The identifier of the project role to assign. Must reference an existing project role and must not resolve to the `Project Owner` role.",
+            "example": "9c0d1e2f-3a4b-4c5d-8e6f-7a8b9c0d1e2f"
+          }
+        }
+      },
+      "UpdateProjectMemberRoleRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["projectRoleId"],
+        "description": "The requested project role for the target member. The body is validated with a strict schema, so unrecognized fields are rejected.",
+        "properties": {
+          "projectRoleId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The identifier of the project role to assign. Must reference an existing project role and must not resolve to the `Project Owner` role.",
+            "example": "7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c0d"
+          }
+        }
+      },
+      "ProjectMember": {
+        "type": "object",
+        "required": ["id", "projectId", "user", "projectRole"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The identifier of the project-member row."
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The identifier of the project the user belongs to."
+          },
+          "user": {
+            "type": "object",
+            "required": ["id", "name", "email"],
+            "description": "The joined user resource, limited to the fields relevant to membership.",
+            "properties": {
+              "id": { "type": "string", "format": "uuid" },
+              "name": { "type": "string" },
+              "email": { "type": "string", "format": "email" }
+            }
+          },
+          "projectRole": {
+            "type": "object",
+            "required": ["id", "name"],
+            "description": "The joined project role.",
+            "properties": {
+              "id": { "type": "string", "format": "uuid" },
+              "name": {
+                "type": "string",
+                "enum": ["ProjectOwner", "ProjectAdmin", "Developer"],
+                "description": "The name of the project role."
+              }
+            }
+          }
+        }
+      },
+      "ProjectMemberResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": { "$ref": "#/components/schemas/ProjectMember" }
+        }
+      },
+      "ListProjectMembersResponse": {
+        "type": "object",
+        "required": ["data"],
+        "description": "Every member of the project, each with the user and project-role joined. The response is NOT paginated — `meta.pagination` is intentionally absent.",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ProjectMember" }
+          }
         }
       },
       "ListProjectsResponse": {

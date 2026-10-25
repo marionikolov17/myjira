@@ -10,11 +10,12 @@ import { PrismaUnitOfWork, IUnitOfWork } from '@/common/unit-of-work';
 
 import { IUserRepository, UserRepository } from '@/modules/users';
 import { IWorkspaceRoleRepository, WorkspaceRoleRepository } from '@/modules/workspace-roles';
+import { IProjectMemberRepository, ProjectMemberRepository } from '@/modules/project-members';
 import {
-  IProjectMemberRepository,
-  ProjectMemberRepository,
+  IProjectRoleRepository,
   ProjectRoleName,
-} from '@/modules/project-members';
+  ProjectRoleRepository,
+} from '@/modules/project-roles';
 import { ActorContextService } from '@/modules/auth/actor-context.service';
 import { IProjectRepository, ProjectRepository } from '@/modules/projects';
 import { ProjectService } from '@/modules/projects';
@@ -35,6 +36,7 @@ export interface ProjectsTestContext {
   tokenService: ITokenService;
   projectRepository: IProjectRepository;
   projectMemberRepository: IProjectMemberRepository;
+  projectRoleRepository: IProjectRoleRepository;
   userRepository: IUserRepository;
   workspaceRoleRepository: IWorkspaceRoleRepository;
   unitOfWork: IUnitOfWork;
@@ -53,6 +55,7 @@ export function createProjectsTestContext(): ProjectsTestContext {
   const userRepository = new UserRepository(prisma, silentLogger);
   const workspaceRoleRepository = new WorkspaceRoleRepository(prisma, silentLogger);
   const projectMemberRepository = new ProjectMemberRepository(prisma, silentLogger);
+  const projectRoleRepository = new ProjectRoleRepository(prisma, silentLogger);
   const projectRepository = new ProjectRepository(prisma, silentLogger);
   const unitOfWork = new PrismaUnitOfWork(prisma, silentLogger);
 
@@ -76,6 +79,7 @@ export function createProjectsTestContext(): ProjectsTestContext {
   const projectService = new ProjectService(
     projectRepository,
     projectMemberRepository,
+    projectRoleRepository,
     authorizationGuard,
     unitOfWork,
     silentLogger,
@@ -99,6 +103,7 @@ export function createProjectsTestContext(): ProjectsTestContext {
     tokenService,
     projectRepository,
     projectMemberRepository,
+    projectRoleRepository,
     userRepository,
     workspaceRoleRepository,
     unitOfWork,

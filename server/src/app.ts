@@ -6,6 +6,7 @@ import { workspaceController } from '@/modules/workspace';
 import { authController, authenticationMiddleware } from '@/modules/auth';
 import { usersController } from '@/modules/users';
 import { projectsController } from '@/modules/projects';
+import { projectMemberController } from '@/modules/project-members';
 import openapiSpec from '../docs/openapi.json';
 
 const app = express();
@@ -32,6 +33,7 @@ app.use('/api/v1/workspace', workspaceController.router);
 app.use('/api/v1/auth', authController.router);
 app.use('/api/v1/users', usersController.router);
 app.use('/api/v1/projects', projectsController.router);
+app.use('/api/v1/projects/:projectId/members', projectMemberController.router);
 
 app.use(errorMiddleware);
 

@@ -3,6 +3,7 @@ import { authorizationGuard } from '@/common/authorization';
 import { queryParser } from '@/common/query';
 import { unitOfWork } from '@/common/unit-of-work';
 import { projectMemberRepository } from '@/modules/project-members';
+import { projectRoleRepository } from '@/modules/project-roles';
 import { ProjectsController } from './project.controller';
 import { ProjectService } from './project.service';
 import { projectRepository } from './project.repository';
@@ -18,6 +19,7 @@ export * from './project.service';
 const projectService = new ProjectService(
   projectRepository,
   projectMemberRepository,
+  projectRoleRepository,
   authorizationGuard,
   unitOfWork,
   logger,

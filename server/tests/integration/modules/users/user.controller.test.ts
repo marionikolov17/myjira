@@ -4,7 +4,7 @@ import supertest from 'supertest';
 import { Application } from 'express';
 
 import { ActorContext } from '@/common/interfaces';
-import { ProjectRoleName } from '@/modules/project-members';
+import { ProjectRoleName } from '@/modules/project-roles';
 import { WorkspaceRoleName } from '@/modules/workspace-roles';
 import { prisma } from '@/common/lib/prisma';
 import { UserStatus } from '@/generated/prisma/enums';

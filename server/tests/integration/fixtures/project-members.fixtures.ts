@@ -1,5 +1,5 @@
 import { prisma } from '@/common/lib/prisma';
-import { ProjectRoleName } from '@/modules/project-members';
+import { ProjectRoleName } from '@/modules/project-roles';
 
 const REQUIRED_PROJECT_ROLES: ProjectRoleName[] = Object.values(ProjectRoleName);
 
