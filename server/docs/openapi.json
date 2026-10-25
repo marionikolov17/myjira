@@ -1767,7 +1767,49 @@
             "description": "The body or path parameter failed validation (missing or malformed `userId`/`projectRoleId`, unrecognized field, non-object body, non-UUID `{projectId}`).",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" },
+                "examples": {
+                  "missingFields": {
+                    "summary": "Required body fields missing",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "status": 400,
+                        "message": "Validation error",
+                        "details": {
+                          "fields": [
+                            {
+                              "name": "userId",
+                              "message": "Invalid input: expected string, received undefined"
+                            },
+                            {
+                              "name": "projectRoleId",
+                              "message": "Invalid input: expected string, received undefined"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "malformedProjectId": {
+                    "summary": "Path `{projectId}` is not a UUID",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "status": 400,
+                        "message": "Validation error",
+                        "details": {
+                          "fields": [
+                            {
+                              "name": "projectId",
+                              "message": "Invalid UUID"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -1775,7 +1817,19 @@
             "description": "The request did not carry a valid Bearer token. No member is added.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" },
+                "examples": {
+                  "authenticationRequired": {
+                    "summary": "No valid token provided",
+                    "value": {
+                      "error": {
+                        "code": "AUTHENTICATION_REQUIRED",
+                        "status": 401,
+                        "message": "Authentication required"
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -1783,7 +1837,19 @@
             "description": "The caller is authenticated but not permitted to add members to the target project. No member is added.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller lacks addProjectMember permission",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "status": 403,
+                        "message": "Forbidden"
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -1791,7 +1857,24 @@
             "description": "No project exists for the supplied `{projectId}`. No member is added.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" },
+                "examples": {
+                  "projectNotFound": {
+                    "summary": "Target project does not exist",
+                    "value": {
+                      "error": {
+                        "code": "RESOURCE_NOT_FOUND",
+                        "status": 404,
+                        "message": "projects not found",
+                        "details": {
+                          "resource": {
+                            "resourceName": "projects"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -1799,7 +1882,19 @@
             "description": "The target user is already a member of the project. No member is added.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ConflictErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/ConflictErrorResponse" },
+                "examples": {
+                  "duplicateMembership": {
+                    "summary": "User is already a project member",
+                    "value": {
+                      "error": {
+                        "code": "CONFLICT",
+                        "status": 409,
+                        "message": "Unique constraint failed on the fields: (`projectId`,`userId`)"
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -1807,7 +1902,49 @@
             "description": "A business rule rejected the request: `userId` references no existing user, `projectRoleId` references no existing project role, `projectRoleId` resolves to the `Project Owner` role, or a Project Admin caller attempted to add a Project Admin target (ladder).",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse" },
+                "examples": {
+                  "unknownUser": {
+                    "summary": "`userId` references no existing user",
+                    "value": {
+                      "error": {
+                        "code": "BUSINESS_RULE_VIOLATION",
+                        "status": 422,
+                        "message": "Foreign key constraint violated on the constraint: `ProjectMember_userId_fkey`"
+                      }
+                    }
+                  },
+                  "unknownRole": {
+                    "summary": "Project role does not exist",
+                    "value": {
+                      "error": {
+                        "code": "BUSINESS_RULE_VIOLATION",
+                        "status": 422,
+                        "message": "The specified project role does not exist"
+                      }
+                    }
+                  },
+                  "ownerRoleAssignment": {
+                    "summary": "Attempt to assign the Project Owner role",
+                    "value": {
+                      "error": {
+                        "code": "BUSINESS_RULE_VIOLATION",
+                        "status": 422,
+                        "message": "The Project Owner role cannot be assigned through this endpoint"
+                      }
+                    }
+                  },
+                  "ladderViolation": {
+                    "summary": "Project Admin attempted to add a non-Developer",
+                    "value": {
+                      "error": {
+                        "code": "BUSINESS_RULE_VIOLATION",
+                        "status": 422,
+                        "message": "A Project Admin may only add Developer-tier members"
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -1815,7 +1952,19 @@
             "description": "An unexpected error occurred while processing the request. No member is added.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" },
+                "examples": {
+                  "internalServerError": {
+                    "summary": "Unexpected failure",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "status": 500,
+                        "message": "Internal server error"
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -1849,7 +1998,45 @@
             "description": "The `{projectId}` path parameter is not a UUID, or the request includes a disallowed query parameter such as `?page`, `?pageSize`, `?sort`, or `?filter[...]`.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" },
+                "examples": {
+                  "unsupportedQueryParameter": {
+                    "summary": "Disallowed query parameter",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "status": 400,
+                        "message": "Validation error",
+                        "details": {
+                          "fields": [
+                            {
+                              "name": "page",
+                              "message": "The 'page' query parameter is not supported"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "malformedProjectId": {
+                    "summary": "Path `{projectId}` is not a UUID",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "status": 400,
+                        "message": "Validation error",
+                        "details": {
+                          "fields": [
+                            {
+                              "name": "projectId",
+                              "message": "Invalid UUID"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -1857,7 +2044,19 @@
             "description": "The request did not carry a valid Bearer token.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" },
+                "examples": {
+                  "authenticationRequired": {
+                    "summary": "No valid token provided",
+                    "value": {
+                      "error": {
+                        "code": "AUTHENTICATION_REQUIRED",
+                        "status": 401,
+                        "message": "Authentication required"
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -1865,7 +2064,19 @@
             "description": "The caller is authenticated but not permitted to list members of the target project.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller lacks listProjectMembers permission",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "status": 403,
+                        "message": "Forbidden"
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -1873,7 +2084,24 @@
             "description": "No project exists for the supplied `{projectId}`.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" },
+                "examples": {
+                  "projectNotFound": {
+                    "summary": "Target project does not exist",
+                    "value": {
+                      "error": {
+                        "code": "RESOURCE_NOT_FOUND",
+                        "status": 404,
+                        "message": "projects not found",
+                        "details": {
+                          "resource": {
+                            "resourceName": "projects"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -1881,7 +2109,19 @@
             "description": "An unexpected error occurred while processing the request.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" },
+                "examples": {
+                  "internalServerError": {
+                    "summary": "Unexpected failure",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "status": 500,
+                        "message": "Internal server error"
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -1940,7 +2180,45 @@
             "description": "The body or path parameters failed validation (missing or malformed `projectRoleId`, unrecognized field, non-object body, non-UUID `{projectId}` or `{memberId}`).",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" },
+                "examples": {
+                  "missingProjectRoleId": {
+                    "summary": "Required `projectRoleId` missing",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "status": 400,
+                        "message": "Validation error",
+                        "details": {
+                          "fields": [
+                            {
+                              "name": "projectRoleId",
+                              "message": "Invalid input: expected string, received undefined"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "malformedMemberId": {
+                    "summary": "Path `{memberId}` is not a UUID",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "status": 400,
+                        "message": "Validation error",
+                        "details": {
+                          "fields": [
+                            {
+                              "name": "memberId",
+                              "message": "Invalid UUID"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -1948,7 +2226,19 @@
             "description": "The request did not carry a valid Bearer token. No member is modified.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" },
+                "examples": {
+                  "authenticationRequired": {
+                    "summary": "No valid token provided",
+                    "value": {
+                      "error": {
+                        "code": "AUTHENTICATION_REQUIRED",
+                        "status": 401,
+                        "message": "Authentication required"
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -1956,7 +2246,19 @@
             "description": "The caller is authenticated but not permitted to update members of the target project. No member is modified.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller lacks updateProjectMemberRole permission",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "status": 403,
+                        "message": "Forbidden"
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -1964,7 +2266,24 @@
             "description": "No member row exists for the supplied `{memberId}`, or the row exists but belongs to a project other than `{projectId}`. No member is modified.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" },
+                "examples": {
+                  "memberNotFound": {
+                    "summary": "Target project member does not exist",
+                    "value": {
+                      "error": {
+                        "code": "RESOURCE_NOT_FOUND",
+                        "status": 404,
+                        "message": "project_members not found",
+                        "details": {
+                          "resource": {
+                            "resourceName": "project_members"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -1972,7 +2291,49 @@
             "description": "A business rule rejected the request: the target is the `Project Owner` (owner-immutable), the target is the caller themselves (self-mutation), `projectRoleId` references no existing project role, or `projectRoleId` resolves to the `Project Owner` role.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse" },
+                "examples": {
+                  "ownerImmutable": {
+                    "summary": "Project Owner member role cannot be changed",
+                    "value": {
+                      "error": {
+                        "code": "BUSINESS_RULE_VIOLATION",
+                        "status": 422,
+                        "message": "The Project Owner member's role cannot be changed"
+                      }
+                    }
+                  },
+                  "selfMutation": {
+                    "summary": "Caller tried to modify their own membership",
+                    "value": {
+                      "error": {
+                        "code": "BUSINESS_RULE_VIOLATION",
+                        "status": 422,
+                        "message": "Actor cannot modify their own project membership"
+                      }
+                    }
+                  },
+                  "unknownRole": {
+                    "summary": "Project role does not exist",
+                    "value": {
+                      "error": {
+                        "code": "BUSINESS_RULE_VIOLATION",
+                        "status": 422,
+                        "message": "The specified project role does not exist"
+                      }
+                    }
+                  },
+                  "ownerRoleAssignment": {
+                    "summary": "Attempt to assign the Project Owner role",
+                    "value": {
+                      "error": {
+                        "code": "BUSINESS_RULE_VIOLATION",
+                        "status": 422,
+                        "message": "The Project Owner role cannot be assigned through this endpoint"
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -1980,7 +2341,19 @@
             "description": "An unexpected error occurred while processing the request. No member is modified.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" },
+                "examples": {
+                  "internalServerError": {
+                    "summary": "Unexpected failure",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "status": 500,
+                        "message": "Internal server error"
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -2014,7 +2387,27 @@
             "description": "The `{projectId}` or `{memberId}` path parameter is not a UUID.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" },
+                "examples": {
+                  "malformedMemberId": {
+                    "summary": "Path `{memberId}` is not a UUID",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "status": 400,
+                        "message": "Validation error",
+                        "details": {
+                          "fields": [
+                            {
+                              "name": "memberId",
+                              "message": "Invalid UUID"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -2022,7 +2415,19 @@
             "description": "The request did not carry a valid Bearer token. No member is removed.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" },
+                "examples": {
+                  "authenticationRequired": {
+                    "summary": "No valid token provided",
+                    "value": {
+                      "error": {
+                        "code": "AUTHENTICATION_REQUIRED",
+                        "status": 401,
+                        "message": "Authentication required"
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -2030,7 +2435,19 @@
             "description": "The caller is authenticated but not permitted to remove members from the target project. No member is removed.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Caller lacks removeProjectMember permission",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "status": 403,
+                        "message": "Forbidden"
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -2038,7 +2455,24 @@
             "description": "No member row exists for the supplied `{memberId}`, or the row exists but belongs to a project other than `{projectId}`. No member is removed.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" },
+                "examples": {
+                  "memberNotFound": {
+                    "summary": "Target project member does not exist",
+                    "value": {
+                      "error": {
+                        "code": "RESOURCE_NOT_FOUND",
+                        "status": 404,
+                        "message": "project_members not found",
+                        "details": {
+                          "resource": {
+                            "resourceName": "project_members"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -2046,7 +2480,39 @@
             "description": "A business rule rejected the request: the target is the `Project Owner` (owner-protection), the target is the caller themselves (self-mutation), or an acting Project Admin tried to remove a Project Admin target (ladder).",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse" },
+                "examples": {
+                  "ownerProtection": {
+                    "summary": "Project Owner cannot be removed",
+                    "value": {
+                      "error": {
+                        "code": "BUSINESS_RULE_VIOLATION",
+                        "status": 422,
+                        "message": "The Project Owner cannot be removed"
+                      }
+                    }
+                  },
+                  "selfMutation": {
+                    "summary": "Caller tried to remove themselves",
+                    "value": {
+                      "error": {
+                        "code": "BUSINESS_RULE_VIOLATION",
+                        "status": 422,
+                        "message": "Actor cannot modify their own project membership"
+                      }
+                    }
+                  },
+                  "ladderViolation": {
+                    "summary": "Project Admin attempted to remove a non-Developer",
+                    "value": {
+                      "error": {
+                        "code": "BUSINESS_RULE_VIOLATION",
+                        "status": 422,
+                        "message": "A Project Admin may only remove Developer-tier members"
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -2054,7 +2520,19 @@
             "description": "An unexpected error occurred while processing the request. No member is removed.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" },
+                "examples": {
+                  "internalServerError": {
+                    "summary": "Unexpected failure",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "status": 500,
+                        "message": "Internal server error"
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -2140,7 +2618,7 @@
               },
               "message": {
                 "type": "string",
-                "example": "workspace_roles not found"
+                "example": "resource not found"
               },
               "details": {
                 "type": "object",
@@ -2153,12 +2631,12 @@
                       "resourceName": {
                         "type": "string",
                         "description": "The name of the resource that could not be found.",
-                        "example": "workspace_roles"
+                        "example": "resource"
                       },
                       "resourceId": {
                         "type": "string",
                         "description": "The identifier of the specific resource that could not be found, when applicable.",
-                        "example": "Owner"
+                        "example": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
                       }
                     }
                   }
@@ -2186,7 +2664,7 @@
               },
               "message": {
                 "type": "string",
-                "example": "Workspace is already bootstrapped"
+                "example": "A business rule was violated"
               }
             }
           }
@@ -2604,7 +3082,7 @@
               "message": {
                 "type": "string",
                 "description": "A human-readable explanation of the conflict.",
-                "example": "Unique constraint failed on the fields: (`email`)"
+                "example": "Unique constraint failed on the fields: (`id`)"
               }
             }
           }
