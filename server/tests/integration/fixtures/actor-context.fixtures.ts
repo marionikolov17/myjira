@@ -29,6 +29,18 @@ export function buildTestUsers(emailPrefix: string): TestUser[] {
 }
 
 /**
+ * Looks up a `TestUser` by workspace role. Fails loudly when the matrix is
+ * missing that role so callers never fall back to empty name/email strings.
+ */
+export function requireTestUser(users: TestUser[], workspaceRoleName: WorkspaceRoleName): TestUser {
+  const user = users.find((candidate) => candidate.workspaceRoleName === workspaceRoleName);
+  if (!user) {
+    throw new Error(`Expected test user for workspace role ${workspaceRoleName}`);
+  }
+  return user;
+}
+
+/**
  * Loads a seeded user by email and joins its workspace role, failing loudly
  * when either row is missing (indicates a seeding mistake in the spec).
  */

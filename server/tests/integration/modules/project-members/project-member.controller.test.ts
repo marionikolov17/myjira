@@ -13,6 +13,7 @@ import { ensureWorkspaceRolesSeeded } from '../../fixtures/workspace-roles.fixtu
 import { ensureProjectRolesSeeded } from '../../fixtures/project-members.fixtures';
 import {
   fetchPersistedUsers,
+  requireTestUser,
   tokenFor,
   userToActorContext,
 } from '../../fixtures/actor-context.fixtures';
@@ -155,12 +156,14 @@ describe('ProjectMembers Controller', () => {
           tokenFor(ctx.tokenService, actor),
         );
 
+        const developerUser = requireTestUser(testUsers, WorkspaceRoleName.DEVELOPER);
+
         expectExpandedMemberResponse(response, 201, {
           projectId,
           user: {
             id: targetUserId,
-            name: testUsers[2]?.name ?? '',
-            email: testUsers[2]?.email ?? '',
+            name: developerUser.name,
+            email: developerUser.email,
           },
           projectRole: { id: roleId(), name: roleName },
         });
@@ -603,10 +606,9 @@ describe('ProjectMembers Controller', () => {
 
     describe('on success', () => {
       function expectedFullMemberList(): ExpectedExpandedMember[] {
-        const [ownerUser, adminUser, developerUser] = testUsers;
-        if (!ownerUser || !adminUser || !developerUser) {
-          throw new Error('Expected seeded test users to exist');
-        }
+        const ownerUser = requireTestUser(testUsers, WorkspaceRoleName.OWNER);
+        const adminUser = requireTestUser(testUsers, WorkspaceRoleName.ADMIN);
+        const developerUser = requireTestUser(testUsers, WorkspaceRoleName.DEVELOPER);
 
         const entries: (ExpectedExpandedMember & { id: string })[] = [
           {
@@ -900,12 +902,14 @@ describe('ProjectMembers Controller', () => {
           tokenFor(ctx.tokenService, workspaceOwnerActor),
         );
 
+        const developerUser = requireTestUser(testUsers, WorkspaceRoleName.DEVELOPER);
+
         expectExpandedMemberResponse(response, 200, {
           projectId,
           user: {
             id: workspaceDeveloperActor.userId,
-            name: testUsers[2]?.name ?? '',
-            email: testUsers[2]?.email ?? '',
+            name: developerUser.name,
+            email: developerUser.email,
           },
           projectRole: { id: projectAdminRoleId, name: ProjectRoleName.PROJECT_ADMIN },
         });
@@ -925,7 +929,19 @@ describe('ProjectMembers Controller', () => {
           tokenFor(ctx.tokenService, workspaceOwnerActor),
         );
 
-        expect(response.status).toBe(200);
+        const developerUser = requireTestUser(testUsers, WorkspaceRoleName.DEVELOPER);
+
+        expectExpandedMemberResponse(response, 200, {
+          projectId,
+          user: {
+            id: workspaceDeveloperActor.userId,
+            name: developerUser.name,
+            email: developerUser.email,
+          },
+          projectRole: { id: projectAdminRoleId, name: ProjectRoleName.PROJECT_ADMIN },
+        });
+
+        await expectMemberWithRole(developerMemberId, ProjectRoleName.PROJECT_ADMIN);
       });
 
       it('demotes a Project Admin to Developer for a Project Owner member', async () => {
@@ -936,7 +952,18 @@ describe('ProjectMembers Controller', () => {
           tokenFor(ctx.tokenService, workspaceOwnerActor),
         );
 
-        expect(response.status).toBe(200);
+        const adminUser = requireTestUser(testUsers, WorkspaceRoleName.ADMIN);
+
+        expectExpandedMemberResponse(response, 200, {
+          projectId,
+          user: {
+            id: adminUserId,
+            name: adminUser.name,
+            email: adminUser.email,
+          },
+          projectRole: { id: developerProjectRoleId, name: ProjectRoleName.DEVELOPER },
+        });
+
         await expectMemberWithRole(projectAdminMemberId, ProjectRoleName.DEVELOPER);
       });
     });
@@ -1304,6 +1331,7 @@ describe('ProjectMembers Controller', () => {
         );
 
         expectNoContentResponse(response);
+        await expectMemberAbsent(developerMemberId);
       });
 
       it('returns 204 when a Project Admin removes a Developer', async () => {
