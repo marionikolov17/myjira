@@ -10,7 +10,10 @@ import { WorkspaceRoleName } from '@/modules/workspace-roles';
 
 import { createTestUsers } from '../../fixtures/users.fixtures';
 import { ensureWorkspaceRolesSeeded } from '../../fixtures/workspace-roles.fixtures';
-import { ensureProjectRolesSeeded } from '../../fixtures/project-members.fixtures';
+import { fetchProjectRoleIdByName } from '../../fixtures/project-roles.fixtures';
+import { seedProject } from '../../fixtures/projects.fixtures';
+import { ensureProjectRolesSeeded } from '../../fixtures/project-roles.fixtures';
+import { seedProjectMembership } from '../../fixtures/project-members.fixtures';
 import {
   fetchPersistedUsers,
   requireTestUser,
@@ -30,10 +33,7 @@ import {
 
 import {
   createProjectMembersTestContext,
-  fetchProjectRoleIdByName,
   ProjectMembersTestContext,
-  seedProject,
-  seedProjectMembership,
   testUsers,
 } from './project-member.controller.fixtures';
 import {

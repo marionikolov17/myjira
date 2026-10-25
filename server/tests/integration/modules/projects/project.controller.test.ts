@@ -21,7 +21,11 @@ import { IssuePriority, IssueStatus } from '@/generated/prisma/enums';
 
 import { createTestUsers } from '../../fixtures/users.fixtures';
 import { ensureWorkspaceRolesSeeded } from '../../fixtures/workspace-roles.fixtures';
-import { ensureProjectRolesSeeded } from '../../fixtures/project-members.fixtures';
+import {
+  ensureProjectRolesSeeded,
+  fetchProjectRoleIdByName,
+} from '../../fixtures/project-roles.fixtures';
+import { seedProject } from '../../fixtures/projects.fixtures';
 import {
   fetchPersistedUsers,
   tokenFor,
@@ -40,9 +44,7 @@ import { describeListEndpoint } from '../../suites/list-endpoint.suite';
 
 import {
   createProjectsTestContext,
-  fetchProjectRoleIdByName,
   ProjectsTestContext,
-  seedProject,
   testUsers,
 } from './project.controller.fixtures';
 import {
