@@ -2,7 +2,7 @@ import { expect } from '@jest/globals';
 import supertest from 'supertest';
 
 import { prisma } from '@/common/lib/prisma';
-import { ProjectRoleName } from '@/modules/project-members';
+import { ProjectRoleName } from '@/modules/project-roles';
 
 interface ExpectedProject {
   name: string;

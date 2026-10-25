@@ -1,5 +1,5 @@
 import { AuthorizationError } from '@/common/errors';
-import { ProjectRoleName } from '@/modules/project-members';
+import { ProjectRoleName } from '@/modules/project-roles';
 import { WorkspaceRoleName } from '@/modules/workspace-roles';
 import { AuthorizationMatrix, ProjectActionConfig } from './authorization-matrix';
 import { AuthorizationScope, AuthorizeInput } from './authorization.types';

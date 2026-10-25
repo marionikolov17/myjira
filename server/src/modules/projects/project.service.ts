@@ -4,7 +4,8 @@ import { ResourceNotFoundError } from '@/common/errors';
 import { AuthorizationScope, IAuthorizationGuard } from '@/common/authorization';
 import { QueryOptions } from '@/common/query';
 import { IUnitOfWork } from '@/common/unit-of-work';
-import { IProjectMemberRepository, ProjectRoleName } from '@/modules/project-members';
+import { IProjectMemberRepository } from '@/modules/project-members';
+import { IProjectRoleRepository, ProjectRoleName } from '@/modules/project-roles';
 import { WorkspaceRoleName } from '@/modules/workspace-roles';
 import { IProjectRepository, IProjectService } from './project.interface';
 import { ActorMembershipFilter, ListProjectsResult } from './project.types';
@@ -14,6 +15,7 @@ export class ProjectService implements IProjectService {
   constructor(
     private readonly projectRepository: IProjectRepository,
     private readonly projectMemberRepository: IProjectMemberRepository,
+    private readonly projectRoleRepository: IProjectRoleRepository,
     private readonly authorizationGuard: IAuthorizationGuard,
     private readonly unitOfWork: IUnitOfWork,
     private readonly logger: ILogger,
@@ -29,7 +31,7 @@ export class ProjectService implements IProjectService {
       action: 'createProject',
     });
 
-    const projectOwnerRoleId = await this.projectMemberRepository.getProjectRoleIdByName(
+    const projectOwnerRoleId = await this.projectRoleRepository.getProjectRoleIdByName(
       ProjectRoleName.PROJECT_OWNER,
     );
 

@@ -21,10 +21,10 @@ describe('mapPrismaError', () => {
     expect(result).toBeInstanceOf(ConflictError);
   });
 
-  it('should map foreign_key_violation (P2003) to ConflictError', () => {
+  it('should map foreign_key_violation (P2003) to BusinessRuleViolationError', () => {
     const error = createKnownRequestError('P2003');
     const result = mapPrismaError(error);
-    expect(result).toBeInstanceOf(ConflictError);
+    expect(result).toBeInstanceOf(BusinessRuleViolationError);
   });
 
   it('should map record_not_found (P2025) to ResourceNotFoundError', () => {

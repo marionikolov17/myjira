@@ -1,7 +1,7 @@
 import { ActorContext } from '@/common/interfaces';
 import { AuthorizationMatrix, AuthorizationScope } from '@/common/authorization';
 import { WorkspaceRoleName } from '@/modules/workspace-roles';
-import { ProjectRoleName } from '@/modules/project-members';
+import { ProjectRoleName } from '@/modules/project-roles';
 
 export const USER_ID = '11111111-1111-1111-1111-111111111111';
 export const WORKSPACE_ROLE_ID = '22222222-2222-2222-2222-222222222222';
@@ -41,7 +41,7 @@ export function buildMockProjectRole(
   };
 }
 
-// `updateUserRole` and `updateProjectRole` are intentionally omitted so tests can
+// `updateUserRole` and `updateProjectMemberRole` are intentionally omitted so tests can
 // exercise deny-by-default for unconfigured actions.
 export const testAuthorizationMatrix: AuthorizationMatrix = {
   [AuthorizationScope.Workspace]: {

@@ -4,7 +4,7 @@ import supertest from 'supertest';
 import { Application } from 'express';
 
 import { ActorContext } from '@/common/interfaces';
-import { ProjectRoleName } from '@/modules/project-members';
+import { ProjectRoleName } from '@/modules/project-roles';
 import { WorkspaceRoleName } from '@/modules/workspace-roles';
 import { prisma } from '@/common/lib/prisma';
 import { UserStatus } from '@/generated/prisma/enums';
@@ -13,10 +13,11 @@ import { User } from '@/generated/prisma/client';
 import { createTestUsers } from '../../fixtures/users.fixtures';
 import { ensureWorkspaceRolesSeeded } from '../../fixtures/workspace-roles.fixtures';
 import {
-  addUserToNewProject,
-  ensureProjectRolesSeeded,
   SeededProjectMembership,
+  seedProjectMembership,
 } from '../../fixtures/project-members.fixtures';
+import { seedProject } from '../../fixtures/projects.fixtures';
+import { ensureProjectRolesSeeded } from '../../fixtures/project-roles.fixtures';
 import {
   fetchPersistedUsers,
   tokenFor,
@@ -80,13 +81,24 @@ describe('Users Controller', () => {
         throw new Error('Expected users to be persisted');
       }
 
-      const membership: SeededProjectMembership = await addUserToNewProject(
+      const project = await seedProject(
+        owner.id,
+        'Users controller test project',
+        'Users controller test project description',
+      );
+      const membership: SeededProjectMembership = await seedProjectMembership(
+        project.id,
         owner.id,
         ProjectRoleName.PROJECT_OWNER,
-        'Users controller test project',
       );
 
-      ownerActor = userToActorContext(owner, [membership]);
+      ownerActor = userToActorContext(owner, [
+        {
+          projectId: membership.projectId,
+          projectRoleId: membership.projectRoleId,
+          projectRoleName: ProjectRoleName.PROJECT_OWNER,
+        },
+      ]);
       adminActor = userToActorContext(admin, []);
       developerActor = userToActorContext(developer, []);
     });

@@ -2,7 +2,8 @@ import { TokenPayload } from '@/common/token-service';
 import { UserStatus } from '@/generated/prisma/enums';
 import { User } from '@/modules/users';
 import { WorkspaceRole, WorkspaceRoleName } from '@/modules/workspace-roles';
-import { ProjectMemberWithRole, ProjectRoleName } from '@/modules/project-members';
+import { ProjectMemberWithRole } from '@/modules/project-members';
+import { ProjectRoleName } from '@/modules/project-roles';
 
 export const USER_ID = '11111111-1111-1111-1111-111111111111';
 export const WORKSPACE_ROLE_ID = '22222222-2222-2222-2222-222222222222';

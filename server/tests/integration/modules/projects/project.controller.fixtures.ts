@@ -10,11 +10,8 @@ import { PrismaUnitOfWork, IUnitOfWork } from '@/common/unit-of-work';
 
 import { IUserRepository, UserRepository } from '@/modules/users';
 import { IWorkspaceRoleRepository, WorkspaceRoleRepository } from '@/modules/workspace-roles';
-import {
-  IProjectMemberRepository,
-  ProjectMemberRepository,
-  ProjectRoleName,
-} from '@/modules/project-members';
+import { IProjectMemberRepository, ProjectMemberRepository } from '@/modules/project-members';
+import { IProjectRoleRepository, ProjectRoleRepository } from '@/modules/project-roles';
 import { ActorContextService } from '@/modules/auth/actor-context.service';
 import { IProjectRepository, ProjectRepository } from '@/modules/projects';
 import { ProjectService } from '@/modules/projects';
@@ -35,6 +32,7 @@ export interface ProjectsTestContext {
   tokenService: ITokenService;
   projectRepository: IProjectRepository;
   projectMemberRepository: IProjectMemberRepository;
+  projectRoleRepository: IProjectRoleRepository;
   userRepository: IUserRepository;
   workspaceRoleRepository: IWorkspaceRoleRepository;
   unitOfWork: IUnitOfWork;
@@ -53,6 +51,7 @@ export function createProjectsTestContext(): ProjectsTestContext {
   const userRepository = new UserRepository(prisma, silentLogger);
   const workspaceRoleRepository = new WorkspaceRoleRepository(prisma, silentLogger);
   const projectMemberRepository = new ProjectMemberRepository(prisma, silentLogger);
+  const projectRoleRepository = new ProjectRoleRepository(prisma, silentLogger);
   const projectRepository = new ProjectRepository(prisma, silentLogger);
   const unitOfWork = new PrismaUnitOfWork(prisma, silentLogger);
 
@@ -76,6 +75,7 @@ export function createProjectsTestContext(): ProjectsTestContext {
   const projectService = new ProjectService(
     projectRepository,
     projectMemberRepository,
+    projectRoleRepository,
     authorizationGuard,
     unitOfWork,
     silentLogger,
@@ -99,46 +99,9 @@ export function createProjectsTestContext(): ProjectsTestContext {
     tokenService,
     projectRepository,
     projectMemberRepository,
+    projectRoleRepository,
     userRepository,
     workspaceRoleRepository,
     unitOfWork,
   };
-}
-
-export async function fetchProjectRoleIdByName(name: ProjectRoleName): Promise<string> {
-  const role = await prisma.projectRole.findFirst({ where: { name } });
-  if (!role) {
-    throw new Error(`Expected project role ${name} to exist`);
-  }
-  return role.id;
-}
-
-/**
- * Seeds a project directly through Prisma (bypassing the controller/service).
- */
-export async function seedProject(
-  creatorId: string,
-  name: string,
-  description: string,
-): Promise<{ id: string; name: string; description: string; creatorId: string }> {
-  const project = await prisma.project.create({
-    data: { name, description, creatorId },
-    select: { id: true, name: true, description: true, creatorId: true },
-  });
-  return project;
-}
-
-/**
- * Enrolls a user as a member of a seeded project with the given project role.
- */
-export async function seedProjectMembership(
-  projectId: string,
-  userId: string,
-  projectRoleName: ProjectRoleName,
-): Promise<{ projectId: string; projectRoleId: string; projectRoleName: ProjectRoleName }> {
-  const projectRoleId = await fetchProjectRoleIdByName(projectRoleName);
-  await prisma.projectMember.create({
-    data: { projectId, userId, projectRoleId },
-  });
-  return { projectId, projectRoleId, projectRoleName };
 }
