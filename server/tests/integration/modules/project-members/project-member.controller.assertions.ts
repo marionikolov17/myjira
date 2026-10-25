@@ -5,9 +5,27 @@ import { prisma } from '@/common/lib/prisma';
 import { ProjectRoleName } from '@/modules/project-roles';
 
 export interface ExpectedExpandedMember {
+  /** When set, the member `id` must match exactly (use for list order checks). */
+  id?: string;
   projectId: string;
   user: { id: string; name: string; email: string };
   projectRole: { id: string; name: ProjectRoleName };
+}
+
+function expectedExpandedMemberShape(expected: ExpectedExpandedMember) {
+  return {
+    id: expected.id ?? expect.any(String),
+    projectId: expected.projectId,
+    user: {
+      id: expected.user.id,
+      name: expected.user.name,
+      email: expected.user.email,
+    },
+    projectRole: {
+      id: expected.projectRole.id,
+      name: expected.projectRole.name,
+    },
+  };
 }
 
 /**
@@ -20,27 +38,13 @@ export function expectExpandedMemberResponse(
   expected: ExpectedExpandedMember,
 ): void {
   expect(response.status).toBe(status);
-
-  const member = response.body.data;
-
-  expect(member).toEqual({
-    id: expect.any(String),
-    projectId: expected.projectId,
-    user: {
-      id: expected.user.id,
-      name: expected.user.name,
-      email: expected.user.email,
-    },
-    projectRole: {
-      id: expected.projectRole.id,
-      name: expected.projectRole.name,
-    },
-  });
+  expect(response.body.data).toEqual(expectedExpandedMemberShape(expected));
 }
 
 /**
  * Asserts an expanded project-member list envelope: `{ data: [...] }` with NO
- * `meta.pagination` object, and each entry having the exact expanded shape.
+ * `meta.pagination` object, and each entry having the exact expanded shape in
+ * the given order (repository order is `id` ascending).
  */
 export function expectExpandedMemberListResponse(
   response: supertest.Response,
@@ -53,23 +57,9 @@ export function expectExpandedMemberListResponse(
   expect(Array.isArray(data)).toBe(true);
   expect(data).toHaveLength(expectedEntries.length);
 
-  for (let i = 0; i < expectedEntries.length; i++) {
-    const entry = data[i];
-    const expected = expectedEntries[i];
-    expect(entry).toEqual({
-      id: expect.any(String),
-      projectId: expected?.projectId,
-      user: {
-        id: expected?.user.id,
-        name: expected?.user.name,
-        email: expected?.user.email,
-      },
-      projectRole: {
-        id: expected?.projectRole.id,
-        name: expected?.projectRole.name,
-      },
-    });
-  }
+  expectedEntries.forEach((expected, i) => {
+    expect(data[i]).toEqual(expectedExpandedMemberShape(expected));
+  });
 }
 
 /**

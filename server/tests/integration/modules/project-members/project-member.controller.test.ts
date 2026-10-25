@@ -36,6 +36,8 @@ import {
   testUsers,
 } from './project-member.controller.fixtures';
 import {
+  ExpectedExpandedMember,
+  expectExpandedMemberListResponse,
   expectExpandedMemberResponse,
   expectMemberAbsent,
   expectMemberPersisted,
@@ -600,125 +602,101 @@ describe('ProjectMembers Controller', () => {
     }
 
     describe('on success', () => {
-      it.each([
-        { case: 'Workspace Owner (bypass)', getActor: () => workspaceOwnerActor },
-        { case: 'Workspace Admin (bypass)', getActor: () => workspaceAdminActor },
-      ])('returns the full member list for a $case', async ({ getActor }) => {
-        const actor = getActor();
+      function expectedFullMemberList(): ExpectedExpandedMember[] {
+        const [ownerUser, adminUser, developerUser] = testUsers;
+        if (!ownerUser || !adminUser || !developerUser) {
+          throw new Error('Expected seeded test users to exist');
+        }
 
-        const response = await listMembersRequest(projectId, tokenFor(ctx.tokenService, actor));
-
-        expect(response.status).toBe(200);
-        expect(response.body.meta).toBeUndefined();
-        const data = response.body.data as {
-          id: string;
-          projectId: string;
-          user: { id: string; name: string; email: string };
-          projectRole: { id: string; name: ProjectRoleName };
-        }[];
-
-        // The DB returns rows ordered by `id` ascending (random uuids), so we
-        // compare set-wise by `user.id`.
-        const byUser = new Map(data.map((entry) => [entry.user.id, entry]));
-        expect(byUser.size).toBe(3);
-
-        const ownerEntry = byUser.get(ownerUserId);
-        expect(ownerEntry).toEqual({
-          id: expect.any(String),
-          projectId,
-          user: { id: ownerUserId, name: testUsers[0]?.name, email: testUsers[0]?.email },
-          projectRole: { id: projectOwnerRoleId, name: ProjectRoleName.PROJECT_OWNER },
-        });
-
-        const adminEntry = byUser.get(adminUserId);
-        expect(adminEntry).toEqual({
-          id: expect.any(String),
-          projectId,
-          user: { id: adminUserId, name: testUsers[1]?.name, email: testUsers[1]?.email },
-          projectRole: { id: projectAdminRoleId, name: ProjectRoleName.PROJECT_ADMIN },
-        });
-
-        const devEntry = byUser.get(workspaceDeveloperActor.userId);
-        expect(devEntry).toEqual({
-          id: expect.any(String),
-          projectId,
-          user: {
-            id: workspaceDeveloperActor.userId,
-            name: testUsers[2]?.name,
-            email: testUsers[2]?.email,
+        const entries: (ExpectedExpandedMember & { id: string })[] = [
+          {
+            id: projectOwnerMemberId,
+            projectId,
+            user: { id: ownerUserId, name: ownerUser.name, email: ownerUser.email },
+            projectRole: { id: projectOwnerRoleId, name: ProjectRoleName.PROJECT_OWNER },
           },
-          projectRole: { id: developerProjectRoleId, name: ProjectRoleName.DEVELOPER },
-        });
-      });
+          {
+            id: projectAdminMemberId,
+            projectId,
+            user: { id: adminUserId, name: adminUser.name, email: adminUser.email },
+            projectRole: { id: projectAdminRoleId, name: ProjectRoleName.PROJECT_ADMIN },
+          },
+          {
+            id: developerMemberId,
+            projectId,
+            user: {
+              id: workspaceDeveloperActor.userId,
+              name: developerUser.name,
+              email: developerUser.email,
+            },
+            projectRole: { id: developerProjectRoleId, name: ProjectRoleName.DEVELOPER },
+          },
+        ];
+        return entries.sort((a, b) => a.id.localeCompare(b.id));
+      }
 
       it.each([
         {
+          case: 'Workspace Owner (bypass)',
+          getActor: () => workspaceOwnerActor,
+          spyRoles: false,
+        },
+        {
+          case: 'Workspace Admin (bypass)',
+          getActor: () => workspaceAdminActor,
+          spyRoles: false,
+        },
+        {
           case: 'Project Owner member',
-          projectRoleId: () => projectOwnerRoleId,
-          projectRoleName: ProjectRoleName.PROJECT_OWNER,
+          getActor: (): ActorContext => ({
+            ...workspaceDeveloperActor,
+            projectRoles: [
+              {
+                projectId,
+                projectRoleId: projectOwnerRoleId,
+                projectRoleName: ProjectRoleName.PROJECT_OWNER,
+              },
+            ],
+          }),
+          spyRoles: true,
         },
         {
           case: 'Project Admin member',
-          projectRoleId: () => projectAdminRoleId,
-          projectRoleName: ProjectRoleName.PROJECT_ADMIN,
+          getActor: (): ActorContext => ({
+            ...workspaceDeveloperActor,
+            projectRoles: [
+              {
+                projectId,
+                projectRoleId: projectAdminRoleId,
+                projectRoleName: ProjectRoleName.PROJECT_ADMIN,
+              },
+            ],
+          }),
+          spyRoles: true,
         },
         {
           case: 'Developer member',
-          projectRoleId: () => developerProjectRoleId,
-          projectRoleName: ProjectRoleName.DEVELOPER,
+          getActor: (): ActorContext => ({
+            ...workspaceDeveloperActor,
+            projectRoles: [
+              {
+                projectId,
+                projectRoleId: developerProjectRoleId,
+                projectRoleName: ProjectRoleName.DEVELOPER,
+              },
+            ],
+          }),
+          spyRoles: true,
         },
-      ])('returns the full member list for a $case', async ({ projectRoleId, projectRoleName }) => {
-        const actor: ActorContext = {
-          ...workspaceDeveloperActor,
-          projectRoles: [
-            {
-              projectId,
-              projectRoleId: projectRoleId(),
-              projectRoleName,
-            },
-          ],
-        };
-        spyProjectRoles(actor);
+      ])('returns the full member list for a $case', async ({ getActor, spyRoles }) => {
+        const actor = getActor();
+        if (spyRoles) {
+          spyProjectRoles(actor);
+        }
 
         const response = await listMembersRequest(projectId, tokenFor(ctx.tokenService, actor));
 
-        expect(response.status).toBe(200);
-        expect(response.body.data).toHaveLength(3);
-        expect(response.body.meta).toBeUndefined();
-      });
-
-      it('returns a single entry for a project whose only member is the bootstrapped Project Owner', async () => {
-        await prisma.projectMember.deleteMany({ where: { projectId } });
-        const owner = await seedProjectMembership(
-          projectId,
-          ownerUserId,
-          ProjectRoleName.PROJECT_OWNER,
-        );
-        expect(owner.id).toEqual(expect.any(String));
-
-        const response = await listMembersRequest(
-          projectId,
-          tokenFor(ctx.tokenService, workspaceOwnerActor),
-        );
-
-        expect(response.status).toBe(200);
-        expect(response.body.data).toHaveLength(1);
-        expect(response.body.data[0].projectRole.name).toBe(ProjectRoleName.PROJECT_OWNER);
-      });
-
-      it('returns the members in a stable order by id ascending', async () => {
-        const response = await listMembersRequest(
-          projectId,
-          tokenFor(ctx.tokenService, workspaceOwnerActor),
-        );
-
-        expect(response.status).toBe(200);
-        const ids: string[] = response.body.data.map((m: { id: string }) => m.id);
-        const sorted = [...ids].sort();
-        expect(ids).toEqual(sorted);
-        expect(ids).toEqual(
-          expect.arrayContaining([projectOwnerMemberId, projectAdminMemberId, developerMemberId]),
-        );
+        expectExpandedMemberListResponse(response, expectedFullMemberList());
       });
     });
 
