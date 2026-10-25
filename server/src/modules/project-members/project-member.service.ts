@@ -49,9 +49,10 @@ export class ProjectMemberService implements IProjectMemberService {
 
   /**
    * Target-role ladder: a Project Admin actor may only add or remove members
-   * whose target project role is Developer. Workspace Owner bypass actors
-   * (actor whose workspace role is Owner AND who is not acting through a
-   * project role on the target project) are not subject to the ladder.
+   * whose target project role is Developer. The ladder runs only when the
+   * actor's project role on the target project is Project Admin. Workspace
+   * Owners always skip it (they authorize via workspace bypass and act as
+   * effective Project Owner), matching D1.
    */
   private assertCanActOnTarget(
     actor: ActorContext,
@@ -60,7 +61,7 @@ export class ProjectMemberService implements IProjectMemberService {
     operation: 'add' | 'remove',
   ): void {
     if (actor.workspaceRole.name === WorkspaceRoleName.OWNER) {
-      // Workspace Owner bypass actors skip the ladder, matching D1.
+      // Workspace Owners skip the ladder, matching D1.
       return;
     }
 

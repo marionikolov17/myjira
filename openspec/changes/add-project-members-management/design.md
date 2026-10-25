@@ -25,7 +25,7 @@ See `proposal.md` for motivation. Relevant existing state the design builds on:
 - Pagination, sorting, or filtering on the member list — always-full-set is sufficient at this stage.
 - Soft delete, archival, or audit of membership changes.
 - Promoting the target-role ladder (D1 below) into a declarative matrix concept. The matrix stays data-driven and target-agnostic; the ladder lives in the service.
-- Any public endpoint, Zod schema, or type change outside `modules/project-members/` and the authorization matrix/types.
+- Any public endpoint, Zod schema, or type change outside `modules/project-members/` and the authorization matrix/types — except the intentional `project-roles` extraction (D12) and the `P2003` → 422 remap in `mapPrismaError` (D3/D7).
 
 ## Decisions
 
@@ -144,7 +144,7 @@ Authorizing against a projectId that may not exist is safe because `authorizePro
 
 Step 4's `getProjectRoleById` lives on the new `IProjectRoleRepository` (D12). It is called on every write that touches a role, which is one indexed single-row read per write — acceptable, and matches the pattern of the existing `getProjectRoleIdByName` used by the Owner bootstrap. A future optimization could cache the three project-role rows in memory at service construction (they are seed data, immutable at runtime), but that is YAGNI for now.
 
-The FK-violation-to-422 mapping in step 6 relies on existing `mapPrismaError` behavior; this change does not alter it. The alternative — pre-checking user existence with an extra query — is rejected as unnecessary round-trip; the FK already enforces it atomically.
+The FK-violation-to-422 mapping in step 6 is delivered by remapping Prisma `P2003` in `mapPrismaError` from `ConflictError` (409) to `BusinessRuleViolationError` (422). That remap is intentional and global: every FK violation across the API now surfaces as 422, which matches D3's taxonomy for "referenced id does not resolve" and aligns unknown-`userId` on add with unknown-`projectRoleId`. The alternative — pre-checking user existence with an extra query — is rejected as an unnecessary round-trip; the FK already enforces it atomically. Callers that previously branched on 409 for FK failures must switch to the stable `BUSINESS_RULE_VIOLATION` code (uniqueness / `P2002` remains 409 `CONFLICT`).
 
 ### D8. Response shape expands both relations
 
@@ -238,9 +238,10 @@ The `ProjectRoleName` enum moves from `project-member.schema.ts` to `project-rol
 
 ## Migration Plan
 
-No database migration. No existing code paths change behavior. Deployment order:
+No database migration. Deployment order:
 
-1. Ship the server with the four new endpoints and the updated matrix in a single release.
-2. **Rollback**: a prior server image continues to work unchanged — the schema is identical, the matrix changes are backwards-safe (narrower `addProjectMember` and renamed `updateProjectRole`; the only callsite of the renamed action is the matrix itself and the eventual new controller, both in this same release).
+1. Ship the server with the four new endpoints, the updated matrix, and the `P2003` → 422 remap in a single release.
+2. **Behavioral delta for existing callers**: Prisma foreign-key violations (`P2003`) change from HTTP 409 `CONFLICT` to HTTP 422 `BUSINESS_RULE_VIOLATION` everywhere `mapPrismaError` is used. Uniqueness violations (`P2002`) remain 409. No other existing endpoint contracts change.
+3. **Rollback**: a prior server image continues to work against the same schema — the matrix changes are backwards-safe (narrower `addProjectMember` and renamed `updateProjectRole`; the only callsite of the renamed action is the matrix itself and the new controller, both in this same release). Rolling back restores the prior 409 mapping for `P2003`.
 
 There is no data backfill — existing projects (bootstrapped with their Project Owner member by the header change) are unaffected.
