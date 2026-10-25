@@ -105,10 +105,11 @@ The DELETE service shape is:
 8. 204
 ```
 
-Order matters for two reasons:
+Order matters for three reasons:
 
 - **Codebase consistency.** `ProjectService.getProjectById`, `updateProject`, and `deleteProject` all authorize first and only then fetch the target for the 404 check. The same shape here keeps the layering uniform and the mental model one.
 - **No wasted I/O for forbidden callers.** A request from an actor whose matrix entry does not permit the action short-circuits before touching the DB. This is both cheaper on the hot path and defensive: a user whose role is not even in the matrix should never trigger a repository call to answer their question.
+- **No resource-existence enumeration (the stronger reason).** `authorizeProject` is I/O-free — it reads `actor.projectRoles` and `actor.workspaceRole` only, never the DB. Running it first means a non-bypass caller with no role on `:projectId` gets a uniform 403 whether the project (or the target member row) is missing or merely inaccessible, closing an id-enumeration side channel for anyone who can guess UUIDs. The 404 path is reachable only by callers who already passed step 2 — i.e. who were authorized on the project in the first place — and by Workspace Owner bypass actors, who are entitled to know what exists in the workspace. Swapping the order would turn every forbidden request against a missing resource into a 404, leaking existence to callers who had no claim on it. This is the primary reason to keep the order; the I/O-saving above is a secondary benefit.
 
 The `getProjectMemberById` lookup is a new repository method. It is scoped by `projectId` (filtered in the `where` clause as `{ id: memberId, projectId }`) so that `DELETE /projects/A/members/<id-of-member-in-B>` returns 404, not a spurious success. Note that for a Developer who is not a member of either project, step 2 denies with 403 before the lookup ever runs — so the 404-vs-403 distinction only matters for callers who passed authorization in the first place (Project Owner / Project Admin on `:projectId`, or Workspace Owner via bypass).
 
@@ -135,7 +136,7 @@ The POST service shape:
 7. 201 { data: <expanded member> }
 ```
 
-The authorize-first order matches the convention in `ProjectService` and avoids a DB round-trip for forbidden callers. The 404 vs. 403 taxonomy stays clean: a Developer trying to add a member to a non-existent project (or to any project they have no role on) gets 403, because they could not call the action regardless of the project's existence; a Workspace Owner (bypass) trying to add to a non-existent project gets 404, because they could call the action and the operation failed on the parent-project existence check.
+The authorize-first order matches the convention in `ProjectService` and avoids a DB round-trip for forbidden callers. More importantly, it prevents resource-existence enumeration — see D6's third bullet for the full rationale, which applies verbatim here. The 404 vs. 403 taxonomy stays clean along the same lines: a Developer trying to add a member to a non-existent project (or to any project they have no role on) gets 403, because they could not call the action regardless of the project's existence; a Workspace Owner (bypass) trying to add to a non-existent project gets 404, because they could call the action and the operation failed on the parent-project existence check.
 
 Authorizing against a projectId that may not exist is safe because `authorizeProject` is I/O-free and matrix-based: it answers from `actor.projectRoles` and `actor.workspaceRole` only. For a non-existent project, `actor.projectRoles` has no entry, so the only way the action is permitted is via `workspaceBypass` — which is correct behavior.
 
