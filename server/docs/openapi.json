@@ -2538,6 +2538,406 @@
           }
         }
       }
+    },
+    "/projects/{projectId}/issues": {
+      "post": {
+        "operationId": "createIssue",
+        "summary": "Create an issue in a project",
+        "description": "Creates a new issue in the target project. The caller must present a valid Bearer token and be authorized to `createIssue`: there is NO workspace bypass for creation; the caller must hold one of the `Project Owner`, `Project Admin`, or `Developer` project roles on the target project.\n\nThe body is validated as a strict object accepting `title` and `description` (both required, non-empty strings), `priority` (optional, defaults to `Medium`), and `assigneeId` (optional UUID; defaults to the acting actor's user id). The `status` field is forbidden on create — the server always sets it to `ToDo`. Any additional field is rejected as a validation error.\n\nWhen `assigneeId` is explicitly supplied, the service verifies that the referenced user is a current project member of the target project; a non-member assignee yields `422`.",
+        "tags": ["Issues"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the target project.",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateIssueRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The issue was created. The response contains the newly created issue with its expanded `creator` and `assignee` objects.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/IssueResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "The body or path parameter failed validation (missing or malformed `title`/`description`, unknown `priority`, malformed `assigneeId`, forbidden `status` field, unrecognized field, non-object body, non-UUID `{projectId}`).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token. No issue is created.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to create an issue in the target project. No issue is created.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "No project exists for the supplied `{projectId}`. No issue is created.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "A business rule rejected the request: the supplied `assigneeId` references a user who is not a current project member of the target project, or references a well-formed but unknown user id.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request. No issue is created.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listIssues",
+        "summary": "List the issues of a project",
+        "description": "Returns a paginated page of the target project's issues, each with its expanded `creator` and `assignee` objects. Only issues whose `projectId` equals the path project identifier are included; cross-project scoping is enforced at the repository.\n\nThe caller must present a valid Bearer token and be authorized to `listIssues`: callers whose workspace role is `Workspace Owner` or `Workspace Admin` are permitted regardless of project membership (workspace bypass); otherwise the caller must hold one of the `Project Owner`, `Project Admin`, or `Developer` project roles on the target project.\n\nSupports standard pagination (`page`, `pageSize`), sorting (`sort`) and filtering (`filter[field][op]`).\n\n- Sortable fields: `createdAt`, `updatedAt`, `title`, `priority`, `status`. Pagination is stabilized by a trailing `id ASC` tiebreaker.\n- Filterable fields and operators: `status` (`eq`, `ne`, `in`), `priority` (`eq`, `ne`, `in`), `assigneeId` (`eq`, `ne`, `in`), `creatorId` (`eq`, `ne`, `in`), `createdAt` (`eq`, `gt`, `gte`, `lt`, `lte`), `updatedAt` (`eq`, `gt`, `gte`, `lt`, `lte`).",
+        "tags": ["Issues"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the target project.",
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 10 }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "example": "-createdAt" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of the project's issues, with pagination metadata.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListIssuesResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "The `{projectId}` path parameter is not a UUID, or a `sort` targets a field outside the sortable set, or a `filter[field]` targets a field or operator outside the configured set.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to list the project's issues.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "No project exists for the supplied `{projectId}`.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/issues/{id}": {
+      "get": {
+        "operationId": "getIssueById",
+        "summary": "Retrieve a single issue",
+        "description": "Retrieves a single issue scoped to the target project. The caller must present a valid Bearer token and be authorized to `getIssueById`: callers whose workspace role is `Workspace Owner` or `Workspace Admin` are permitted regardless of project membership (workspace bypass); otherwise the caller must hold one of the `Project Owner`, `Project Admin`, or `Developer` project roles on the target project.\n\nIf the issue exists but belongs to a different project than `{projectId}`, the response is `404` — never `403` or the foreign resource — so cross-project identifier guessing cannot leak existence.",
+        "tags": ["Issues"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the target project.",
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the issue.",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The issue, with its expanded `creator` and `assignee` objects.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/IssueResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "The `{projectId}` or `{id}` path parameter is not a UUID.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to retrieve issues from the target project.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "No issue with `{id}` exists in `{projectId}` — either the id is unknown or the issue belongs to a different project.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateIssue",
+        "summary": "Partially update an issue",
+        "description": "Partially updates an issue. The body is validated as a strict object accepting any subset of `title`, `description`, `status`, `priority`, and `assigneeId`, with at least one of those fields present. Any additional field is rejected. Status transitions are free — any value may transition to any other value; there is no transition graph.\n\nThe caller must present a valid Bearer token and be authorized to `updateIssue`: there is NO workspace bypass for update; the caller must hold one of the `Project Owner`, `Project Admin`, or `Developer` project roles on the target project. A single `updateIssue` authorization decision governs any subset of fields in the same request.\n\nWhen `assigneeId` is supplied, the service verifies that the referenced user is a current project member of the issue's project; a non-member assignee yields `422`. An update that does NOT include `assigneeId` leaves any existing stale assignee untouched.\n\nIf the issue exists but belongs to a different project than `{projectId}`, the response is `404`.",
+        "tags": ["Issues"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the target project.",
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the issue.",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateIssueRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated issue, with its expanded `creator` and `assignee` objects.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/IssueResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "The body or path parameter failed validation (empty body, empty `title`/`description`, unknown `status` or `priority`, malformed `assigneeId`, unrecognized field, non-object body, non-UUID path parameter).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token. No issue is modified.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to update issues in the target project. No issue is modified.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "No issue with `{id}` exists in `{projectId}` — either the id is unknown or the issue belongs to a different project. No issue is modified.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "A business rule rejected the request: the supplied `assigneeId` references a user who is not a current project member of the issue's project.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request. No issue is modified.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteIssue",
+        "summary": "Delete an issue",
+        "description": "Deletes an issue. The caller must present a valid Bearer token and be authorized to `deleteIssue`: there is NO workspace bypass for deletion; the caller must hold one of the `Project Owner`, `Project Admin`, or `Developer` project roles on the target project.\n\nDeletion is a hard delete and cascades to the issue's subtasks (`onDelete: Cascade` on `Subtask.issueId`).\n\nIf the issue exists but belongs to a different project than `{projectId}`, the response is `404` and no row is deleted.",
+        "tags": ["Issues"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the target project.",
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the issue.",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The issue (and all of its subtasks) were deleted. The response body is empty."
+          },
+          "400": {
+            "description": "The `{projectId}` or `{id}` path parameter is not a UUID.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token. No issue is deleted.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to delete issues in the target project. No issue is deleted.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "No issue with `{id}` exists in `{projectId}` — either the id is unknown or the issue belongs to a different project. No issue is deleted.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request. No issue is deleted.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3019,6 +3419,158 @@
             "type": "array",
             "items": { "$ref": "#/components/schemas/ProjectMember" }
           }
+        }
+      },
+      "IssueStatus": {
+        "type": "string",
+        "enum": ["ToDo", "InProgress", "Done"],
+        "description": "The lifecycle status of an issue. Status transitions are free — the server does NOT enforce a transition graph."
+      },
+      "IssuePriority": {
+        "type": "string",
+        "enum": ["Low", "Medium", "High"],
+        "description": "The priority of an issue."
+      },
+      "Issue": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "status",
+          "priority",
+          "projectId",
+          "creator",
+          "assignee",
+          "createdAt",
+          "updatedAt"
+        ],
+        "description": "An issue. Every endpoint that returns an issue returns the expanded resource with its `creator` and `assignee` objects; raw `creatorId` / `assigneeId` scalar foreign keys are intentionally not exposed on the output.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The identifier of the issue."
+          },
+          "title": { "type": "string", "description": "The issue's title." },
+          "description": { "type": "string", "description": "The issue's description." },
+          "status": { "$ref": "#/components/schemas/IssueStatus" },
+          "priority": { "$ref": "#/components/schemas/IssuePriority" },
+          "projectId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The identifier of the project the issue belongs to."
+          },
+          "creator": {
+            "type": "object",
+            "required": ["id", "name", "email"],
+            "description": "The joined creator user resource.",
+            "properties": {
+              "id": { "type": "string", "format": "uuid" },
+              "name": { "type": "string" },
+              "email": { "type": "string", "format": "email" }
+            }
+          },
+          "assignee": {
+            "type": "object",
+            "required": ["id", "name", "email"],
+            "description": "The joined assignee user resource. A stale assignee (a user no longer a member of the project) is preserved and returned as-is.",
+            "properties": {
+              "id": { "type": "string", "format": "uuid" },
+              "name": { "type": "string" },
+              "email": { "type": "string", "format": "email" }
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the issue was created."
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the issue was last updated."
+          }
+        }
+      },
+      "CreateIssueRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["title", "description"],
+        "description": "The details of the issue to create. The body is validated with a strict schema, so unrecognized fields (including a client-supplied `status`, which is forbidden on create) are rejected.",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A non-empty issue title.",
+            "example": "Checkout crashes on empty cart"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A non-empty issue description.",
+            "example": "Reproduces on prod when the user submits with no items."
+          },
+          "priority": {
+            "allOf": [{ "$ref": "#/components/schemas/IssuePriority" }],
+            "description": "The initial priority. Optional; defaults to `Medium` when omitted."
+          },
+          "assigneeId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The user id to assign. Optional; defaults to the acting actor's user id when omitted. When provided, the referenced user must be a current member of the target project.",
+            "example": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+          }
+        }
+      },
+      "UpdateIssueRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "A partial issue update. At least one of `title`, `description`, `status`, `priority`, or `assigneeId` must be present. Unspecified fields are left unchanged. An update that omits `assigneeId` leaves any existing stale assignee untouched.",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The new title.",
+            "example": "Checkout crashes on empty cart (p0)"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The new description."
+          },
+          "status": {
+            "allOf": [{ "$ref": "#/components/schemas/IssueStatus" }],
+            "description": "The new status. Transitions are free — any value may transition to any other value."
+          },
+          "priority": {
+            "allOf": [{ "$ref": "#/components/schemas/IssuePriority" }],
+            "description": "The new priority."
+          },
+          "assigneeId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The user id to assign. When provided, the referenced user must be a current member of the issue's project.",
+            "example": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+          }
+        }
+      },
+      "IssueResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": { "$ref": "#/components/schemas/Issue" }
+        }
+      },
+      "ListIssuesResponse": {
+        "type": "object",
+        "required": ["data", "meta"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Issue" }
+          },
+          "meta": { "$ref": "#/components/schemas/PaginationMeta" }
         }
       },
       "ListProjectsResponse": {
