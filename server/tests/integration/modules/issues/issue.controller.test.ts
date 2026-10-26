@@ -1306,7 +1306,7 @@ describe('Issues Controller', () => {
     });
 
     describe('on business rule violations (422)', () => {
-      it('returns 422 when assigneeId references a user who is not a project member', async () => {
+      it('returns 422 when the supplied assigneeId references a user who is not a project member', async () => {
         const nonMember = await prisma.user.create({
           data: {
             name: 'Non member',
@@ -1321,6 +1321,18 @@ describe('Issues Controller', () => {
           projectId,
           issueId,
           { assigneeId: nonMember.id },
+          tokenFor(ctx.tokenService, projectOwnerActor),
+        );
+
+        expectBusinessRuleViolationError(response);
+        await originalIssueUnchanged();
+      });
+
+      it('returns 422 when the supplied assigneeId references an unknown user id', async () => {
+        const response = await patchIssueRequest(
+          projectId,
+          issueId,
+          { assigneeId: WELL_FORMED_UNKNOWN_UUID },
           tokenFor(ctx.tokenService, projectOwnerActor),
         );
 

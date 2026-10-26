@@ -23,7 +23,6 @@ import {
   issuesQueryConfig,
 } from '@/modules/issues';
 import { IssueController } from '@/modules/issues/issue.controller';
-import { Issue } from '@/modules/issues/issue.schema';
 
 import { silentLogger } from '../../fixtures/logger.fixtures';
 import {
@@ -165,37 +164,6 @@ export async function seedIssue(params: {
     description: row.description,
     status: row.status as IssueStatus,
     priority: row.priority as IssuePriority,
-  };
-}
-
-/**
- * Loads an issue (with its expanded relations) directly from the DB — used by
- * the integration-test assertions to prove persisted state.
- */
-export async function fetchIssueWithRelations(
-  issueId: string,
-): Promise<(Issue & { creatorId: string; assigneeId: string }) | null> {
-  const row = await prisma.issue.findUnique({
-    where: { id: issueId },
-    include: {
-      creator: { select: { id: true, name: true, email: true } },
-      assignee: { select: { id: true, name: true, email: true } },
-    },
-  });
-  if (!row) return null;
-  return {
-    id: row.id,
-    title: row.title,
-    description: row.description,
-    status: row.status as IssueStatus,
-    priority: row.priority as IssuePriority,
-    projectId: row.projectId,
-    creator: row.creator,
-    assignee: row.assignee,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-    creatorId: row.creatorId,
-    assigneeId: row.assigneeId,
   };
 }
 
