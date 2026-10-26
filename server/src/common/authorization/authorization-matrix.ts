@@ -62,12 +62,28 @@ export const authorizationMatrix: AuthorizationMatrix = {
       ProjectRoleName.PROJECT_ADMIN,
       ProjectRoleName.DEVELOPER,
     ],
-    assignIssue: [
+    listIssues: {
+      projectRoles: [
+        ProjectRoleName.PROJECT_OWNER,
+        ProjectRoleName.PROJECT_ADMIN,
+        ProjectRoleName.DEVELOPER,
+      ],
+      workspaceBypass: [WorkspaceRoleName.OWNER, WorkspaceRoleName.ADMIN],
+    },
+    getIssueById: {
+      projectRoles: [
+        ProjectRoleName.PROJECT_OWNER,
+        ProjectRoleName.PROJECT_ADMIN,
+        ProjectRoleName.DEVELOPER,
+      ],
+      workspaceBypass: [WorkspaceRoleName.OWNER, WorkspaceRoleName.ADMIN],
+    },
+    updateIssue: [
       ProjectRoleName.PROJECT_OWNER,
       ProjectRoleName.PROJECT_ADMIN,
       ProjectRoleName.DEVELOPER,
     ],
-    updateIssueStatus: [
+    deleteIssue: [
       ProjectRoleName.PROJECT_OWNER,
       ProjectRoleName.PROJECT_ADMIN,
       ProjectRoleName.DEVELOPER,

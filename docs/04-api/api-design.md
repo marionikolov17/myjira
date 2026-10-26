@@ -258,7 +258,7 @@ Error categories:
   - 422 -> business rules violation
   - 500 -> internal server failure
 
-- `PATCH` /issues/{id}
+- `PATCH` /projects/{projectId}/issues/{issueId}
 
   **Responses:**
   - 200 -> success
@@ -269,7 +269,7 @@ Error categories:
   - 422 -> business rules violation
   - 500 -> internal server failure
 
-- `DELETE` /issues/{id}
+- `DELETE` /projects/{projectId}/issues/{issueId}
 
   **Responses:**
   - 204 No Content -> success
@@ -282,6 +282,14 @@ Error categories:
 - `GET` /projects/{projectId}/issues
 
   Supports pagination, filtering and sorting.
+  - Sortable fields: `createdAt`, `updatedAt`, `title`, `priority`, `status`.
+  - Filterable fields and operators:
+    - `status` — `eq`, `ne`, `in`
+    - `priority` — `eq`, `ne`, `in`
+    - `assigneeId` — `eq`, `ne`, `in`
+    - `creatorId` — `eq`, `ne`, `in`
+    - `createdAt` — `eq`, `gt`, `gte`, `lt`, `lte`
+    - `updatedAt` — `eq`, `gt`, `gte`, `lt`, `lte`
 
   **Responses:**
   - 200 -> success
@@ -290,7 +298,7 @@ Error categories:
   - 404 -> resource not found
   - 500 -> internal server failure
 
-- `GET` /issues/{id}
+- `GET` /projects/{projectId}/issues/{issueId}
 
   **Responses:**
   - 200 -> success

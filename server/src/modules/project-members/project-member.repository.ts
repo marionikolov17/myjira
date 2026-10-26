@@ -64,6 +64,23 @@ export class ProjectMemberRepository implements IProjectMemberRepository {
     }
   }
 
+  public async getProjectMemberByUserAndProject(
+    userId: string,
+    projectId: string,
+  ): Promise<ProjectMemberWithRole | null> {
+    try {
+      const member = await this.prisma.projectMember.findFirst({
+        where: { userId, projectId },
+        select: this.select,
+      });
+
+      return member ? ProjectMemberWithRoleSchema.parse(member) : null;
+    } catch (error) {
+      this.logError(error);
+      throw mapPrismaError(error);
+    }
+  }
+
   public async createProjectMember(
     params: CreateProjectMemberParams,
   ): Promise<ProjectMemberExpanded> {

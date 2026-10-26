@@ -20,8 +20,10 @@ export type AuthorizationAction =
   | 'updateProject'
   | 'deleteProject'
   | 'createIssue'
-  | 'assignIssue'
-  | 'updateIssueStatus'
+  | 'listIssues'
+  | 'getIssueById'
+  | 'updateIssue'
+  | 'deleteIssue'
   | 'createSubtask'
   | 'assignSubtask'
   | 'updateSubtaskStatus';

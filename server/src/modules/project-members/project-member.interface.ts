@@ -10,6 +10,10 @@ export interface CreateProjectMemberParams {
 
 export interface IProjectMemberRepository extends IRepository {
   getProjectMembersByUserId(userId: string): Promise<ProjectMemberWithRole[]>;
+  getProjectMemberByUserAndProject(
+    userId: string,
+    projectId: string,
+  ): Promise<ProjectMemberWithRole | null>;
   createProjectMember(params: CreateProjectMemberParams): Promise<ProjectMemberExpanded>;
   listProjectMembers(projectId: string): Promise<ProjectMemberExpanded[]>;
   getProjectMemberById(memberId: string, projectId: string): Promise<ProjectMemberExpanded | null>;

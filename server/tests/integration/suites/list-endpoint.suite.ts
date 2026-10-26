@@ -30,8 +30,16 @@ import {
  * visible to the suite without extra wiring.
  */
 export interface ListEndpointSuiteConfig {
-  /** Full request path for the list endpoint, e.g. `/api/v1/users`. */
+  /** Full request path for the list endpoint, e.g. `/api/v1/users`. Drives the `describe` title. */
   path: string;
+  /**
+   * Optional: returns the fully resolved request path at test-run time (e.g.
+   * `/api/v1/projects/${projectId}/issues` with a `projectId` resolved in the
+   * spec's `beforeAll`). When set, the suite uses this value as the GET URL
+   * for every request. When omitted, the eager {@link path} is used both for
+   * the title and for the request.
+   */
+  getRuntimePath?(): string;
   /** Returns the fully wired Express app whose pipeline mirrors production. */
   getApp(): Application;
   /** Returns the token service wired into the authentication middleware. */
@@ -142,7 +150,8 @@ export function describeListEndpoint(config: ListEndpointSuiteConfig): void {
       query?: Record<string, unknown>,
       authorizationHeader?: string,
     ): supertest.Test {
-      let request = supertest(config.getApp()).get(path);
+      const requestPath = config.getRuntimePath ? config.getRuntimePath() : path;
+      let request = supertest(config.getApp()).get(requestPath);
 
       if (authorizationHeader !== undefined) {
         request = request.set('Authorization', authorizationHeader);
