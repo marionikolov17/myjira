@@ -11,14 +11,9 @@ import { IssuePriority, IssueStatus } from '@/modules/issues';
 
 import { createTestUsers } from '../../fixtures/users.fixtures';
 import { ensureWorkspaceRolesSeeded } from '../../fixtures/workspace-roles.fixtures';
-import {
-  ensureProjectRolesSeeded,
-  fetchProjectRoleIdByName,
-} from '../../fixtures/project-roles.fixtures';
+import { ensureProjectRolesSeeded } from '../../fixtures/project-roles.fixtures';
 import { seedProject } from '../../fixtures/projects.fixtures';
-import { seedProjectMembership } from '../../fixtures/project-members.fixtures';
 import {
-  fetchPersistedUsers,
   requireTestUser,
   tokenFor,
   userToActorContext,
@@ -37,22 +32,35 @@ import { describeListEndpoint } from '../../suites/list-endpoint.suite';
 
 import {
   createIssuesTestContext,
-  fetchIssueWithRelations,
   IssuesTestContext,
+  IssueWorkspaceActors,
+  loadIssueWorkspaceActors,
   seedIssue,
+  seedStandardIssueProject,
   SeededIssue,
   testUsers,
+  wipeIssueGraph,
+  wipeUsers,
 } from './issue.controller.fixtures';
 import {
   expectIssuePersisted,
   expectIssueResource,
+  expectIssueStillExists,
   expectIssueUnchanged,
   expectNoContentResponse,
+  expectNoIssuesInProject,
   expectNoIssueWithId,
 } from './issue.controller.assertions';
 
 const WELL_FORMED_UNKNOWN_UUID = '11111111-1111-4111-8111-111111111111';
 const WELL_FORMED_UNKNOWN_UUID_2 = '22222222-2222-4222-8222-222222222222';
+
+const ORIGINAL_ISSUE = {
+  title: 'Original title',
+  description: 'Original desc',
+  status: IssueStatus.ToDo,
+  priority: IssuePriority.Medium,
+} as const;
 
 describe('Issues Controller', () => {
   let app: Application;
@@ -66,10 +74,8 @@ describe('Issues Controller', () => {
     await ensureProjectRolesSeeded();
   });
 
-  // -----------------------------------------------------------------------
-  // POST /api/v1/projects/:projectId/issues
-  // -----------------------------------------------------------------------
   describe('POST /', () => {
+    let actors: IssueWorkspaceActors;
     let workspaceOwnerActor: ActorContext;
     let workspaceAdminActor: ActorContext;
     let workspaceDeveloperActor: ActorContext;
@@ -80,88 +86,30 @@ describe('Issues Controller', () => {
 
     let projectId: string;
     let projectOwnerRoleId: string;
-    let developerRoleId: string;
-    let projectAdminRoleId: string;
-
     let memberAssigneeUserId: string;
 
     beforeAll(async () => {
       await createTestUsers(testUsers);
-
-      const [owner, admin, developer] = await fetchPersistedUsers(testUsers);
-      if (!owner || !admin || !developer) {
-        throw new Error('Expected seeded users to exist');
-      }
-
-      workspaceOwnerActor = userToActorContext(owner, []);
-      workspaceAdminActor = userToActorContext(admin, []);
-      workspaceDeveloperActor = userToActorContext(developer, []);
-
-      projectOwnerRoleId = await fetchProjectRoleIdByName(ProjectRoleName.PROJECT_OWNER);
-      projectAdminRoleId = await fetchProjectRoleIdByName(ProjectRoleName.PROJECT_ADMIN);
-      developerRoleId = await fetchProjectRoleIdByName(ProjectRoleName.DEVELOPER);
-
-      memberAssigneeUserId = admin.id;
+      actors = await loadIssueWorkspaceActors();
+      workspaceOwnerActor = actors.workspaceOwnerActor;
+      workspaceAdminActor = actors.workspaceAdminActor;
+      workspaceDeveloperActor = actors.workspaceDeveloperActor;
+      projectOwnerRoleId = actors.projectOwnerRoleId;
+      memberAssigneeUserId = actors.memberAssigneeUserId;
     });
 
     afterAll(async () => {
-      await prisma.issue.deleteMany();
-      await prisma.projectMember.deleteMany();
-      await prisma.project.deleteMany();
-      await prisma.user.deleteMany();
+      await wipeIssueGraph();
+      await wipeUsers();
     });
 
     beforeEach(async () => {
-      await prisma.issue.deleteMany();
-      await prisma.projectMember.deleteMany();
-      await prisma.project.deleteMany();
-
-      const project = await seedProject(workspaceOwnerActor.userId, 'Target', 'Target desc');
-      projectId = project.id;
-
-      // Seed memberships: owner, admin, developer each as a member of the project.
-      await seedProjectMembership(
-        projectId,
-        workspaceOwnerActor.userId,
-        ProjectRoleName.PROJECT_OWNER,
-      );
-      await seedProjectMembership(
-        projectId,
-        workspaceAdminActor.userId,
-        ProjectRoleName.PROJECT_ADMIN,
-      );
-      await seedProjectMembership(
-        projectId,
-        workspaceDeveloperActor.userId,
-        ProjectRoleName.DEVELOPER,
-      );
-
-      projectOwnerActor = {
-        ...workspaceOwnerActor,
-        projectRoles: [
-          {
-            projectId,
-            projectRoleId: projectOwnerRoleId,
-            projectRoleName: ProjectRoleName.PROJECT_OWNER,
-          },
-        ],
-      };
-      projectAdminActor = {
-        ...workspaceAdminActor,
-        projectRoles: [
-          {
-            projectId,
-            projectRoleId: projectAdminRoleId,
-            projectRoleName: ProjectRoleName.PROJECT_ADMIN,
-          },
-        ],
-      };
-      projectDeveloperActor = {
-        ...workspaceDeveloperActor,
-        projectRoles: [
-          { projectId, projectRoleId: developerRoleId, projectRoleName: ProjectRoleName.DEVELOPER },
-        ],
-      };
+      await wipeIssueGraph();
+      const seeded = await seedStandardIssueProject(actors);
+      projectId = seeded.projectId;
+      projectOwnerActor = seeded.projectOwnerActor;
+      projectAdminActor = seeded.projectAdminActor;
+      projectDeveloperActor = seeded.projectDeveloperActor;
     });
 
     function createIssueRequest(
@@ -217,14 +165,31 @@ describe('Issues Controller', () => {
       );
 
       it('honors an explicit priority when supplied', async () => {
+        const ownerUser = requireTestUser(testUsers, WorkspaceRoleName.OWNER);
+
         const response = await createIssueRequest(
           projectId,
           { title: 'High-pri', description: 'High priority task', priority: IssuePriority.High },
           tokenFor(ctx.tokenService, projectOwnerActor),
         );
 
-        expect(response.status).toBe(201);
-        expect(response.body.data.priority).toBe(IssuePriority.High);
+        expectIssueResource(response, 201, {
+          title: 'High-pri',
+          description: 'High priority task',
+          status: IssueStatus.ToDo,
+          priority: IssuePriority.High,
+          projectId,
+          creator: {
+            id: projectOwnerActor.userId,
+            name: ownerUser.name,
+            email: ownerUser.email,
+          },
+          assignee: {
+            id: projectOwnerActor.userId,
+            name: ownerUser.name,
+            email: ownerUser.email,
+          },
+        });
 
         await expectIssuePersisted(response.body.data.id, {
           projectId,
@@ -238,6 +203,9 @@ describe('Issues Controller', () => {
       });
 
       it('honors an explicit assigneeId referencing another project member', async () => {
+        const ownerUser = requireTestUser(testUsers, WorkspaceRoleName.OWNER);
+        const adminUser = requireTestUser(testUsers, WorkspaceRoleName.ADMIN);
+
         const response = await createIssueRequest(
           projectId,
           {
@@ -248,8 +216,23 @@ describe('Issues Controller', () => {
           tokenFor(ctx.tokenService, projectOwnerActor),
         );
 
-        expect(response.status).toBe(201);
-        expect(response.body.data.assignee.id).toBe(memberAssigneeUserId);
+        expectIssueResource(response, 201, {
+          title: 'Assign to admin',
+          description: 'Assigns to the project admin',
+          status: IssueStatus.ToDo,
+          priority: IssuePriority.Medium,
+          projectId,
+          creator: {
+            id: projectOwnerActor.userId,
+            name: ownerUser.name,
+            email: ownerUser.email,
+          },
+          assignee: {
+            id: memberAssigneeUserId,
+            name: adminUser.name,
+            email: adminUser.email,
+          },
+        });
 
         await expectIssuePersisted(response.body.data.id, {
           projectId,
@@ -327,8 +310,7 @@ describe('Issues Controller', () => {
         );
 
         expectValidationError(response, expectedFields);
-        const issues = await prisma.issue.findMany({ where: { projectId } });
-        expect(issues).toHaveLength(0);
+        await expectNoIssuesInProject(projectId);
       });
 
       it('returns a validation error when the path projectId is not a uuid', async () => {
@@ -339,6 +321,7 @@ describe('Issues Controller', () => {
         );
 
         expectValidationError(response, ['projectId']);
+        await expectNoIssuesInProject(projectId);
       });
     });
 
@@ -350,8 +333,7 @@ describe('Issues Controller', () => {
         });
 
         expectAuthenticationRequired(response);
-        const issues = await prisma.issue.findMany({ where: { projectId } });
-        expect(issues).toHaveLength(0);
+        await expectNoIssuesInProject(projectId);
       });
     });
 
@@ -381,8 +363,7 @@ describe('Issues Controller', () => {
         );
 
         expectForbiddenError(response);
-        const issues = await prisma.issue.findMany({ where: { projectId } });
-        expect(issues).toHaveLength(0);
+        await expectNoIssuesInProject(projectId);
       });
     });
 
@@ -409,6 +390,7 @@ describe('Issues Controller', () => {
         );
 
         expectResourceNotFoundError(response, ctx.projectRepository.resourceName);
+        await expectNoIssuesInProject(projectId);
       });
     });
 
@@ -432,11 +414,10 @@ describe('Issues Controller', () => {
         );
 
         expectBusinessRuleViolationError(response);
-        const issues = await prisma.issue.findMany({ where: { projectId } });
-        expect(issues).toHaveLength(0);
+        await expectNoIssuesInProject(projectId);
       });
 
-      it('returns 422 when the supplied assigneeId references an unknown user id (FK)', async () => {
+      it('returns 422 when the supplied assigneeId references an unknown user id', async () => {
         const response = await createIssueRequest(
           projectId,
           { title: 't', description: 'd', assigneeId: WELL_FORMED_UNKNOWN_UUID_2 },
@@ -444,8 +425,7 @@ describe('Issues Controller', () => {
         );
 
         expectBusinessRuleViolationError(response);
-        const issues = await prisma.issue.findMany({ where: { projectId } });
-        expect(issues).toHaveLength(0);
+        await expectNoIssuesInProject(projectId);
       });
     });
 
@@ -462,13 +442,11 @@ describe('Issues Controller', () => {
         );
 
         expectInternalServerError(response);
+        await expectNoIssuesInProject(projectId);
       });
     });
   });
 
-  // -----------------------------------------------------------------------
-  // GET /api/v1/projects/:projectId/issues  (list) — via shared suite
-  // -----------------------------------------------------------------------
   describe('GET /', () => {
     let workspaceOwnerActor: ActorContext;
     let workspaceAdminActor: ActorContext;
@@ -485,25 +463,19 @@ describe('Issues Controller', () => {
     let defaultSuiteActor: ActorContext;
 
     let projectId: string;
-    let otherProjectId: string;
-    let projectOwnerRoleId: string;
-    let projectAdminRoleId: string;
-    let developerRoleId: string;
 
     let seededIssues: SeededIssue[];
     const PAGE_SIZE = 3;
 
     beforeAll(async () => {
-      await prisma.issue.deleteMany();
-      await prisma.projectMember.deleteMany();
-      await prisma.project.deleteMany();
-      await prisma.user.deleteMany();
+      await wipeIssueGraph();
+      await wipeUsers();
 
       await createTestUsers(testUsers);
-      const [owner, admin, developer] = await fetchPersistedUsers(testUsers);
-      if (!owner || !admin || !developer) {
-        throw new Error('Expected seeded users to exist');
-      }
+      const actors = await loadIssueWorkspaceActors();
+      workspaceOwnerActor = actors.workspaceOwnerActor;
+      workspaceAdminActor = actors.workspaceAdminActor;
+      workspaceDeveloperActor = actors.workspaceDeveloperActor;
 
       // Also seed an additional non-member developer user.
       const nonMemberDeveloper = await prisma.user.create({
@@ -512,7 +484,7 @@ describe('Issues Controller', () => {
           email: 'issues-list-nonmember@example.com',
           password: 'x',
           status: 'Active',
-          workspaceRoleId: developer.workspaceRoleId,
+          workspaceRoleId: workspaceDeveloperActor.workspaceRole.id,
         },
       });
 
@@ -523,26 +495,18 @@ describe('Issues Controller', () => {
           email: 'issues-list-default@example.com',
           password: 'x',
           status: 'Active',
-          workspaceRoleId: admin.workspaceRoleId,
+          workspaceRoleId: workspaceAdminActor.workspaceRole.id,
         },
       });
 
-      projectOwnerRoleId = await fetchProjectRoleIdByName(ProjectRoleName.PROJECT_OWNER);
-      projectAdminRoleId = await fetchProjectRoleIdByName(ProjectRoleName.PROJECT_ADMIN);
-      developerRoleId = await fetchProjectRoleIdByName(ProjectRoleName.DEVELOPER);
+      const seeded = await seedStandardIssueProject(actors);
+      projectId = seeded.projectId;
+      projectOwnerActor = seeded.projectOwnerActor;
+      projectAdminActor = seeded.projectAdminActor;
+      projectDeveloperActor = seeded.projectDeveloperActor;
 
-      const project = await seedProject(owner.id, 'Target', 'Target desc');
-      projectId = project.id;
-      const other = await seedProject(owner.id, 'Other', 'Other desc');
-      otherProjectId = other.id;
+      const other = await seedProject(workspaceOwnerActor.userId, 'Other', 'Other desc');
 
-      await seedProjectMembership(projectId, owner.id, ProjectRoleName.PROJECT_OWNER);
-      await seedProjectMembership(projectId, admin.id, ProjectRoleName.PROJECT_ADMIN);
-      await seedProjectMembership(projectId, developer.id, ProjectRoleName.DEVELOPER);
-
-      workspaceOwnerActor = userToActorContext(owner, []);
-      workspaceAdminActor = userToActorContext(admin, []);
-      workspaceDeveloperActor = userToActorContext(developer, []);
       nonMemberDeveloperActor = userToActorContext(
         {
           id: nonMemberDeveloper.id,
@@ -560,37 +524,6 @@ describe('Issues Controller', () => {
         [],
       );
 
-      projectOwnerActor = {
-        ...workspaceOwnerActor,
-        projectRoles: [
-          {
-            projectId,
-            projectRoleId: projectOwnerRoleId,
-            projectRoleName: ProjectRoleName.PROJECT_OWNER,
-          },
-        ],
-      };
-      projectAdminActor = {
-        ...workspaceAdminActor,
-        projectRoles: [
-          {
-            projectId,
-            projectRoleId: projectAdminRoleId,
-            projectRoleName: ProjectRoleName.PROJECT_ADMIN,
-          },
-        ],
-      };
-      projectDeveloperActor = {
-        ...workspaceDeveloperActor,
-        projectRoles: [
-          {
-            projectId,
-            projectRoleId: developerRoleId,
-            projectRoleName: ProjectRoleName.DEVELOPER,
-          },
-        ],
-      };
-
       // Seed 7 issues in the target project with alternating statuses so filter
       // probes have both matching and non-matching rows.
       seededIssues = [];
@@ -599,8 +532,8 @@ describe('Issues Controller', () => {
           i % 3 === 0 ? IssueStatus.ToDo : i % 3 === 1 ? IssueStatus.InProgress : IssueStatus.Done;
         const issue = await seedIssue({
           projectId,
-          creatorId: owner.id,
-          assigneeId: owner.id,
+          creatorId: workspaceOwnerActor.userId,
+          assigneeId: workspaceOwnerActor.userId,
           title: `Issue ${i}`,
           description: `desc ${i}`,
           status,
@@ -611,27 +544,40 @@ describe('Issues Controller', () => {
 
       // Seed 2 "other-project" issues to prove cross-project scoping excludes them.
       await seedIssue({
-        projectId: otherProjectId,
-        creatorId: owner.id,
-        assigneeId: owner.id,
+        projectId: other.id,
+        creatorId: workspaceOwnerActor.userId,
+        assigneeId: workspaceOwnerActor.userId,
         title: 'Other-1',
         description: 'o1',
       });
       await seedIssue({
-        projectId: otherProjectId,
-        creatorId: owner.id,
-        assigneeId: owner.id,
+        projectId: other.id,
+        creatorId: workspaceOwnerActor.userId,
+        assigneeId: workspaceOwnerActor.userId,
         title: 'Other-2',
         description: 'o2',
       });
     });
 
     afterAll(async () => {
-      await prisma.issue.deleteMany();
-      await prisma.projectMember.deleteMany();
-      await prisma.project.deleteMany();
-      await prisma.user.deleteMany();
+      await wipeIssueGraph();
+      await wipeUsers();
     });
+
+    function listIssuesRequest(
+      pathProjectId: string,
+      query?: Record<string, string>,
+      authorizationHeader?: string,
+    ) {
+      const request = supertest(app).get(`/api/v1/projects/${pathProjectId}/issues`);
+      if (query !== undefined) {
+        request.query(query);
+      }
+      if (authorizationHeader !== undefined) {
+        request.set('Authorization', authorizationHeader);
+      }
+      return request;
+    }
 
     describeListEndpoint({
       path: '/api/v1/projects/:projectId/issues',
@@ -707,14 +653,16 @@ describe('Issues Controller', () => {
 
     describe('on cross-project scoping', () => {
       it('excludes issues from other projects and reports the target total', async () => {
-        const response = await supertest(app)
-          .get(`/api/v1/projects/${projectId}/issues`)
-          .query({ pageSize: '100' })
-          .set('Authorization', tokenFor(ctx.tokenService, projectOwnerActor));
+        const response = await listIssuesRequest(
+          projectId,
+          { pageSize: '100' },
+          tokenFor(ctx.tokenService, projectOwnerActor),
+        );
 
         expect(response.status).toBe(200);
         expect(response.body.data).toHaveLength(seededIssues.length);
         expect(response.body.meta.pagination.totalItems).toBe(seededIssues.length);
+
         for (const entry of response.body.data) {
           expect(entry.projectId).toBe(projectId);
         }
@@ -723,43 +671,51 @@ describe('Issues Controller', () => {
 
     describe('on path-param validation (400)', () => {
       it('returns a validation error when the path projectId is not a uuid', async () => {
-        const response = await supertest(app)
-          .get('/api/v1/projects/not-a-uuid/issues')
-          .set('Authorization', tokenFor(ctx.tokenService, projectOwnerActor));
+        const response = await listIssuesRequest(
+          'not-a-uuid',
+          undefined,
+          tokenFor(ctx.tokenService, projectOwnerActor),
+        );
 
         expectValidationError(response, ['projectId']);
       });
     });
 
-    describe('on unknown project (404)', () => {
-      it('returns a not-found error for a well-formed but unknown projectId', async () => {
-        const response = await supertest(app)
-          .get(`/api/v1/projects/${WELL_FORMED_UNKNOWN_UUID}/issues`)
-          .set('Authorization', tokenFor(ctx.tokenService, workspaceOwnerActor));
-
-        expectResourceNotFoundError(response, ctx.projectRepository.resourceName);
-      });
-    });
-
     describe('on project-scope authorization failure (403)', () => {
       it('returns a forbidden error for a Developer with no project role on the target', async () => {
-        const response = await supertest(app)
-          .get(`/api/v1/projects/${projectId}/issues`)
-          .set('Authorization', tokenFor(ctx.tokenService, nonMemberDeveloperActor));
+        const response = await listIssuesRequest(
+          projectId,
+          undefined,
+          tokenFor(ctx.tokenService, nonMemberDeveloperActor),
+        );
 
         expectForbiddenError(response);
       });
     });
 
+    describe('on unknown project (404)', () => {
+      it('returns a not-found error for a well-formed but unknown projectId', async () => {
+        const response = await listIssuesRequest(
+          WELL_FORMED_UNKNOWN_UUID,
+          undefined,
+          tokenFor(ctx.tokenService, workspaceOwnerActor),
+        );
+
+        expectResourceNotFoundError(response, ctx.projectRepository.resourceName);
+      });
+    });
+
     describe('on response shape', () => {
       it('every list entry carries expanded creator and assignee objects with no raw scalar FKs', async () => {
-        const response = await supertest(app)
-          .get(`/api/v1/projects/${projectId}/issues`)
-          .query({ pageSize: '100' })
-          .set('Authorization', tokenFor(ctx.tokenService, projectOwnerActor));
+        const response = await listIssuesRequest(
+          projectId,
+          { pageSize: '100' },
+          tokenFor(ctx.tokenService, projectOwnerActor),
+        );
 
         expect(response.status).toBe(200);
         expect(response.body.data.length).toBeGreaterThan(0);
+
         for (const entry of response.body.data) {
           expect(entry.creator).toEqual({
             id: expect.any(String),
@@ -778,9 +734,6 @@ describe('Issues Controller', () => {
     });
   });
 
-  // -----------------------------------------------------------------------
-  // GET /api/v1/projects/:projectId/issues/:id
-  // -----------------------------------------------------------------------
   describe('GET /:id', () => {
     let workspaceOwnerActor: ActorContext;
     let workspaceAdminActor: ActorContext;
@@ -791,19 +744,17 @@ describe('Issues Controller', () => {
     let projectDeveloperActor: ActorContext;
 
     let projectId: string;
-    let otherProjectId: string;
     let issueId: string;
     let otherProjectIssueId: string;
 
     beforeAll(async () => {
-      await prisma.issue.deleteMany();
-      await prisma.projectMember.deleteMany();
-      await prisma.project.deleteMany();
-      await prisma.user.deleteMany();
+      await wipeIssueGraph();
+      await wipeUsers();
 
       await createTestUsers(testUsers);
-      const [owner, admin, developer] = await fetchPersistedUsers(testUsers);
-      if (!owner || !admin || !developer) throw new Error('seed');
+      const actors = await loadIssueWorkspaceActors();
+      workspaceOwnerActor = actors.workspaceOwnerActor;
+      workspaceAdminActor = actors.workspaceAdminActor;
 
       // Create an extra non-member Developer user for the 403 case.
       const nonMemberDeveloper = await prisma.user.create({
@@ -812,7 +763,7 @@ describe('Issues Controller', () => {
           email: 'issues-getbyid-nonmember@example.com',
           password: 'x',
           status: 'Active',
-          workspaceRoleId: developer.workspaceRoleId,
+          workspaceRoleId: actors.workspaceDeveloperActor.workspaceRole.id,
         },
       });
       nonMemberDeveloperActor = userToActorContext(
@@ -824,73 +775,34 @@ describe('Issues Controller', () => {
         [],
       );
 
-      const projectOwnerRoleId = await fetchProjectRoleIdByName(ProjectRoleName.PROJECT_OWNER);
-      const projectAdminRoleId = await fetchProjectRoleIdByName(ProjectRoleName.PROJECT_ADMIN);
-      const developerRoleId = await fetchProjectRoleIdByName(ProjectRoleName.DEVELOPER);
+      const seeded = await seedStandardIssueProject(actors);
+      projectId = seeded.projectId;
+      projectOwnerActor = seeded.projectOwnerActor;
+      projectAdminActor = seeded.projectAdminActor;
+      projectDeveloperActor = seeded.projectDeveloperActor;
 
-      const project = await seedProject(owner.id, 'Target', 'desc');
-      projectId = project.id;
-      const other = await seedProject(owner.id, 'Other', 'other desc');
-      otherProjectId = other.id;
-
-      await seedProjectMembership(projectId, owner.id, ProjectRoleName.PROJECT_OWNER);
-      await seedProjectMembership(projectId, admin.id, ProjectRoleName.PROJECT_ADMIN);
-      await seedProjectMembership(projectId, developer.id, ProjectRoleName.DEVELOPER);
-
-      workspaceOwnerActor = userToActorContext(owner, []);
-      workspaceAdminActor = userToActorContext(admin, []);
-      projectOwnerActor = {
-        ...workspaceOwnerActor,
-        projectRoles: [
-          {
-            projectId,
-            projectRoleId: projectOwnerRoleId,
-            projectRoleName: ProjectRoleName.PROJECT_OWNER,
-          },
-        ],
-      };
-      projectAdminActor = {
-        ...workspaceAdminActor,
-        projectRoles: [
-          {
-            projectId,
-            projectRoleId: projectAdminRoleId,
-            projectRoleName: ProjectRoleName.PROJECT_ADMIN,
-          },
-        ],
-      };
-      projectDeveloperActor = {
-        userId: developer.id,
-        workspaceRole: { id: developer.workspaceRoleId, name: WorkspaceRoleName.DEVELOPER },
-        projectRoles: [
-          { projectId, projectRoleId: developerRoleId, projectRoleName: ProjectRoleName.DEVELOPER },
-        ],
-      };
-
-      const issue = await seedIssue({
+      const other = await seedProject(workspaceOwnerActor.userId, 'Other', 'Other desc');
+      const targetIssue = await seedIssue({
         projectId,
-        creatorId: owner.id,
-        assigneeId: owner.id,
+        creatorId: workspaceOwnerActor.userId,
+        assigneeId: workspaceOwnerActor.userId,
         title: 'The Issue',
         description: 'target desc',
       });
-      issueId = issue.id;
-
       const otherIssue = await seedIssue({
-        projectId: otherProjectId,
-        creatorId: owner.id,
-        assigneeId: owner.id,
+        projectId: other.id,
+        creatorId: workspaceOwnerActor.userId,
+        assigneeId: workspaceOwnerActor.userId,
         title: 'Other Issue',
         description: 'other desc',
       });
+      issueId = targetIssue.id;
       otherProjectIssueId = otherIssue.id;
     });
 
     afterAll(async () => {
-      await prisma.issue.deleteMany();
-      await prisma.projectMember.deleteMany();
-      await prisma.project.deleteMany();
-      await prisma.user.deleteMany();
+      await wipeIssueGraph();
+      await wipeUsers();
     });
 
     function getIssueRequest(
@@ -1022,10 +934,8 @@ describe('Issues Controller', () => {
     });
   });
 
-  // -----------------------------------------------------------------------
-  // PATCH /api/v1/projects/:projectId/issues/:id
-  // -----------------------------------------------------------------------
   describe('PATCH /:id', () => {
+    let actors: IssueWorkspaceActors;
     let workspaceOwnerActor: ActorContext;
     let workspaceAdminActor: ActorContext;
     let workspaceDeveloperActor: ActorContext;
@@ -1035,114 +945,50 @@ describe('Issues Controller', () => {
     let projectDeveloperActor: ActorContext;
 
     let projectId: string;
-    let otherProjectId: string;
     let issueId: string;
     let otherProjectIssueId: string;
-
-    let projectOwnerRoleId: string;
-    let projectAdminRoleId: string;
-    let developerRoleId: string;
-
     let memberAssigneeUserId: string;
 
     beforeAll(async () => {
       await createTestUsers(testUsers);
-      const [owner, admin, developer] = await fetchPersistedUsers(testUsers);
-      if (!owner || !admin || !developer) throw new Error('seed');
-
-      projectOwnerRoleId = await fetchProjectRoleIdByName(ProjectRoleName.PROJECT_OWNER);
-      projectAdminRoleId = await fetchProjectRoleIdByName(ProjectRoleName.PROJECT_ADMIN);
-      developerRoleId = await fetchProjectRoleIdByName(ProjectRoleName.DEVELOPER);
-
-      workspaceOwnerActor = userToActorContext(owner, []);
-      workspaceAdminActor = userToActorContext(admin, []);
-      workspaceDeveloperActor = userToActorContext(developer, []);
-
-      memberAssigneeUserId = admin.id;
+      actors = await loadIssueWorkspaceActors();
+      workspaceOwnerActor = actors.workspaceOwnerActor;
+      workspaceAdminActor = actors.workspaceAdminActor;
+      workspaceDeveloperActor = actors.workspaceDeveloperActor;
+      memberAssigneeUserId = actors.memberAssigneeUserId;
     });
 
     afterAll(async () => {
-      await prisma.issue.deleteMany();
-      await prisma.projectMember.deleteMany();
-      await prisma.project.deleteMany();
-      await prisma.user.deleteMany();
+      await wipeIssueGraph();
+      await wipeUsers();
     });
 
     beforeEach(async () => {
-      await prisma.issue.deleteMany();
-      await prisma.projectMember.deleteMany();
-      await prisma.project.deleteMany();
+      await wipeIssueGraph();
+      const seeded = await seedStandardIssueProject(actors);
+      projectId = seeded.projectId;
+      projectOwnerActor = seeded.projectOwnerActor;
+      projectAdminActor = seeded.projectAdminActor;
+      projectDeveloperActor = seeded.projectDeveloperActor;
 
-      const project = await seedProject(workspaceOwnerActor.userId, 'Target', 'desc');
-      projectId = project.id;
-      const other = await seedProject(workspaceOwnerActor.userId, 'Other', 'other');
-      otherProjectId = other.id;
-
-      await seedProjectMembership(
-        projectId,
-        workspaceOwnerActor.userId,
-        ProjectRoleName.PROJECT_OWNER,
-      );
-      await seedProjectMembership(
-        projectId,
-        workspaceAdminActor.userId,
-        ProjectRoleName.PROJECT_ADMIN,
-      );
-      await seedProjectMembership(
-        projectId,
-        workspaceDeveloperActor.userId,
-        ProjectRoleName.DEVELOPER,
-      );
-
-      projectOwnerActor = {
-        ...workspaceOwnerActor,
-        projectRoles: [
-          {
-            projectId,
-            projectRoleId: projectOwnerRoleId,
-            projectRoleName: ProjectRoleName.PROJECT_OWNER,
-          },
-        ],
-      };
-      projectAdminActor = {
-        ...workspaceAdminActor,
-        projectRoles: [
-          {
-            projectId,
-            projectRoleId: projectAdminRoleId,
-            projectRoleName: ProjectRoleName.PROJECT_ADMIN,
-          },
-        ],
-      };
-      projectDeveloperActor = {
-        ...workspaceDeveloperActor,
-        projectRoles: [
-          {
-            projectId,
-            projectRoleId: developerRoleId,
-            projectRoleName: ProjectRoleName.DEVELOPER,
-          },
-        ],
-      };
-
-      const issue = await seedIssue({
+      const other = await seedProject(workspaceOwnerActor.userId, 'Other', 'Other desc');
+      const targetIssue = await seedIssue({
         projectId,
         creatorId: workspaceOwnerActor.userId,
         assigneeId: workspaceOwnerActor.userId,
-        title: 'Original title',
-        description: 'Original desc',
-        status: IssueStatus.ToDo,
-        priority: IssuePriority.Medium,
+        title: ORIGINAL_ISSUE.title,
+        description: ORIGINAL_ISSUE.description,
+        status: ORIGINAL_ISSUE.status,
+        priority: ORIGINAL_ISSUE.priority,
       });
-      issueId = issue.id;
-
       const otherIssue = await seedIssue({
-        projectId: otherProjectId,
+        projectId: other.id,
         creatorId: workspaceOwnerActor.userId,
         assigneeId: workspaceOwnerActor.userId,
         title: 'Other issue',
         description: 'other desc',
       });
+      issueId = targetIssue.id;
       otherProjectIssueId = otherIssue.id;
     });
 
@@ -1161,12 +1007,25 @@ describe('Issues Controller', () => {
       return request.send(body);
     }
 
+    function originalIssueUnchanged() {
+      return expectIssueUnchanged(issueId, {
+        title: ORIGINAL_ISSUE.title,
+        description: ORIGINAL_ISSUE.description,
+        status: ORIGINAL_ISSUE.status,
+        priority: ORIGINAL_ISSUE.priority,
+        assigneeId: workspaceOwnerActor.userId,
+      });
+    }
+
     describe('on success', () => {
       it.each([
         { case: 'Project Owner', getActor: () => projectOwnerActor },
         { case: 'Project Admin', getActor: () => projectAdminActor },
         { case: 'Developer', getActor: () => projectDeveloperActor },
       ])('updates any subset of fields for a $case', async ({ getActor }) => {
+        const ownerUser = requireTestUser(testUsers, WorkspaceRoleName.OWNER);
+        const adminUser = requireTestUser(testUsers, WorkspaceRoleName.ADMIN);
+
         const response = await patchIssueRequest(
           projectId,
           issueId,
@@ -1180,12 +1039,24 @@ describe('Issues Controller', () => {
           tokenFor(ctx.tokenService, getActor()),
         );
 
-        expect(response.status).toBe(200);
-        expect(response.body.data.title).toBe('New title');
-        expect(response.body.data.description).toBe('New desc');
-        expect(response.body.data.status).toBe(IssueStatus.InProgress);
-        expect(response.body.data.priority).toBe(IssuePriority.High);
-        expect(response.body.data.assignee.id).toBe(memberAssigneeUserId);
+        expectIssueResource(response, 200, {
+          id: issueId,
+          title: 'New title',
+          description: 'New desc',
+          status: IssueStatus.InProgress,
+          priority: IssuePriority.High,
+          projectId,
+          creator: {
+            id: workspaceOwnerActor.userId,
+            name: ownerUser.name,
+            email: ownerUser.email,
+          },
+          assignee: {
+            id: memberAssigneeUserId,
+            name: adminUser.name,
+            email: adminUser.email,
+          },
+        });
 
         await expectIssuePersisted(issueId, {
           projectId,
@@ -1203,6 +1074,7 @@ describe('Issues Controller', () => {
         { from: IssueStatus.InProgress, to: IssueStatus.Done },
         { from: IssueStatus.Done, to: IssueStatus.ToDo },
       ])('allows the any-to-any status transition $from -> $to', async ({ from, to }) => {
+        const ownerUser = requireTestUser(testUsers, WorkspaceRoleName.OWNER);
         await prisma.issue.update({ where: { id: issueId }, data: { status: from } });
 
         const response = await patchIssueRequest(
@@ -1212,11 +1084,40 @@ describe('Issues Controller', () => {
           tokenFor(ctx.tokenService, projectOwnerActor),
         );
 
-        expect(response.status).toBe(200);
-        expect(response.body.data.status).toBe(to);
+        expectIssueResource(response, 200, {
+          id: issueId,
+          title: ORIGINAL_ISSUE.title,
+          description: ORIGINAL_ISSUE.description,
+          status: to,
+          priority: ORIGINAL_ISSUE.priority,
+          projectId,
+          creator: {
+            id: workspaceOwnerActor.userId,
+            name: ownerUser.name,
+            email: ownerUser.email,
+          },
+          assignee: {
+            id: workspaceOwnerActor.userId,
+            name: ownerUser.name,
+            email: ownerUser.email,
+          },
+        });
+
+        await expectIssuePersisted(issueId, {
+          projectId,
+          creatorId: workspaceOwnerActor.userId,
+          assigneeId: workspaceOwnerActor.userId,
+          title: ORIGINAL_ISSUE.title,
+          description: ORIGINAL_ISSUE.description,
+          status: to,
+          priority: ORIGINAL_ISSUE.priority,
+        });
       });
 
       it('preserves a stale assignee when the PATCH does not include assigneeId', async () => {
+        const ownerUser = requireTestUser(testUsers, WorkspaceRoleName.OWNER);
+        const adminUser = requireTestUser(testUsers, WorkspaceRoleName.ADMIN);
+
         // Make the assignee stale: assign to the project admin, then remove them.
         await prisma.issue.update({
           where: { id: issueId },
@@ -1233,11 +1134,34 @@ describe('Issues Controller', () => {
           tokenFor(ctx.tokenService, projectOwnerActor),
         );
 
-        expect(response.status).toBe(200);
-        expect(response.body.data.assignee.id).toBe(memberAssigneeUserId);
+        expectIssueResource(response, 200, {
+          id: issueId,
+          title: 'Updated',
+          description: ORIGINAL_ISSUE.description,
+          status: ORIGINAL_ISSUE.status,
+          priority: ORIGINAL_ISSUE.priority,
+          projectId,
+          creator: {
+            id: workspaceOwnerActor.userId,
+            name: ownerUser.name,
+            email: ownerUser.email,
+          },
+          assignee: {
+            id: memberAssigneeUserId,
+            name: adminUser.name,
+            email: adminUser.email,
+          },
+        });
 
-        const persisted = await fetchIssueWithRelations(issueId);
-        expect(persisted?.assigneeId).toBe(memberAssigneeUserId);
+        await expectIssuePersisted(issueId, {
+          projectId,
+          creatorId: workspaceOwnerActor.userId,
+          assigneeId: memberAssigneeUserId,
+          title: 'Updated',
+          description: ORIGINAL_ISSUE.description,
+          status: ORIGINAL_ISSUE.status,
+          priority: ORIGINAL_ISSUE.priority,
+        });
       });
     });
 
@@ -1245,41 +1169,41 @@ describe('Issues Controller', () => {
       it.each<{
         case: string;
         body: Record<string, unknown> | undefined | unknown[];
-        expectedFieldSubset?: string[];
+        expectedFields?: string[];
       }>([
         { case: 'empty body (no fields)', body: {} },
         {
           case: 'empty title',
           body: { title: '' },
-          expectedFieldSubset: ['title'],
+          expectedFields: ['title'],
         },
         {
           case: 'empty description',
           body: { description: '' },
-          expectedFieldSubset: ['description'],
+          expectedFields: ['description'],
         },
         {
           case: 'unknown status value',
           body: { status: 'Unknown' },
-          expectedFieldSubset: ['status'],
+          expectedFields: ['status'],
         },
         {
           case: 'unknown priority value',
           body: { priority: 'URGENT' },
-          expectedFieldSubset: ['priority'],
+          expectedFields: ['priority'],
         },
         {
           case: 'malformed assigneeId',
           body: { assigneeId: 'not-a-uuid' },
-          expectedFieldSubset: ['assigneeId'],
+          expectedFields: ['assigneeId'],
         },
         {
           case: 'extra field',
           body: { title: 't', foo: 'bar' },
-          expectedFieldSubset: ['foo'],
+          expectedFields: ['foo'],
         },
         { case: 'body is not a plain object', body: [] },
-      ])('returns a validation error when $case', async ({ body, expectedFieldSubset }) => {
+      ])('returns a validation error when $case', async ({ body, expectedFields }) => {
         const response = await patchIssueRequest(
           projectId,
           issueId,
@@ -1287,19 +1211,13 @@ describe('Issues Controller', () => {
           tokenFor(ctx.tokenService, projectOwnerActor),
         );
 
-        if (expectedFieldSubset) {
-          expectValidationError(response, expectedFieldSubset);
+        if (expectedFields) {
+          expectValidationError(response, expectedFields);
         } else {
-          expect(response.status).toBe(400);
+          expectValidationError(response);
         }
 
-        await expectIssueUnchanged(issueId, {
-          title: 'Original title',
-          description: 'Original desc',
-          status: IssueStatus.ToDo,
-          priority: IssuePriority.Medium,
-          assigneeId: workspaceOwnerActor.userId,
-        });
+        await originalIssueUnchanged();
       });
 
       it('returns a validation error when the path projectId is not a uuid', async () => {
@@ -1311,6 +1229,7 @@ describe('Issues Controller', () => {
         );
 
         expectValidationError(response, ['projectId']);
+        await originalIssueUnchanged();
       });
 
       it('returns a validation error when the path issue id is not a uuid', async () => {
@@ -1322,6 +1241,7 @@ describe('Issues Controller', () => {
         );
 
         expectValidationError(response, ['issueId']);
+        await originalIssueUnchanged();
       });
     });
 
@@ -1330,13 +1250,7 @@ describe('Issues Controller', () => {
         const response = await patchIssueRequest(projectId, issueId, { title: 'x' });
 
         expectAuthenticationRequired(response);
-        await expectIssueUnchanged(issueId, {
-          title: 'Original title',
-          description: 'Original desc',
-          status: IssueStatus.ToDo,
-          priority: IssuePriority.Medium,
-          assigneeId: workspaceOwnerActor.userId,
-        });
+        await originalIssueUnchanged();
       });
     });
 
@@ -1359,13 +1273,7 @@ describe('Issues Controller', () => {
         );
 
         expectForbiddenError(response);
-        await expectIssueUnchanged(issueId, {
-          title: 'Original title',
-          description: 'Original desc',
-          status: IssueStatus.ToDo,
-          priority: IssuePriority.Medium,
-          assigneeId: workspaceOwnerActor.userId,
-        });
+        await originalIssueUnchanged();
       });
     });
 
@@ -1379,6 +1287,7 @@ describe('Issues Controller', () => {
         );
 
         expectResourceNotFoundError(response, ctx.issueRepository.resourceName);
+        await originalIssueUnchanged();
       });
 
       it('returns 404 and does not modify the issue when it belongs to a different project', async () => {
@@ -1416,13 +1325,7 @@ describe('Issues Controller', () => {
         );
 
         expectBusinessRuleViolationError(response);
-        await expectIssueUnchanged(issueId, {
-          title: 'Original title',
-          description: 'Original desc',
-          status: IssueStatus.ToDo,
-          priority: IssuePriority.Medium,
-          assigneeId: workspaceOwnerActor.userId,
-        });
+        await originalIssueUnchanged();
       });
     });
 
@@ -1440,14 +1343,13 @@ describe('Issues Controller', () => {
         );
 
         expectInternalServerError(response);
+        await originalIssueUnchanged();
       });
     });
   });
 
-  // -----------------------------------------------------------------------
-  // DELETE /api/v1/projects/:projectId/issues/:id
-  // -----------------------------------------------------------------------
   describe('DELETE /:id', () => {
+    let actors: IssueWorkspaceActors;
     let workspaceOwnerActor: ActorContext;
     let workspaceAdminActor: ActorContext;
     let workspaceDeveloperActor: ActorContext;
@@ -1457,108 +1359,46 @@ describe('Issues Controller', () => {
     let projectDeveloperActor: ActorContext;
 
     let projectId: string;
-    let otherProjectId: string;
     let issueId: string;
     let otherProjectIssueId: string;
 
-    let projectOwnerRoleId: string;
-    let projectAdminRoleId: string;
-    let developerRoleId: string;
-
     beforeAll(async () => {
       await createTestUsers(testUsers);
-      const [owner, admin, developer] = await fetchPersistedUsers(testUsers);
-      if (!owner || !admin || !developer) throw new Error('seed');
-
-      projectOwnerRoleId = await fetchProjectRoleIdByName(ProjectRoleName.PROJECT_OWNER);
-      projectAdminRoleId = await fetchProjectRoleIdByName(ProjectRoleName.PROJECT_ADMIN);
-      developerRoleId = await fetchProjectRoleIdByName(ProjectRoleName.DEVELOPER);
-
-      workspaceOwnerActor = userToActorContext(owner, []);
-      workspaceAdminActor = userToActorContext(admin, []);
-      workspaceDeveloperActor = userToActorContext(developer, []);
+      actors = await loadIssueWorkspaceActors();
+      workspaceOwnerActor = actors.workspaceOwnerActor;
+      workspaceAdminActor = actors.workspaceAdminActor;
+      workspaceDeveloperActor = actors.workspaceDeveloperActor;
     });
 
     afterAll(async () => {
-      await prisma.issue.deleteMany();
-      await prisma.projectMember.deleteMany();
-      await prisma.project.deleteMany();
-      await prisma.user.deleteMany();
+      await wipeIssueGraph();
+      await wipeUsers();
     });
 
     beforeEach(async () => {
-      await prisma.issue.deleteMany();
-      await prisma.projectMember.deleteMany();
-      await prisma.project.deleteMany();
+      await wipeIssueGraph();
+      const seeded = await seedStandardIssueProject(actors);
+      projectId = seeded.projectId;
+      projectOwnerActor = seeded.projectOwnerActor;
+      projectAdminActor = seeded.projectAdminActor;
+      projectDeveloperActor = seeded.projectDeveloperActor;
 
-      const project = await seedProject(workspaceOwnerActor.userId, 'Target', 'desc');
-      projectId = project.id;
-      const other = await seedProject(workspaceOwnerActor.userId, 'Other', 'other');
-      otherProjectId = other.id;
-
-      await seedProjectMembership(
-        projectId,
-        workspaceOwnerActor.userId,
-        ProjectRoleName.PROJECT_OWNER,
-      );
-      await seedProjectMembership(
-        projectId,
-        workspaceAdminActor.userId,
-        ProjectRoleName.PROJECT_ADMIN,
-      );
-      await seedProjectMembership(
-        projectId,
-        workspaceDeveloperActor.userId,
-        ProjectRoleName.DEVELOPER,
-      );
-
-      projectOwnerActor = {
-        ...workspaceOwnerActor,
-        projectRoles: [
-          {
-            projectId,
-            projectRoleId: projectOwnerRoleId,
-            projectRoleName: ProjectRoleName.PROJECT_OWNER,
-          },
-        ],
-      };
-      projectAdminActor = {
-        ...workspaceAdminActor,
-        projectRoles: [
-          {
-            projectId,
-            projectRoleId: projectAdminRoleId,
-            projectRoleName: ProjectRoleName.PROJECT_ADMIN,
-          },
-        ],
-      };
-      projectDeveloperActor = {
-        ...workspaceDeveloperActor,
-        projectRoles: [
-          {
-            projectId,
-            projectRoleId: developerRoleId,
-            projectRoleName: ProjectRoleName.DEVELOPER,
-          },
-        ],
-      };
-
-      const issue = await seedIssue({
+      const other = await seedProject(workspaceOwnerActor.userId, 'Other', 'Other desc');
+      const targetIssue = await seedIssue({
         projectId,
         creatorId: workspaceOwnerActor.userId,
         assigneeId: workspaceOwnerActor.userId,
         title: 'Target issue',
         description: 'desc',
       });
-      issueId = issue.id;
-
       const otherIssue = await seedIssue({
-        projectId: otherProjectId,
+        projectId: other.id,
         creatorId: workspaceOwnerActor.userId,
         assigneeId: workspaceOwnerActor.userId,
         title: 'Other issue',
         description: 'other desc',
       });
+      issueId = targetIssue.id;
       otherProjectIssueId = otherIssue.id;
     });
 
@@ -1637,6 +1477,7 @@ describe('Issues Controller', () => {
         );
 
         expectValidationError(response, ['projectId']);
+        await expectIssueStillExists(issueId);
       });
 
       it('returns a validation error when the path issue id is not a uuid', async () => {
@@ -1647,6 +1488,7 @@ describe('Issues Controller', () => {
         );
 
         expectValidationError(response, ['issueId']);
+        await expectIssueStillExists(issueId);
       });
     });
 
@@ -1655,8 +1497,7 @@ describe('Issues Controller', () => {
         const response = await deleteIssueRequest(projectId, issueId);
 
         expectAuthenticationRequired(response);
-        const row = await prisma.issue.findUnique({ where: { id: issueId } });
-        expect(row).not.toBeNull();
+        await expectIssueStillExists(issueId);
       });
     });
 
@@ -1677,8 +1518,7 @@ describe('Issues Controller', () => {
         );
 
         expectForbiddenError(response);
-        const row = await prisma.issue.findUnique({ where: { id: issueId } });
-        expect(row).not.toBeNull();
+        await expectIssueStillExists(issueId);
       });
     });
 
@@ -1691,6 +1531,7 @@ describe('Issues Controller', () => {
         );
 
         expectResourceNotFoundError(response, ctx.issueRepository.resourceName);
+        await expectIssueStillExists(issueId);
       });
 
       it('returns 404 and does not delete the issue when it belongs to a different project', async () => {
@@ -1701,8 +1542,7 @@ describe('Issues Controller', () => {
         );
 
         expectResourceNotFoundError(response, ctx.issueRepository.resourceName);
-        const other = await prisma.issue.findUnique({ where: { id: otherProjectIssueId } });
-        expect(other).not.toBeNull();
+        await expectIssueStillExists(otherProjectIssueId);
       });
     });
 
@@ -1719,6 +1559,7 @@ describe('Issues Controller', () => {
         );
 
         expectInternalServerError(response);
+        await expectIssueStillExists(issueId);
       });
     });
   });

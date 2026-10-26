@@ -1,5 +1,6 @@
 import express, { Application } from 'express';
 
+import { ActorContext } from '@/common/interfaces';
 import { errorMiddleware, createAuthenticationMiddleware } from '@/common/middlewares';
 import { prisma } from '@/common/lib/prisma';
 import { JsonwebtokenTokenService } from '@/common/token-service/jsonwebtoken-token-service';
@@ -10,7 +11,7 @@ import { queryParser } from '@/common/query';
 import { IUserRepository, UserRepository } from '@/modules/users';
 import { IWorkspaceRoleRepository, WorkspaceRoleRepository } from '@/modules/workspace-roles';
 import { IProjectMemberRepository, ProjectMemberRepository } from '@/modules/project-members';
-import { IProjectRoleRepository, ProjectRoleRepository } from '@/modules/project-roles';
+import { ProjectRoleName } from '@/modules/project-roles';
 import { ActorContextService } from '@/modules/auth/actor-context.service';
 import { IProjectRepository, ProjectRepository } from '@/modules/projects';
 import {
@@ -25,10 +26,16 @@ import { IssueController } from '@/modules/issues/issue.controller';
 import { Issue } from '@/modules/issues/issue.schema';
 
 import { silentLogger } from '../../fixtures/logger.fixtures';
-import { buildTestUsers } from '../../fixtures/actor-context.fixtures';
+import {
+  buildTestUsers,
+  fetchPersistedUsers,
+  userToActorContext,
+} from '../../fixtures/actor-context.fixtures';
+import { seedProject } from '../../fixtures/projects.fixtures';
+import { seedProjectMembership } from '../../fixtures/project-members.fixtures';
+import { fetchProjectRoleIdByName } from '../../fixtures/project-roles.fixtures';
 
 export const SECRET_KEY = 'issues-test-secret-key';
-export const WRONG_SECRET_KEY = 'issues-test-wrong-secret-key';
 export const TOKEN_EXPIRES_IN_SECONDS = 3600;
 
 export const testUsers = buildTestUsers('issues-');
@@ -39,7 +46,6 @@ export interface IssuesTestContext {
   issueRepository: IIssueRepository;
   projectRepository: IProjectRepository;
   projectMemberRepository: IProjectMemberRepository;
-  projectRoleRepository: IProjectRoleRepository;
   userRepository: IUserRepository;
   workspaceRoleRepository: IWorkspaceRoleRepository;
 }
@@ -58,7 +64,6 @@ export function createIssuesTestContext(): IssuesTestContext {
   const userRepository = new UserRepository(prisma, silentLogger);
   const workspaceRoleRepository = new WorkspaceRoleRepository(prisma, silentLogger);
   const projectMemberRepository = new ProjectMemberRepository(prisma, silentLogger);
-  const projectRoleRepository = new ProjectRoleRepository(prisma, silentLogger);
   const projectRepository = new ProjectRepository(prisma, silentLogger);
   const issueRepository = new IssueRepository(prisma, silentLogger);
 
@@ -102,7 +107,6 @@ export function createIssuesTestContext(): IssuesTestContext {
     issueRepository,
     projectRepository,
     projectMemberRepository,
-    projectRoleRepository,
     userRepository,
     workspaceRoleRepository,
   };
@@ -192,5 +196,124 @@ export async function fetchIssueWithRelations(
     updatedAt: row.updatedAt,
     creatorId: row.creatorId,
     assigneeId: row.assigneeId,
+  };
+}
+
+export async function wipeIssueGraph(): Promise<void> {
+  await prisma.issue.deleteMany();
+  await prisma.projectMember.deleteMany();
+  await prisma.project.deleteMany();
+}
+
+export async function wipeUsers(): Promise<void> {
+  await prisma.user.deleteMany();
+}
+
+/**
+ * Workspace-scoped actors + project role ids resolved from the seeded
+ * `testUsers` matrix. Call after `createTestUsers(testUsers)`.
+ */
+export interface IssueWorkspaceActors {
+  workspaceOwnerActor: ActorContext;
+  workspaceAdminActor: ActorContext;
+  workspaceDeveloperActor: ActorContext;
+  projectOwnerRoleId: string;
+  projectAdminRoleId: string;
+  developerRoleId: string;
+  /** Convenience: the Workspace Admin's user id (a project member after seeding). */
+  memberAssigneeUserId: string;
+}
+
+export async function loadIssueWorkspaceActors(): Promise<IssueWorkspaceActors> {
+  const [owner, admin, developer] = await fetchPersistedUsers(testUsers);
+  if (!owner || !admin || !developer) {
+    throw new Error('Expected seeded users to exist');
+  }
+
+  return {
+    workspaceOwnerActor: userToActorContext(owner, []),
+    workspaceAdminActor: userToActorContext(admin, []),
+    workspaceDeveloperActor: userToActorContext(developer, []),
+    projectOwnerRoleId: await fetchProjectRoleIdByName(ProjectRoleName.PROJECT_OWNER),
+    projectAdminRoleId: await fetchProjectRoleIdByName(ProjectRoleName.PROJECT_ADMIN),
+    developerRoleId: await fetchProjectRoleIdByName(ProjectRoleName.DEVELOPER),
+    memberAssigneeUserId: admin.id,
+  };
+}
+
+export interface SeededIssueProject {
+  projectId: string;
+  projectOwnerActor: ActorContext;
+  projectAdminActor: ActorContext;
+  projectDeveloperActor: ActorContext;
+}
+
+/**
+ * Seeds a target project with the three standard memberships (Owner / Admin /
+ * Developer) and returns the corresponding project-scoped actors. Does not
+ * wipe existing rows — callers own lifecycle via `wipeIssueGraph`.
+ */
+export async function seedStandardIssueProject(
+  actors: IssueWorkspaceActors,
+): Promise<SeededIssueProject> {
+  const {
+    workspaceOwnerActor,
+    workspaceAdminActor,
+    workspaceDeveloperActor,
+    projectOwnerRoleId,
+    projectAdminRoleId,
+    developerRoleId,
+  } = actors;
+
+  const project = await seedProject(workspaceOwnerActor.userId, 'Target', 'Target desc');
+
+  await seedProjectMembership(
+    project.id,
+    workspaceOwnerActor.userId,
+    ProjectRoleName.PROJECT_OWNER,
+  );
+  await seedProjectMembership(
+    project.id,
+    workspaceAdminActor.userId,
+    ProjectRoleName.PROJECT_ADMIN,
+  );
+  await seedProjectMembership(
+    project.id,
+    workspaceDeveloperActor.userId,
+    ProjectRoleName.DEVELOPER,
+  );
+
+  return {
+    projectId: project.id,
+    projectOwnerActor: {
+      ...workspaceOwnerActor,
+      projectRoles: [
+        {
+          projectId: project.id,
+          projectRoleId: projectOwnerRoleId,
+          projectRoleName: ProjectRoleName.PROJECT_OWNER,
+        },
+      ],
+    },
+    projectAdminActor: {
+      ...workspaceAdminActor,
+      projectRoles: [
+        {
+          projectId: project.id,
+          projectRoleId: projectAdminRoleId,
+          projectRoleName: ProjectRoleName.PROJECT_ADMIN,
+        },
+      ],
+    },
+    projectDeveloperActor: {
+      ...workspaceDeveloperActor,
+      projectRoles: [
+        {
+          projectId: project.id,
+          projectRoleId: developerRoleId,
+          projectRoleName: ProjectRoleName.DEVELOPER,
+        },
+      ],
+    },
   };
 }
