@@ -2707,7 +2707,7 @@
         }
       }
     },
-    "/projects/{projectId}/issues/{id}": {
+    "/projects/{projectId}/issues/{issueId}": {
       "get": {
         "operationId": "getIssueById",
         "summary": "Retrieve a single issue",

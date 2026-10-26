@@ -338,7 +338,7 @@ describe('Issues Controller', () => {
           tokenFor(ctx.tokenService, projectOwnerActor),
         );
 
-        expectValidationError(response, ['id']);
+        expectValidationError(response, ['projectId']);
       });
     });
 
@@ -727,7 +727,7 @@ describe('Issues Controller', () => {
           .get('/api/v1/projects/not-a-uuid/issues')
           .set('Authorization', tokenFor(ctx.tokenService, projectOwnerActor));
 
-        expectValidationError(response, ['id']);
+        expectValidationError(response, ['projectId']);
       });
     });
 
@@ -949,7 +949,7 @@ describe('Issues Controller', () => {
           tokenFor(ctx.tokenService, projectOwnerActor),
         );
 
-        expectValidationError(response, ['id']);
+        expectValidationError(response, ['projectId']);
       });
 
       it('returns a validation error when the path issue id is not a uuid', async () => {
@@ -959,7 +959,7 @@ describe('Issues Controller', () => {
           tokenFor(ctx.tokenService, projectOwnerActor),
         );
 
-        expectValidationError(response, ['id']);
+        expectValidationError(response, ['issueId']);
       });
     });
 
@@ -1310,7 +1310,7 @@ describe('Issues Controller', () => {
           tokenFor(ctx.tokenService, projectOwnerActor),
         );
 
-        expectValidationError(response, ['id']);
+        expectValidationError(response, ['projectId']);
       });
 
       it('returns a validation error when the path issue id is not a uuid', async () => {
@@ -1321,7 +1321,7 @@ describe('Issues Controller', () => {
           tokenFor(ctx.tokenService, projectOwnerActor),
         );
 
-        expectValidationError(response, ['id']);
+        expectValidationError(response, ['issueId']);
       });
     });
 
@@ -1636,7 +1636,7 @@ describe('Issues Controller', () => {
           tokenFor(ctx.tokenService, projectOwnerActor),
         );
 
-        expectValidationError(response, ['id']);
+        expectValidationError(response, ['projectId']);
       });
 
       it('returns a validation error when the path issue id is not a uuid', async () => {
@@ -1646,7 +1646,7 @@ describe('Issues Controller', () => {
           tokenFor(ctx.tokenService, projectOwnerActor),
         );
 
-        expectValidationError(response, ['id']);
+        expectValidationError(response, ['issueId']);
       });
     });
 
