@@ -31,7 +31,7 @@ export function MyProjectsCard({
         </CardAction>
       </CardHeader>
       <CardContent>
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-4">
           {isLoading
             ? Array.from({ length: 3 }, (_, index) => (
                 <li key={index}>

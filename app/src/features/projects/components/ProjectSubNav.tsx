@@ -22,7 +22,7 @@ export function ProjectSubNav({ projectId }: { projectId: string }) {
   const tabs = TABS.filter((tab) => tab.segment !== 'settings' || canUpdate || canDelete);
 
   return (
-    <nav aria-label="Project sections" className="-mx-1 overflow-x-auto border-b">
+    <nav aria-label="Project sections" className="-mx-1 overflow-x-auto overflow-y-hidden border-b">
       <ul className="flex min-w-max gap-1 px-1">
         {tabs.map((tab) => {
           const href = `/projects/${projectId}/${tab.segment}`;
