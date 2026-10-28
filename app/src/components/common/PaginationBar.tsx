@@ -1,20 +1,24 @@
-'use client'
+'use client';
 
-import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import type { Pagination } from '@/lib/api/schemas'
+import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import type { Pagination } from '@/lib/api/schemas';
 
 type PaginationBarProps = {
-  pagination: Pagination | undefined
-  onPageChange: (page: number) => void
-  itemLabel?: string
-}
+  pagination: Pagination | undefined;
+  onPageChange: (page: number) => void;
+  itemLabel?: string;
+};
 
-export function PaginationBar({ pagination, onPageChange, itemLabel = 'items' }: PaginationBarProps) {
-  if (!pagination || pagination.totalItems === 0) return null
-  const { pageNumber, pageSize, totalItems, totalPages } = pagination
-  const from = (pageNumber - 1) * pageSize + 1
-  const to = Math.min(pageNumber * pageSize, totalItems)
+export function PaginationBar({
+  pagination,
+  onPageChange,
+  itemLabel = 'items',
+}: PaginationBarProps) {
+  if (!pagination || pagination.totalItems === 0) return null;
+  const { pageNumber, pageSize, totalItems, totalPages } = pagination;
+  const from = (pageNumber - 1) * pageSize + 1;
+  const to = Math.min(pageNumber * pageSize, totalItems);
 
   return (
     <nav aria-label="Pagination" className="flex flex-wrap items-center justify-between gap-3">
@@ -45,5 +49,5 @@ export function PaginationBar({ pagination, onPageChange, itemLabel = 'items' }:
         </Button>
       </div>
     </nav>
-  )
+  );
 }

@@ -1,12 +1,12 @@
-'use client'
+'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod'
-import { MailPlusIcon } from 'lucide-react'
-import { useState } from 'react'
-import { Controller, useForm } from 'react-hook-form'
-import { toast } from 'sonner'
-import { OptionSelect } from '@/components/common/OptionSelect'
-import { Button } from '@/components/ui/button'
+import { zodResolver } from '@hookform/resolvers/zod';
+import { MailPlusIcon } from 'lucide-react';
+import { useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { OptionSelect } from '@/components/common/OptionSelect';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -14,45 +14,56 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
-import { Spinner } from '@/components/ui/spinner'
-import { WORKSPACE_ROLE_IDS, type CreateUserResponse } from '@/lib/api/schemas'
-import { invitableWorkspaceRoles } from '@/lib/authz/can'
-import { useActor } from '@/lib/authz/useCan'
-import { handleFormError } from '@/lib/forms/handleFormError'
-import { useCreateUser } from '../mutations'
-import { createUserInputSchema, type CreateUserInput } from '../schemas'
+} from '@/components/ui/dialog';
+import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
+import { WORKSPACE_ROLE_IDS, type CreateUserResponse } from '@/lib/api/schemas';
+import { invitableWorkspaceRoles } from '@/lib/authz/can';
+import { useActor } from '@/lib/authz/useCan';
+import { handleFormError } from '@/lib/forms/handleFormError';
+import { useCreateUser } from '../mutations';
+import { createUserInputSchema, type CreateUserInput } from '../schemas';
 
-export function InviteUserDialog({ onInvited }: { onInvited: (invite: CreateUserResponse) => void }) {
-  const actor = useActor()
-  const roles = invitableWorkspaceRoles(actor)
-  const [open, setOpen] = useState(false)
-  const createUser = useCreateUser()
-  const defaultValues: CreateUserInput = { name: '', email: '', workspaceRoleId: WORKSPACE_ROLE_IDS.Developer }
-  const form = useForm<CreateUserInput>({ resolver: zodResolver(createUserInputSchema), defaultValues })
-  const { errors } = form.formState
+export function InviteUserDialog({
+  onInvited,
+}: {
+  onInvited: (invite: CreateUserResponse) => void;
+}) {
+  const actor = useActor();
+  const roles = invitableWorkspaceRoles(actor);
+  const [open, setOpen] = useState(false);
+  const createUser = useCreateUser();
+  const defaultValues: CreateUserInput = {
+    name: '',
+    email: '',
+    workspaceRoleId: WORKSPACE_ROLE_IDS.Developer,
+  };
+  const form = useForm<CreateUserInput>({
+    resolver: zodResolver(createUserInputSchema),
+    defaultValues,
+  });
+  const { errors } = form.formState;
 
   const handleOpenChange = (next: boolean) => {
-    if (createUser.isPending) return
-    if (!next) form.reset(defaultValues)
-    setOpen(next)
-  }
+    if (createUser.isPending) return;
+    if (!next) form.reset(defaultValues);
+    setOpen(next);
+  };
 
   const onSubmit = form.handleSubmit((values) =>
     createUser.mutate(values, {
       onSuccess: (invite) => {
-        toast.success(`Invited ${invite.user.name}`)
-        form.reset(defaultValues)
-        setOpen(false)
-        onInvited(invite)
+        toast.success(`Invited ${invite.user.name}`);
+        form.reset(defaultValues);
+        setOpen(false);
+        onInvited(invite);
       },
       onError: (error) => handleFormError(error, form),
     }),
-  )
+  );
 
-  const roleOptions = roles.map((role) => ({ value: WORKSPACE_ROLE_IDS[role], label: role }))
+  const roleOptions = roles.map((role) => ({ value: WORKSPACE_ROLE_IDS[role], label: role }));
 
   return (
     <>
@@ -66,7 +77,8 @@ export function InviteUserDialog({ onInvited }: { onInvited: (invite: CreateUser
             <DialogHeader>
               <DialogTitle>Invite user</DialogTitle>
               <DialogDescription>
-                They&apos;ll be added as pending. You&apos;ll get a one-time activation link to share.
+                They&apos;ll be added as pending. You&apos;ll get a one-time activation link to
+                share.
               </DialogDescription>
             </DialogHeader>
             <FieldGroup>
@@ -112,7 +124,12 @@ export function InviteUserDialog({ onInvited }: { onInvited: (invite: CreateUser
               </Field>
             </FieldGroup>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} disabled={createUser.isPending}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleOpenChange(false)}
+                disabled={createUser.isPending}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={createUser.isPending}>
@@ -124,5 +141,5 @@ export function InviteUserDialog({ onInvited }: { onInvited: (invite: CreateUser
         </DialogContent>
       </Dialog>
     </>
-  )
+  );
 }

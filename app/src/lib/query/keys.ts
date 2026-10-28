@@ -1,4 +1,4 @@
-import type { ListQuery } from '@/lib/api/schemas'
+import type { ListQuery } from '@/lib/api/schemas';
 
 export const queryKeys = {
   me: () => ['me'] as const,
@@ -21,6 +21,7 @@ export const queryKeys = {
     project: (projectId: string) => ['issues', projectId] as const,
     lists: (projectId: string) => ['issues', projectId, 'list'] as const,
     list: (projectId: string, query: ListQuery) => ['issues', projectId, 'list', query] as const,
-    detail: (projectId: string, issueId: string) => ['issues', projectId, 'detail', issueId] as const,
+    detail: (projectId: string, issueId: string) =>
+      ['issues', projectId, 'detail', issueId] as const,
   },
-}
+};

@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import {
   DndContext,
@@ -11,81 +11,91 @@ import {
   type Announcements,
   type DragEndEvent,
   type DragStartEvent,
-} from '@dnd-kit/core'
-import { InfoIcon, PlusIcon } from 'lucide-react'
-import { useState } from 'react'
-import { toast } from 'sonner'
-import { ErrorState } from '@/components/common/ErrorState'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import { ISSUE_STATUS_LABELS, ISSUE_STATUSES, type Issue, type IssueStatus } from '@/lib/api/schemas'
-import { ISSUE_MODIFY_DENIED_REASON } from '@/lib/authz/can'
-import { useCan } from '@/lib/authz/useCan'
-import { notifyError } from '@/lib/forms/handleFormError'
-import { useUpdateIssue } from '../../mutations'
-import { useBoardIssues } from '../../queries'
-import { UNASSIGNED } from '../../schemas'
-import { useIssueFilters } from '../../useIssueFilters'
-import { CreateIssueDialog } from '../CreateIssueDialog'
-import { IssueFilterBar } from '../IssueFilterBar'
-import { BoardCardBody } from './BoardCard'
-import { BoardColumn } from './BoardColumn'
+} from '@dnd-kit/core';
+import { InfoIcon, PlusIcon } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { ErrorState } from '@/components/common/ErrorState';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import {
+  ISSUE_STATUS_LABELS,
+  ISSUE_STATUSES,
+  type Issue,
+  type IssueStatus,
+} from '@/lib/api/schemas';
+import { ISSUE_MODIFY_DENIED_REASON } from '@/lib/authz/can';
+import { useCan } from '@/lib/authz/useCan';
+import { notifyError } from '@/lib/forms/handleFormError';
+import { useUpdateIssue } from '../../mutations';
+import { useBoardIssues } from '../../queries';
+import { UNASSIGNED } from '../../schemas';
+import { useIssueFilters } from '../../useIssueFilters';
+import { CreateIssueDialog } from '../CreateIssueDialog';
+import { IssueFilterBar } from '../IssueFilterBar';
+import { BoardCardBody } from './BoardCard';
+import { BoardColumn } from './BoardColumn';
 
 function isStatus(value: unknown): value is IssueStatus {
-  return typeof value === 'string' && (ISSUE_STATUSES as readonly string[]).includes(value)
+  return typeof value === 'string' && (ISSUE_STATUSES as readonly string[]).includes(value);
 }
 
 export function BoardView({ projectId }: { projectId: string }) {
-  const { data, isLoading, error, refetch } = useBoardIssues(projectId)
-  const canUpdate = useCan('issues.update', { projectId })
-  const canCreate = useCan('issues.create', { projectId })
-  const updateIssue = useUpdateIssue(projectId)
-  const [activeIssue, setActiveIssue] = useState<Issue | null>(null)
-  const [createStatus, setCreateStatus] = useState<IssueStatus | null>(null)
-  const filters = useIssueFilters()
+  const { data, isLoading, error, refetch } = useBoardIssues(projectId);
+  const canUpdate = useCan('issues.update', { projectId });
+  const canCreate = useCan('issues.create', { projectId });
+  const updateIssue = useUpdateIssue(projectId);
+  const [activeIssue, setActiveIssue] = useState<Issue | null>(null);
+  const [createStatus, setCreateStatus] = useState<IssueStatus | null>(null);
+  const filters = useIssueFilters();
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
     useSensor(KeyboardSensor),
-  )
+  );
 
-  const allIssues = data?.data ?? []
+  const allIssues = data?.data ?? [];
   const issues = allIssues.filter(
     (issue) =>
       (filters.values.priority.length === 0 || filters.values.priority.includes(issue.priority)) &&
-      (filters.values.assignee.length === 0 || filters.values.assignee.includes(issue.assignee?.id ?? UNASSIGNED)),
-  )
-  const titleOf = (id: string | number) => issues.find((issue) => issue.id === id)?.title ?? 'Issue'
-  const columnOf = (id: string | number | undefined) => (isStatus(id) ? ISSUE_STATUS_LABELS[id] : 'no column')
+      (filters.values.assignee.length === 0 ||
+        filters.values.assignee.includes(issue.assignee?.id ?? UNASSIGNED)),
+  );
+  const titleOf = (id: string | number) =>
+    issues.find((issue) => issue.id === id)?.title ?? 'Issue';
+  const columnOf = (id: string | number | undefined) =>
+    isStatus(id) ? ISSUE_STATUS_LABELS[id] : 'no column';
 
   const announcements: Announcements = {
     onDragStart: ({ active }) => `Picked up ${titleOf(active.id)}.`,
     onDragOver: ({ active, over }) => `${titleOf(active.id)} is over ${columnOf(over?.id)}.`,
     onDragEnd: ({ active, over }) =>
-      over ? `${titleOf(active.id)} was moved to ${columnOf(over.id)}.` : `${titleOf(active.id)} was dropped.`,
+      over
+        ? `${titleOf(active.id)} was moved to ${columnOf(over.id)}.`
+        : `${titleOf(active.id)} was dropped.`,
     onDragCancel: ({ active }) => `Moving ${titleOf(active.id)} was cancelled.`,
-  }
+  };
 
   const onDragStart = ({ active }: DragStartEvent) => {
-    setActiveIssue((active.data.current?.issue as Issue | undefined) ?? null)
-  }
+    setActiveIssue((active.data.current?.issue as Issue | undefined) ?? null);
+  };
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
-    setActiveIssue(null)
-    const issue = active.data.current?.issue as Issue | undefined
-    if (!issue || !isStatus(over?.id) || over.id === issue.status) return
-    const status = over.id
+    setActiveIssue(null);
+    const issue = active.data.current?.issue as Issue | undefined;
+    if (!issue || !isStatus(over?.id) || over.id === issue.status) return;
+    const status = over.id;
     updateIssue.mutate(
       { issueId: issue.id, input: { status } },
       {
         onSuccess: () => toast.success(`Moved to ${ISSUE_STATUS_LABELS[status]}`),
         onError: notifyError,
       },
-    )
-  }
+    );
+  };
 
-  if (error) return <ErrorState error={error} onRetry={() => refetch()} />
+  if (error) return <ErrorState error={error} onRetry={() => refetch()} />;
 
   return (
     <div className="flex flex-col gap-4">
@@ -96,7 +106,9 @@ export function BoardView({ projectId }: { projectId: string }) {
             <AlertDescription>Read-only board. {ISSUE_MODIFY_DENIED_REASON}</AlertDescription>
           </Alert>
         ) : (
-          <p className="text-sm text-muted-foreground">Drag cards between columns to change their status.</p>
+          <p className="text-sm text-muted-foreground">
+            Drag cards between columns to change their status.
+          </p>
         )}
         {canCreate && (
           <Button onClick={() => setCreateStatus('ToDo')}>
@@ -134,12 +146,15 @@ export function BoardView({ projectId }: { projectId: string }) {
             />
           ))}
         </div>
-        <DragOverlay dropAnimation={null}>{activeIssue ? <BoardCardBody issue={activeIssue} overlay /> : null}</DragOverlay>
+        <DragOverlay dropAnimation={null}>
+          {activeIssue ? <BoardCardBody issue={activeIssue} overlay /> : null}
+        </DragOverlay>
       </DndContext>
 
       {data && data.meta.pagination.totalItems > allIssues.length && (
         <p className="text-xs text-muted-foreground">
-          Showing the {allIssues.length} most recently updated issues. Use the Issues tab to see everything.
+          Showing the {allIssues.length} most recently updated issues. Use the Issues tab to see
+          everything.
         </p>
       )}
 
@@ -150,5 +165,5 @@ export function BoardView({ projectId }: { projectId: string }) {
         onOpenChange={(open) => !open && setCreateStatus(null)}
       />
     </div>
-  )
+  );
 }

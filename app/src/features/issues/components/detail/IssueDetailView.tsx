@@ -1,40 +1,48 @@
-'use client'
+'use client';
 
-import { ArrowLeftIcon, Trash2Icon } from 'lucide-react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useState, type ReactNode } from 'react'
-import { toast } from 'sonner'
-import { z } from 'zod'
-import { ConfirmDialog } from '@/components/common/ConfirmDialog'
-import { DisabledReason } from '@/components/common/DisabledReason'
-import { ErrorState } from '@/components/common/ErrorState'
-import { InlineEditText } from '@/components/common/InlineEditText'
-import { NoAccessState } from '@/components/common/NoAccessState'
-import { OptionSelect } from '@/components/common/OptionSelect'
-import { UserAvatar } from '@/components/common/UserAvatar'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
-import { Skeleton } from '@/components/ui/skeleton'
-import { isForbiddenOrNotFound, type Issue, type UpdateIssueInput } from '@/lib/api/schemas'
-import { ISSUE_MODIFY_DENIED_REASON } from '@/lib/authz/can'
-import { useCan } from '@/lib/authz/useCan'
-import { formatDateTime, shortIssueId } from '@/lib/format'
-import { notifyError } from '@/lib/forms/handleFormError'
-import { useDeleteIssue, useUpdateIssue } from '../../mutations'
-import { PRIORITY_OPTIONS, STATUS_OPTIONS } from '../../options'
-import { useIssue } from '../../queries'
-import { AssigneeSelect } from '../AssigneeSelect'
-import { DescriptionEditor } from './DescriptionEditor'
+import { ArrowLeftIcon, Trash2Icon } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState, type ReactNode } from 'react';
+import { toast } from 'sonner';
+import { z } from 'zod';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { DisabledReason } from '@/components/common/DisabledReason';
+import { ErrorState } from '@/components/common/ErrorState';
+import { InlineEditText } from '@/components/common/InlineEditText';
+import { NoAccessState } from '@/components/common/NoAccessState';
+import { OptionSelect } from '@/components/common/OptionSelect';
+import { UserAvatar } from '@/components/common/UserAvatar';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
+import { isForbiddenOrNotFound, type Issue, type UpdateIssueInput } from '@/lib/api/schemas';
+import { ISSUE_MODIFY_DENIED_REASON } from '@/lib/authz/can';
+import { useCan } from '@/lib/authz/useCan';
+import { formatDateTime, shortIssueId } from '@/lib/format';
+import { notifyError } from '@/lib/forms/handleFormError';
+import { useDeleteIssue, useUpdateIssue } from '../../mutations';
+import { PRIORITY_OPTIONS, STATUS_OPTIONS } from '../../options';
+import { useIssue } from '../../queries';
+import { AssigneeSelect } from '../AssigneeSelect';
+import { DescriptionEditor } from './DescriptionEditor';
 
 const titleSchema = z
   .string()
   .trim()
   .min(1, 'Title is required')
-  .max(200, 'Title must be 200 characters or fewer')
+  .max(200, 'Title must be 200 characters or fewer');
 
-function MetaRow({ label, htmlFor, children }: { label: string; htmlFor?: string; children: ReactNode }) {
+function MetaRow({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  children: ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-1.5">
       {htmlFor ? (
@@ -46,7 +54,7 @@ function MetaRow({ label, htmlFor, children }: { label: string; htmlFor?: string
       )}
       {children}
     </div>
-  )
+  );
 }
 
 function DetailSkeleton() {
@@ -58,54 +66,64 @@ function DetailSkeleton() {
       </div>
       <Skeleton className="h-80 w-full rounded-2xl" />
     </div>
-  )
+  );
 }
 
 export function IssueDetailView({ projectId, issueId }: { projectId: string; issueId: string }) {
-  const router = useRouter()
-  const { data: issue, isLoading, error, refetch } = useIssue(projectId, issueId)
-  const canUpdate = useCan('issues.update', { projectId })
-  const canDelete = useCan('issues.delete', { projectId })
-  const updateIssue = useUpdateIssue(projectId)
-  const deleteIssue = useDeleteIssue(projectId)
-  const [confirmOpen, setConfirmOpen] = useState(false)
+  const router = useRouter();
+  const { data: issue, isLoading, error, refetch } = useIssue(projectId, issueId);
+  const canUpdate = useCan('issues.update', { projectId });
+  const canDelete = useCan('issues.delete', { projectId });
+  const updateIssue = useUpdateIssue(projectId);
+  const deleteIssue = useDeleteIssue(projectId);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   if (error) {
     return isForbiddenOrNotFound(error) ? (
       <NoAccessState>
-        <Button variant="outline" nativeButton={false} render={<Link href={`/projects/${projectId}/issues`} />}>
+        <Button
+          variant="outline"
+          nativeButton={false}
+          render={<Link href={`/projects/${projectId}/issues`} />}
+        >
           Back to issues
         </Button>
       </NoAccessState>
     ) : (
       <ErrorState error={error} onRetry={() => refetch()} />
-    )
+    );
   }
-  if (isLoading || !issue) return <DetailSkeleton />
+  if (isLoading || !issue) return <DetailSkeleton />;
 
   const save = async (input: UpdateIssueInput, optimistic?: Partial<Issue>): Promise<boolean> => {
     try {
-      await updateIssue.mutateAsync({ issueId, input, optimistic })
-      toast.success('Issue updated')
-      return true
+      await updateIssue.mutateAsync({ issueId, input, optimistic });
+      toast.success('Issue updated');
+      return true;
     } catch (mutationError) {
-      notifyError(mutationError)
-      return false
+      notifyError(mutationError);
+      return false;
     }
-  }
+  };
 
   const onDelete = () =>
     deleteIssue.mutate(issueId, {
       onSuccess: () => {
-        toast.success('Issue deleted')
-        router.replace(`/projects/${projectId}/board`)
+        toast.success('Issue deleted');
+        router.replace(`/projects/${projectId}/board`);
       },
       onError: notifyError,
-    })
+    });
 
   return (
     <div className="flex flex-col gap-6">
-      <Button variant="ghost" size="sm" className="self-start" nativeButton={false} render={<Link href={`/projects/${projectId}/board`} />}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="self-start"
+        nativeButton={false}
+        render={<Link href={`/projects/${projectId}/board`} />}
+      >
         <ArrowLeftIcon data-icon="inline-start" />
         Back to board
       </Button>
@@ -113,7 +131,9 @@ export function IssueDetailView({ projectId, issueId }: { projectId: string; iss
       <div className="grid items-start gap-6 lg:grid-cols-[1fr_20rem]">
         <article className="flex min-w-0 flex-col gap-6">
           <div className="flex flex-col gap-1">
-            <span className="font-mono text-xs text-muted-foreground">{shortIssueId(issue.id)}</span>
+            <span className="font-mono text-xs text-muted-foreground">
+              {shortIssueId(issue.id)}
+            </span>
             <InlineEditText
               value={issue.title}
               schema={titleSchema}
@@ -173,7 +193,9 @@ export function IssueDetailView({ projectId, issueId }: { projectId: string; iss
                     value={issue.assignee}
                     disabled={!canUpdate}
                     className="w-full"
-                    onChange={(assignee) => void save({ assigneeId: assignee?.id ?? null }, { assignee })}
+                    onChange={(assignee) =>
+                      void save({ assigneeId: assignee?.id ?? null }, { assignee })
+                    }
                   />
                 </DisabledReason>
               </MetaRow>
@@ -204,7 +226,11 @@ export function IssueDetailView({ projectId, issueId }: { projectId: string; iss
                 <CardDescription>Deleting an issue is permanent.</CardDescription>
               </CardHeader>
               <CardContent>
-                <Button variant="destructive" className="w-full" onClick={() => setConfirmOpen(true)}>
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={() => setConfirmOpen(true)}
+                >
                   <Trash2Icon data-icon="inline-start" />
                   Delete issue
                 </Button>
@@ -224,5 +250,5 @@ export function IssueDetailView({ projectId, issueId }: { projectId: string; iss
         onConfirm={onDelete}
       />
     </div>
-  )
+  );
 }

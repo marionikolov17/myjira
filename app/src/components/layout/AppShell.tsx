@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
-import { Sidebar } from './Sidebar'
-import { Topbar } from './Topbar'
+import type { ReactNode } from 'react';
+import { Sidebar } from './Sidebar';
+import { Topbar } from './Topbar';
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -19,5 +19,5 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
       </div>
     </div>
-  )
+  );
 }

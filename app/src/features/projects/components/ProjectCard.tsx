@@ -1,10 +1,17 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import type { Project } from '@/lib/api/schemas'
-import { formatRelative } from '@/lib/format'
-import { MemberAvatarStack } from './MemberAvatarStack'
+import Link from 'next/link';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import type { Project } from '@/lib/api/schemas';
+import { formatRelative } from '@/lib/format';
+import { MemberAvatarStack } from './MemberAvatarStack';
 
 export function ProjectCard({ project, compact = false }: { project: Project; compact?: boolean }) {
   return (
@@ -29,5 +36,5 @@ export function ProjectCard({ project, compact = false }: { project: Project; co
         </CardFooter>
       </Card>
     </Link>
-  )
+  );
 }

@@ -1,37 +1,37 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import { useParams, usePathname } from 'next/navigation'
-import type { ReactNode } from 'react'
-import { toast } from 'sonner'
-import { ErrorState } from '@/components/common/ErrorState'
-import { InlineEditText } from '@/components/common/InlineEditText'
-import { NoAccessState } from '@/components/common/NoAccessState'
-import { Breadcrumbs, type Crumb } from '@/components/layout/Breadcrumbs'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
-import { isForbiddenOrNotFound } from '@/lib/api/schemas'
-import { useCan } from '@/lib/authz/useCan'
-import { notifyError } from '@/lib/forms/handleFormError'
-import { shortIssueId } from '@/lib/format'
-import { useUpdateProject } from '../mutations'
-import { useProject } from '../queries'
-import { createProjectInputSchema } from '../schemas'
-import { ProjectSubNav } from './ProjectSubNav'
+import Link from 'next/link';
+import { useParams, usePathname } from 'next/navigation';
+import type { ReactNode } from 'react';
+import { toast } from 'sonner';
+import { ErrorState } from '@/components/common/ErrorState';
+import { InlineEditText } from '@/components/common/InlineEditText';
+import { NoAccessState } from '@/components/common/NoAccessState';
+import { Breadcrumbs, type Crumb } from '@/components/layout/Breadcrumbs';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { isForbiddenOrNotFound } from '@/lib/api/schemas';
+import { useCan } from '@/lib/authz/useCan';
+import { notifyError } from '@/lib/forms/handleFormError';
+import { shortIssueId } from '@/lib/format';
+import { useUpdateProject } from '../mutations';
+import { useProject } from '../queries';
+import { createProjectInputSchema } from '../schemas';
+import { ProjectSubNav } from './ProjectSubNav';
 
 const TAB_LABELS: Record<string, string> = {
   board: 'Board',
   issues: 'Issues',
   members: 'Members',
   settings: 'Settings',
-}
+};
 
 export function ProjectLayoutView({ children }: { children: ReactNode }) {
-  const { projectId, issueId } = useParams<{ projectId: string; issueId?: string }>()
-  const pathname = usePathname()
-  const { data: project, isLoading, error, refetch } = useProject(projectId)
-  const canUpdate = useCan('projects.update', { projectId })
-  const updateProject = useUpdateProject(projectId)
+  const { projectId, issueId } = useParams<{ projectId: string; issueId?: string }>();
+  const pathname = usePathname();
+  const { data: project, isLoading, error, refetch } = useProject(projectId);
+  const canUpdate = useCan('projects.update', { projectId });
+  const updateProject = useUpdateProject(projectId);
 
   if (error) {
     return isForbiddenOrNotFound(error) ? (
@@ -42,16 +42,19 @@ export function ProjectLayoutView({ children }: { children: ReactNode }) {
       </NoAccessState>
     ) : (
       <ErrorState error={error} onRetry={() => refetch()} />
-    )
+    );
   }
 
-  const tab = pathname.split('/')[3] ?? 'board'
+  const tab = pathname.split('/')[3] ?? 'board';
   const crumbs: Crumb[] = [
     { label: 'Projects', href: '/projects' },
     { label: project?.name ?? null, href: `/projects/${projectId}/board` },
-    { label: TAB_LABELS[tab] ?? 'Board', href: issueId ? `/projects/${projectId}/issues` : undefined },
-  ]
-  if (issueId) crumbs.push({ label: shortIssueId(issueId) })
+    {
+      label: TAB_LABELS[tab] ?? 'Board',
+      href: issueId ? `/projects/${projectId}/issues` : undefined,
+    },
+  ];
+  if (issueId) crumbs.push({ label: shortIssueId(issueId) });
 
   return (
     <div className="flex flex-col gap-6">
@@ -77,7 +80,9 @@ export function ProjectLayoutView({ children }: { children: ReactNode }) {
               }
             />
             {project.description && (
-              <p className="max-w-3xl text-sm text-muted-foreground text-pretty">{project.description}</p>
+              <p className="max-w-3xl text-sm text-muted-foreground text-pretty">
+                {project.description}
+              </p>
             )}
           </div>
         )}
@@ -85,5 +90,5 @@ export function ProjectLayoutView({ children }: { children: ReactNode }) {
       </div>
       {project ? children : null}
     </div>
-  )
+  );
 }

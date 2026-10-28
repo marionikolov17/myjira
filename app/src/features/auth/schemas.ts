@@ -1,1 +1,1 @@
-export { loginInputSchema, type LoginInput } from '@/lib/api/schemas'
+export { loginInputSchema, type LoginInput } from '@/lib/api/schemas';

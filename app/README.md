@@ -45,7 +45,7 @@ The transport is chosen in one place, `src/lib/api/transport/index.ts`:
 ```ts
 export const transport: Transport = USE_MOCKS
   ? createMockTransport({ getToken })
-  : createHttpTransport({ baseUrl: API_BASE_URL, getToken })
+  : createHttpTransport({ baseUrl: API_BASE_URL, getToken });
 ```
 
 You can switch with an environment variable, without touching code:
@@ -72,28 +72,28 @@ When the real transport is active, `demoCredentials` is `null`, so the login scr
   - `404` renders not-found.
   - `422` validation errors map onto form fields via `handleFormError`.
 
-| Method                    | Route                                                  |
-| ------------------------- | ------------------------------------------------------ |
-| `login`                   | `POST /auth/login`                                     |
-| `getCurrentUser`          | `GET /users/me`                                        |
-| `createUser`              | `POST /users`                                          |
-| `listUsers`               | `GET /users`                                           |
-| `getUserById`             | `GET /users/:id`                                       |
-| `updateUserRole`          | `PATCH /users/:id/role`                                |
-| `createProject`           | `POST /projects`                                       |
-| `listProjects`            | `GET /projects`                                        |
-| `getProjectById`          | `GET /projects/:id`                                    |
-| `updateProject`           | `PATCH /projects/:id`                                  |
-| `deleteProject`           | `DELETE /projects/:id`                                 |
-| `addProjectMember`        | `POST /projects/:projectId/members`                    |
-| `listProjectMembers`      | `GET /projects/:projectId/members`                     |
-| `updateProjectMemberRole` | `PATCH /projects/:projectId/members/:memberId/role`    |
-| `removeProjectMember`     | `DELETE /projects/:projectId/members/:memberId`        |
-| `createIssue`             | `POST /projects/:projectId/issues`                     |
-| `listIssues`              | `GET /projects/:projectId/issues`                      |
-| `getIssueById`            | `GET /projects/:projectId/issues/:issueId`             |
-| `updateIssue`             | `PATCH /projects/:projectId/issues/:issueId`           |
-| `deleteIssue`             | `DELETE /projects/:projectId/issues/:issueId`          |
+| Method                    | Route                                               |
+| ------------------------- | --------------------------------------------------- |
+| `login`                   | `POST /auth/login`                                  |
+| `getCurrentUser`          | `GET /users/me`                                     |
+| `createUser`              | `POST /users`                                       |
+| `listUsers`               | `GET /users`                                        |
+| `getUserById`             | `GET /users/:id`                                    |
+| `updateUserRole`          | `PATCH /users/:id/role`                             |
+| `createProject`           | `POST /projects`                                    |
+| `listProjects`            | `GET /projects`                                     |
+| `getProjectById`          | `GET /projects/:id`                                 |
+| `updateProject`           | `PATCH /projects/:id`                               |
+| `deleteProject`           | `DELETE /projects/:id`                              |
+| `addProjectMember`        | `POST /projects/:projectId/members`                 |
+| `listProjectMembers`      | `GET /projects/:projectId/members`                  |
+| `updateProjectMemberRole` | `PATCH /projects/:projectId/members/:memberId/role` |
+| `removeProjectMember`     | `DELETE /projects/:projectId/members/:memberId`     |
+| `createIssue`             | `POST /projects/:projectId/issues`                  |
+| `listIssues`              | `GET /projects/:projectId/issues`                   |
+| `getIssueById`            | `GET /projects/:projectId/issues/:issueId`          |
+| `updateIssue`             | `PATCH /projects/:projectId/issues/:issueId`        |
+| `deleteIssue`             | `DELETE /projects/:projectId/issues/:issueId`       |
 
 Every response is parsed with the Zod schemas in `src/lib/api/schemas`. If the backend drifts from the contract, you get a clear parse error at the client boundary instead of a broken UI.
 

@@ -1,40 +1,49 @@
-'use client'
+'use client';
 
-import { XIcon } from 'lucide-react'
-import { MultiSelectFilter, type FilterOption } from '@/components/common/MultiSelectFilter'
-import { Button } from '@/components/ui/button'
-import { useProjectMembers } from '@/features/members/queries'
-import { PRIORITY_OPTIONS, STATUS_OPTIONS } from '../options'
-import { UNASSIGNED } from '../schemas'
-import type { IssueFilterKey, IssueFilterValues } from '../useIssueFilters'
+import { XIcon } from 'lucide-react';
+import { MultiSelectFilter, type FilterOption } from '@/components/common/MultiSelectFilter';
+import { Button } from '@/components/ui/button';
+import { useProjectMembers } from '@/features/members/queries';
+import { PRIORITY_OPTIONS, STATUS_OPTIONS } from '../options';
+import { UNASSIGNED } from '../schemas';
+import type { IssueFilterKey, IssueFilterValues } from '../useIssueFilters';
 
 const LABELS: Record<IssueFilterKey, string> = {
   status: 'Status',
   priority: 'Priority',
   assignee: 'Assignee',
   creator: 'Creator',
-}
+};
 
 type IssueFilterBarProps = {
-  projectId: string
-  keys: IssueFilterKey[]
-  values: IssueFilterValues
-  onChange: (key: IssueFilterKey, next: string[]) => void
-  onClear: () => void
-}
+  projectId: string;
+  keys: IssueFilterKey[];
+  values: IssueFilterValues;
+  onChange: (key: IssueFilterKey, next: string[]) => void;
+  onClear: () => void;
+};
 
-export function IssueFilterBar({ projectId, keys, values, onChange, onClear }: IssueFilterBarProps) {
-  const { data: members = [] } = useProjectMembers(projectId)
-  const memberOptions: FilterOption[] = members.map((member) => ({ value: member.user.id, label: member.user.name }))
+export function IssueFilterBar({
+  projectId,
+  keys,
+  values,
+  onChange,
+  onClear,
+}: IssueFilterBarProps) {
+  const { data: members = [] } = useProjectMembers(projectId);
+  const memberOptions: FilterOption[] = members.map((member) => ({
+    value: member.user.id,
+    label: member.user.name,
+  }));
 
   const optionsFor: Record<IssueFilterKey, FilterOption[]> = {
     status: STATUS_OPTIONS,
     priority: PRIORITY_OPTIONS,
     assignee: [{ value: UNASSIGNED, label: 'Unassigned' }, ...memberOptions],
     creator: memberOptions,
-  }
+  };
 
-  const active = keys.some((key) => values[key].length > 0)
+  const active = keys.some((key) => values[key].length > 0);
 
   return (
     <div role="group" aria-label="Filter issues" className="flex flex-wrap items-center gap-2">
@@ -54,5 +63,5 @@ export function IssueFilterBar({ projectId, keys, values, onChange, onClear }: I
         </Button>
       )}
     </div>
-  )
+  );
 }

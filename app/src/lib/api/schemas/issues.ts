@@ -1,13 +1,13 @@
-import { z } from 'zod'
-import { timestampSchema, userRefSchema } from './common'
+import { z } from 'zod';
+import { timestampSchema, userRefSchema } from './common';
 
-export const ISSUE_STATUSES = ['ToDo', 'InProgress', 'Done'] as const
-export const issueStatusSchema = z.enum(ISSUE_STATUSES)
-export type IssueStatus = z.infer<typeof issueStatusSchema>
+export const ISSUE_STATUSES = ['ToDo', 'InProgress', 'Done'] as const;
+export const issueStatusSchema = z.enum(ISSUE_STATUSES);
+export type IssueStatus = z.infer<typeof issueStatusSchema>;
 
-export const ISSUE_PRIORITIES = ['Low', 'Medium', 'High'] as const
-export const issuePrioritySchema = z.enum(ISSUE_PRIORITIES)
-export type IssuePriority = z.infer<typeof issuePrioritySchema>
+export const ISSUE_PRIORITIES = ['Low', 'Medium', 'High'] as const;
+export const issuePrioritySchema = z.enum(ISSUE_PRIORITIES);
+export type IssuePriority = z.infer<typeof issuePrioritySchema>;
 
 export const issueSchema = z.object({
   id: z.uuid(),
@@ -20,15 +20,15 @@ export const issueSchema = z.object({
   assignee: userRefSchema.nullable(),
   createdAt: timestampSchema,
   updatedAt: timestampSchema,
-})
-export type Issue = z.infer<typeof issueSchema>
+});
+export type Issue = z.infer<typeof issueSchema>;
 
 const issueTitle = z
   .string()
   .trim()
   .min(1, 'Title is required')
-  .max(200, 'Title must be 200 characters or fewer')
-const issueDescription = z.string().max(5000, 'Description must be 5000 characters or fewer')
+  .max(200, 'Title must be 200 characters or fewer');
+const issueDescription = z.string().max(5000, 'Description must be 5000 characters or fewer');
 
 export const createIssueInputSchema = z.object({
   title: issueTitle,
@@ -36,8 +36,8 @@ export const createIssueInputSchema = z.object({
   status: issueStatusSchema.optional(),
   priority: issuePrioritySchema.optional(),
   assigneeId: z.uuid('Select a valid assignee').nullable().optional(),
-})
-export type CreateIssueInput = z.infer<typeof createIssueInputSchema>
+});
+export type CreateIssueInput = z.infer<typeof createIssueInputSchema>;
 
 export const updateIssueInputSchema = z.object({
   title: issueTitle.optional(),
@@ -45,11 +45,11 @@ export const updateIssueInputSchema = z.object({
   status: issueStatusSchema.optional(),
   priority: issuePrioritySchema.optional(),
   assigneeId: z.uuid('Select a valid assignee').nullable().optional(),
-})
-export type UpdateIssueInput = z.infer<typeof updateIssueInputSchema>
+});
+export type UpdateIssueInput = z.infer<typeof updateIssueInputSchema>;
 
 export const ISSUE_STATUS_LABELS: Record<IssueStatus, string> = {
   ToDo: 'To do',
   InProgress: 'In progress',
   Done: 'Done',
-}
+};

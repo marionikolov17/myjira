@@ -1,22 +1,22 @@
-'use client'
+'use client';
 
-import { KanbanSquareIcon } from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
-import { useAuthHydrated } from '@/components/layout/useAuthHydrated'
-import { ThemeToggle } from '@/components/layout/ThemeToggle'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { LoginForm } from '@/features/auth/components/LoginForm'
-import { useAuthStore } from '@/stores/authStore'
+import { KanbanSquareIcon } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { useAuthHydrated } from '@/components/layout/useAuthHydrated';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { LoginForm } from '@/features/auth/components/LoginForm';
+import { useAuthStore } from '@/stores/authStore';
 
 export default function LoginPage() {
-  const router = useRouter()
-  const hydrated = useAuthHydrated()
-  const status = useAuthStore((state) => state.status)
+  const router = useRouter();
+  const hydrated = useAuthHydrated();
+  const status = useAuthStore((state) => state.status);
 
   useEffect(() => {
-    if (hydrated && status === 'authenticated') router.replace('/dashboard')
-  }, [hydrated, status, router])
+    if (hydrated && status === 'authenticated') router.replace('/dashboard');
+  }, [hydrated, status, router]);
 
   return (
     <main className="relative flex min-h-svh items-center justify-center bg-muted/40 px-4 py-10">
@@ -41,5 +41,5 @@ export default function LoginPage() {
         </Card>
       </div>
     </main>
-  )
+  );
 }

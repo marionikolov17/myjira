@@ -1,28 +1,35 @@
-'use client'
+'use client';
 
-import { useDroppable } from '@dnd-kit/core'
-import { PlusIcon } from 'lucide-react'
-import { StatusIcon } from '@/components/common/StatusBadge'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
-import { ISSUE_STATUS_LABELS, type Issue, type IssueStatus } from '@/lib/api/schemas'
-import { cn } from '@/lib/utils'
-import { BoardCard } from './BoardCard'
+import { useDroppable } from '@dnd-kit/core';
+import { PlusIcon } from 'lucide-react';
+import { StatusIcon } from '@/components/common/StatusBadge';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ISSUE_STATUS_LABELS, type Issue, type IssueStatus } from '@/lib/api/schemas';
+import { cn } from '@/lib/utils';
+import { BoardCard } from './BoardCard';
 
 type BoardColumnProps = {
-  status: IssueStatus
-  issues: Issue[]
-  isLoading: boolean
-  canDrag: boolean
-  canCreate: boolean
-  onCreate: (status: IssueStatus) => void
-}
+  status: IssueStatus;
+  issues: Issue[];
+  isLoading: boolean;
+  canDrag: boolean;
+  canCreate: boolean;
+  onCreate: (status: IssueStatus) => void;
+};
 
-export function BoardColumn({ status, issues, isLoading, canDrag, canCreate, onCreate }: BoardColumnProps) {
-  const { setNodeRef, isOver } = useDroppable({ id: status })
-  const label = ISSUE_STATUS_LABELS[status]
-  const headingId = `board-column-${status}`
+export function BoardColumn({
+  status,
+  issues,
+  isLoading,
+  canDrag,
+  canCreate,
+  onCreate,
+}: BoardColumnProps) {
+  const { setNodeRef, isOver } = useDroppable({ id: status });
+  const label = ISSUE_STATUS_LABELS[status];
+  const headingId = `board-column-${status}`;
 
   return (
     <section
@@ -42,7 +49,12 @@ export function BoardColumn({ status, issues, isLoading, canDrag, canCreate, onC
           </Badge>
         </h2>
         {canCreate && (
-          <Button variant="ghost" size="icon-sm" onClick={() => onCreate(status)} aria-label={`New issue in ${label}`}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => onCreate(status)}
+            aria-label={`New issue in ${label}`}
+          >
             <PlusIcon />
           </Button>
         )}
@@ -62,5 +74,5 @@ export function BoardColumn({ status, issues, isLoading, canDrag, canCreate, onC
         )}
       </ul>
     </section>
-  )
+  );
 }

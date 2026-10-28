@@ -1,15 +1,15 @@
-'use client'
+'use client';
 
-import { useDraggable } from '@dnd-kit/core'
-import { GripVerticalIcon } from 'lucide-react'
-import Link from 'next/link'
-import { PriorityIcon } from '@/components/common/PriorityBadge'
-import { UserAvatar } from '@/components/common/UserAvatar'
-import type { Issue } from '@/lib/api/schemas'
-import { shortIssueId } from '@/lib/format'
-import { cn } from '@/lib/utils'
+import { useDraggable } from '@dnd-kit/core';
+import { GripVerticalIcon } from 'lucide-react';
+import Link from 'next/link';
+import { PriorityIcon } from '@/components/common/PriorityBadge';
+import { UserAvatar } from '@/components/common/UserAvatar';
+import type { Issue } from '@/lib/api/schemas';
+import { shortIssueId } from '@/lib/format';
+import { cn } from '@/lib/utils';
 
-type BoardCardProps = { issue: Issue; draggable: boolean; overlay?: boolean }
+type BoardCardProps = { issue: Issue; draggable: boolean; overlay?: boolean };
 
 export function BoardCardBody({ issue, overlay = false }: { issue: Issue; overlay?: boolean }) {
   return (
@@ -34,7 +34,7 @@ export function BoardCardBody({ issue, overlay = false }: { issue: Issue; overla
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 export function BoardCard({ issue, draggable }: BoardCardProps) {
@@ -42,17 +42,24 @@ export function BoardCard({ issue, draggable }: BoardCardProps) {
     id: issue.id,
     data: { issue },
     disabled: !draggable,
-  })
+  });
 
   // Pointer sensors activate from the whole card; keyboard activation lives on the handle so
   // Enter on the title link still navigates instead of starting a drag.
-  const { onKeyDown, ...pointerListeners } = (listeners ?? {}) as Record<string, (event: React.SyntheticEvent) => void>
+  const { onKeyDown, ...pointerListeners } = (listeners ?? {}) as Record<
+    string,
+    (event: React.SyntheticEvent) => void
+  >;
 
   return (
     <li
       ref={setNodeRef}
       {...pointerListeners}
-      className={cn('group relative', draggable && 'cursor-grab touch-manipulation', isDragging && 'opacity-40')}
+      className={cn(
+        'group relative',
+        draggable && 'cursor-grab touch-manipulation',
+        isDragging && 'opacity-40',
+      )}
     >
       <BoardCardBody issue={issue} />
       {draggable && (
@@ -69,5 +76,5 @@ export function BoardCard({ issue, draggable }: BoardCardProps) {
         </button>
       )}
     </li>
-  )
+  );
 }

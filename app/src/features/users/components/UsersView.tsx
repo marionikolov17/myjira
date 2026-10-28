@@ -1,69 +1,80 @@
-'use client'
+'use client';
 
-import { parseAsInteger, parseAsStringLiteral, useQueryStates } from 'nuqs'
-import { useState } from 'react'
-import { toast } from 'sonner'
-import { type DataTableColumn, DataTable } from '@/components/common/DataTable'
-import { ErrorState } from '@/components/common/ErrorState'
-import { OptionSelect } from '@/components/common/OptionSelect'
-import { PageHeader } from '@/components/common/PageHeader'
-import { PaginationBar } from '@/components/common/PaginationBar'
-import { RoleBadge } from '@/components/common/RoleBadge'
-import { UserAvatar } from '@/components/common/UserAvatar'
-import { Badge } from '@/components/ui/badge'
+import { parseAsInteger, parseAsStringLiteral, useQueryStates } from 'nuqs';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { type DataTableColumn, DataTable } from '@/components/common/DataTable';
+import { ErrorState } from '@/components/common/ErrorState';
+import { OptionSelect } from '@/components/common/OptionSelect';
+import { PageHeader } from '@/components/common/PageHeader';
+import { PaginationBar } from '@/components/common/PaginationBar';
+import { RoleBadge } from '@/components/common/RoleBadge';
+import { UserAvatar } from '@/components/common/UserAvatar';
+import { Badge } from '@/components/ui/badge';
 import {
   WORKSPACE_ROLE_IDS,
   workspaceRoleNameById,
   type CreateUserResponse,
   type User,
-} from '@/lib/api/schemas'
-import { canChangeUserRole } from '@/lib/authz/can'
-import { PermissionGate } from '@/lib/authz/PermissionGate'
-import { useActor } from '@/lib/authz/useCan'
-import { formatDate } from '@/lib/format'
-import { notifyError } from '@/lib/forms/handleFormError'
-import { useUpdateUserRole } from '../mutations'
-import { useUsers } from '../queries'
-import { USER_SORT_OPTIONS } from '../schemas'
-import { ActivationLinkDialog } from './ActivationLinkDialog'
-import { InviteUserDialog } from './InviteUserDialog'
+} from '@/lib/api/schemas';
+import { canChangeUserRole } from '@/lib/authz/can';
+import { PermissionGate } from '@/lib/authz/PermissionGate';
+import { useActor } from '@/lib/authz/useCan';
+import { formatDate } from '@/lib/format';
+import { notifyError } from '@/lib/forms/handleFormError';
+import { useUpdateUserRole } from '../mutations';
+import { useUsers } from '../queries';
+import { USER_SORT_OPTIONS } from '../schemas';
+import { ActivationLinkDialog } from './ActivationLinkDialog';
+import { InviteUserDialog } from './InviteUserDialog';
 
-const PAGE_SIZE = 12
-const SORT_VALUES = USER_SORT_OPTIONS.map((option) => option.value)
-type UserSort = (typeof SORT_VALUES)[number]
-const DEFAULT_SORT: UserSort = 'name'
+const PAGE_SIZE = 12;
+const SORT_VALUES = USER_SORT_OPTIONS.map((option) => option.value);
+type UserSort = (typeof SORT_VALUES)[number];
+const DEFAULT_SORT: UserSort = 'name';
 
-const ROLE_OPTIONS = (['Admin', 'Developer'] as const).map((role) => ({ value: WORKSPACE_ROLE_IDS[role], label: role }))
+const ROLE_OPTIONS = (['Admin', 'Developer'] as const).map((role) => ({
+  value: WORKSPACE_ROLE_IDS[role],
+  label: role,
+}));
 
 export function UsersView() {
-  const actor = useActor()
+  const actor = useActor();
   const [{ page, sort }, setParams] = useQueryStates(
     {
       page: parseAsInteger.withDefault(1),
       sort: parseAsStringLiteral(SORT_VALUES).withDefault(DEFAULT_SORT),
     },
     { history: 'replace' },
-  )
-  const { data, isLoading, error, refetch } = useUsers({ page: Math.max(1, page), pageSize: PAGE_SIZE, sort })
-  const updateRole = useUpdateUserRole()
-  const [invite, setInvite] = useState<CreateUserResponse | null>(null)
+  );
+  const { data, isLoading, error, refetch } = useUsers({
+    page: Math.max(1, page),
+    pageSize: PAGE_SIZE,
+    sort,
+  });
+  const updateRole = useUpdateUserRole();
+  const [invite, setInvite] = useState<CreateUserResponse | null>(null);
 
   const setSort = (next: string | null) => {
-    const value = (SORT_VALUES as readonly string[]).includes(next ?? '') ? (next as UserSort) : null
-    void setParams({ sort: value, page: null })
-  }
+    const value = (SORT_VALUES as readonly string[]).includes(next ?? '')
+      ? (next as UserSort)
+      : null;
+    void setParams({ sort: value, page: null });
+  };
 
   const changeRole = (user: User, workspaceRoleId: string) => {
-    if (workspaceRoleId === user.workspaceRoleId) return
+    if (workspaceRoleId === user.workspaceRoleId) return;
     updateRole.mutate(
       { userId: user.id, workspaceRoleId },
       {
         onSuccess: (updated) =>
-          toast.success(`${updated.name} is now ${workspaceRoleNameById(updated.workspaceRoleId) ?? 'updated'}`),
+          toast.success(
+            `${updated.name} is now ${workspaceRoleNameById(updated.workspaceRoleId) ?? 'updated'}`,
+          ),
         onError: notifyError,
       },
-    )
-  }
+    );
+  };
 
   const columns: DataTableColumn<User>[] = [
     {
@@ -86,7 +97,9 @@ export function UsersView() {
     {
       id: 'status',
       header: 'Status',
-      cell: (user) => <Badge variant={user.status === 'Active' ? 'secondary' : 'outline'}>{user.status}</Badge>,
+      cell: (user) => (
+        <Badge variant={user.status === 'Active' ? 'secondary' : 'outline'}>{user.status}</Badge>
+      ),
       headerClassName: 'hidden sm:table-cell',
       className: 'hidden sm:table-cell',
     },
@@ -94,7 +107,7 @@ export function UsersView() {
       id: 'role',
       header: 'Workspace role',
       cell: (user) => {
-        const role = workspaceRoleNameById(user.workspaceRoleId) ?? 'Developer'
+        const role = workspaceRoleNameById(user.workspaceRoleId) ?? 'Developer';
         return canChangeUserRole(actor, user) ? (
           <OptionSelect
             size="sm"
@@ -107,7 +120,7 @@ export function UsersView() {
           />
         ) : (
           <RoleBadge scope="workspace" role={role} />
-        )
+        );
       },
     },
     {
@@ -122,7 +135,7 @@ export function UsersView() {
       headerClassName: 'hidden md:table-cell',
       className: 'hidden md:table-cell',
     },
-  ]
+  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -169,5 +182,5 @@ export function UsersView() {
 
       <ActivationLinkDialog invite={invite} onDismiss={() => setInvite(null)} />
     </div>
-  )
+  );
 }

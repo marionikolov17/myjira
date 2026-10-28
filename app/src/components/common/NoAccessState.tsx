@@ -1,6 +1,6 @@
-import { SearchXIcon } from 'lucide-react'
-import type { ReactNode } from 'react'
-import { EmptyState } from './EmptyState'
+import { SearchXIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { EmptyState } from './EmptyState';
 
 export function NoAccessState({ children }: { children?: ReactNode }) {
   return (
@@ -11,5 +11,5 @@ export function NoAccessState({ children }: { children?: ReactNode }) {
     >
       {children}
     </EmptyState>
-  )
+  );
 }

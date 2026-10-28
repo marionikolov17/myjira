@@ -1,42 +1,44 @@
-'use client'
+'use client';
 
-import { ListIcon, PlusIcon } from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { type DataTableColumn, DataTable } from '@/components/common/DataTable'
-import { EmptyState } from '@/components/common/EmptyState'
-import { ErrorState } from '@/components/common/ErrorState'
-import { PaginationBar } from '@/components/common/PaginationBar'
-import { PriorityBadge } from '@/components/common/PriorityBadge'
-import { StatusBadge } from '@/components/common/StatusBadge'
-import { UserAvatar } from '@/components/common/UserAvatar'
-import { Button } from '@/components/ui/button'
-import { NULL_FILTER_VALUE, type Issue, type ListFilter, type ListQuery } from '@/lib/api/schemas'
-import { useCan } from '@/lib/authz/useCan'
-import { formatRelative, shortIssueId } from '@/lib/format'
-import { useProjectIssues } from '../queries'
-import { ISSUE_SORT_FIELDS, ISSUES_PAGE_SIZE, UNASSIGNED } from '../schemas'
-import { useIssueFilters, type IssueFilterValues } from '../useIssueFilters'
-import { CreateIssueDialog } from './CreateIssueDialog'
-import { IssueFilterBar } from './IssueFilterBar'
+import { ListIcon, PlusIcon } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { type DataTableColumn, DataTable } from '@/components/common/DataTable';
+import { EmptyState } from '@/components/common/EmptyState';
+import { ErrorState } from '@/components/common/ErrorState';
+import { PaginationBar } from '@/components/common/PaginationBar';
+import { PriorityBadge } from '@/components/common/PriorityBadge';
+import { StatusBadge } from '@/components/common/StatusBadge';
+import { UserAvatar } from '@/components/common/UserAvatar';
+import { Button } from '@/components/ui/button';
+import { NULL_FILTER_VALUE, type Issue, type ListFilter, type ListQuery } from '@/lib/api/schemas';
+import { useCan } from '@/lib/authz/useCan';
+import { formatRelative, shortIssueId } from '@/lib/format';
+import { useProjectIssues } from '../queries';
+import { ISSUE_SORT_FIELDS, ISSUES_PAGE_SIZE, UNASSIGNED } from '../schemas';
+import { useIssueFilters, type IssueFilterValues } from '../useIssueFilters';
+import { CreateIssueDialog } from './CreateIssueDialog';
+import { IssueFilterBar } from './IssueFilterBar';
 
-const DEFAULT_SORT = '-updatedAt'
+const DEFAULT_SORT = '-updatedAt';
 
 function sanitizeSort(sort: string | null): string | null {
-  if (!sort) return null
-  const field = sort.replace(/^-/, '')
-  return (ISSUE_SORT_FIELDS as readonly string[]).includes(field) ? sort : null
+  if (!sort) return null;
+  const field = sort.replace(/^-/, '');
+  return (ISSUE_SORT_FIELDS as readonly string[]).includes(field) ? sort : null;
 }
 
 function buildFilter(values: IssueFilterValues): ListFilter | undefined {
-  const filter: ListFilter = {}
-  if (values.status.length) filter.status = { in: values.status }
-  if (values.priority.length) filter.priority = { in: values.priority }
+  const filter: ListFilter = {};
+  if (values.status.length) filter.status = { in: values.status };
+  if (values.priority.length) filter.priority = { in: values.priority };
   if (values.assignee.length) {
-    filter.assigneeId = { in: values.assignee.map((id) => (id === UNASSIGNED ? NULL_FILTER_VALUE : id)) }
+    filter.assigneeId = {
+      in: values.assignee.map((id) => (id === UNASSIGNED ? NULL_FILTER_VALUE : id)),
+    };
   }
-  if (values.creator.length) filter.creatorId = { in: values.creator }
-  return Object.keys(filter).length > 0 ? filter : undefined
+  if (values.creator.length) filter.creatorId = { in: values.creator };
+  return Object.keys(filter).length > 0 ? filter : undefined;
 }
 
 const columns: DataTableColumn<Issue>[] = [
@@ -52,7 +54,12 @@ const columns: DataTableColumn<Issue>[] = [
     ),
     className: 'max-w-[22rem]',
   },
-  { id: 'status', header: 'Status', sortKey: 'status', cell: (issue) => <StatusBadge status={issue.status} /> },
+  {
+    id: 'status',
+    header: 'Status',
+    sortKey: 'status',
+    cell: (issue) => <StatusBadge status={issue.status} />,
+  },
   {
     id: 'priority',
     header: 'Priority',
@@ -83,20 +90,25 @@ const columns: DataTableColumn<Issue>[] = [
     headerClassName: 'hidden sm:table-cell',
     className: 'hidden sm:table-cell',
   },
-]
+];
 
 export function IssuesTableView({ projectId }: { projectId: string }) {
-  const router = useRouter()
-  const filters = useIssueFilters()
-  const canCreate = useCan('issues.create', { projectId })
-  const [createOpen, setCreateOpen] = useState(false)
-  const sort = sanitizeSort(filters.sort)
-  const filter = buildFilter(filters.values)
+  const router = useRouter();
+  const filters = useIssueFilters();
+  const canCreate = useCan('issues.create', { projectId });
+  const [createOpen, setCreateOpen] = useState(false);
+  const sort = sanitizeSort(filters.sort);
+  const filter = buildFilter(filters.values);
 
-  const query: ListQuery = { page: filters.page, pageSize: ISSUES_PAGE_SIZE, sort: sort ?? DEFAULT_SORT, filter }
-  const { data, isLoading, error, refetch } = useProjectIssues(projectId, query)
+  const query: ListQuery = {
+    page: filters.page,
+    pageSize: ISSUES_PAGE_SIZE,
+    sort: sort ?? DEFAULT_SORT,
+    filter,
+  };
+  const { data, isLoading, error, refetch } = useProjectIssues(projectId, query);
 
-  if (error) return <ErrorState error={error} onRetry={() => refetch()} />
+  if (error) return <ErrorState error={error} onRetry={() => refetch()} />;
 
   return (
     <div className="flex flex-col gap-4">
@@ -131,7 +143,9 @@ export function IssuesTableView({ projectId }: { projectId: string }) {
           <EmptyState
             icon={ListIcon}
             title={filter ? 'No issues match these filters' : 'No issues yet'}
-            description={filter ? 'Try removing a filter.' : 'Issues created in this project will appear here.'}
+            description={
+              filter ? 'Try removing a filter.' : 'Issues created in this project will appear here.'
+            }
           >
             {filter && (
               <Button variant="outline" onClick={filters.clearFilters}>
@@ -142,7 +156,11 @@ export function IssuesTableView({ projectId }: { projectId: string }) {
         }
       />
 
-      <PaginationBar pagination={data?.meta.pagination} onPageChange={filters.setPage} itemLabel="issues" />
+      <PaginationBar
+        pagination={data?.meta.pagination}
+        onPageChange={filters.setPage}
+        itemLabel="issues"
+      />
 
       <CreateIssueDialog
         projectId={projectId}
@@ -151,5 +169,5 @@ export function IssuesTableView({ projectId }: { projectId: string }) {
         onOpenChange={setCreateOpen}
       />
     </div>
-  )
+  );
 }

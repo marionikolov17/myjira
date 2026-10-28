@@ -1,9 +1,9 @@
-'use client'
+'use client';
 
-import { TriangleAlertIcon } from 'lucide-react'
-import { CopyableField } from '@/components/common/CopyableField'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
+import { TriangleAlertIcon } from 'lucide-react';
+import { CopyableField } from '@/components/common/CopyableField';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -11,14 +11,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import type { CreateUserResponse } from '@/lib/api/schemas'
-import { formatDateTime } from '@/lib/format'
+} from '@/components/ui/dialog';
+import type { CreateUserResponse } from '@/lib/api/schemas';
+import { formatDateTime } from '@/lib/format';
 
 type ActivationLinkDialogProps = {
-  invite: CreateUserResponse | null
-  onDismiss: () => void
-}
+  invite: CreateUserResponse | null;
+  onDismiss: () => void;
+};
 
 export function ActivationLinkDialog({ invite, onDismiss }: ActivationLinkDialogProps) {
   return (
@@ -27,7 +27,9 @@ export function ActivationLinkDialog({ invite, onDismiss }: ActivationLinkDialog
         <DialogHeader>
           <DialogTitle>Invitation created</DialogTitle>
           <DialogDescription>
-            {invite ? `${invite.user.name} (${invite.user.email}) was added as a pending user.` : ''}
+            {invite
+              ? `${invite.user.name} (${invite.user.email}) was added as a pending user.`
+              : ''}
           </DialogDescription>
         </DialogHeader>
         {invite && (
@@ -40,7 +42,9 @@ export function ActivationLinkDialog({ invite, onDismiss }: ActivationLinkDialog
             <CopyableField label="Activation link" value={invite.activation.url} />
             <p className="text-xs text-muted-foreground">
               Expires{' '}
-              <time dateTime={invite.activation.expiresAt}>{formatDateTime(invite.activation.expiresAt)}</time>
+              <time dateTime={invite.activation.expiresAt}>
+                {formatDateTime(invite.activation.expiresAt)}
+              </time>
             </p>
           </div>
         )}
@@ -49,5 +53,5 @@ export function ActivationLinkDialog({ invite, onDismiss }: ActivationLinkDialog
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

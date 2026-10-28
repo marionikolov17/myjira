@@ -1,8 +1,8 @@
-'use client'
+'use client';
 
-import { MonitorIcon, MoonIcon, SunIcon } from 'lucide-react'
-import { useTheme } from 'next-themes'
-import { Button } from '@/components/ui/button'
+import { MonitorIcon, MoonIcon, SunIcon } from 'lucide-react';
+import { useTheme } from 'next-themes';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,15 +11,20 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from '@/components/ui/dropdown-menu';
 
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme } = useTheme();
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="Change theme" />}>
-        <SunIcon aria-hidden="true" className="scale-100 rotate-0 transition-transform dark:scale-0 dark:-rotate-90" />
+      <DropdownMenuTrigger
+        render={<Button variant="ghost" size="icon" aria-label="Change theme" />}
+      >
+        <SunIcon
+          aria-hidden="true"
+          className="scale-100 rotate-0 transition-transform dark:scale-0 dark:-rotate-90"
+        />
         <MoonIcon
           aria-hidden="true"
           className="absolute scale-0 rotate-90 transition-transform dark:scale-100 dark:rotate-0"
@@ -28,7 +33,10 @@ export function ThemeToggle() {
       <DropdownMenuContent align="end" className="w-40">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Theme</DropdownMenuLabel>
-          <DropdownMenuRadioGroup value={theme ?? 'system'} onValueChange={(value) => setTheme(String(value))}>
+          <DropdownMenuRadioGroup
+            value={theme ?? 'system'}
+            onValueChange={(value) => setTheme(String(value))}
+          >
             <DropdownMenuRadioItem value="light">
               <SunIcon aria-hidden="true" />
               Light
@@ -45,5 +53,5 @@ export function ThemeToggle() {
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }

@@ -1,34 +1,34 @@
-'use client'
+'use client';
 
-import { PencilIcon } from 'lucide-react'
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Field, FieldError, FieldLabel } from '@/components/ui/field'
-import { Spinner } from '@/components/ui/spinner'
-import { Textarea } from '@/components/ui/textarea'
+import { PencilIcon } from 'lucide-react';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Field, FieldError, FieldLabel } from '@/components/ui/field';
+import { Spinner } from '@/components/ui/spinner';
+import { Textarea } from '@/components/ui/textarea';
 
-const MAX_LENGTH = 5000
+const MAX_LENGTH = 5000;
 
 type DescriptionEditorProps = {
-  value: string
-  canEdit: boolean
-  onSave: (next: string) => Promise<boolean>
-}
+  value: string;
+  canEdit: boolean;
+  onSave: (next: string) => Promise<boolean>;
+};
 
 export function DescriptionEditor({ value, canEdit, onSave }: DescriptionEditorProps) {
-  const [draft, setDraft] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const editing = draft !== null
-  const tooLong = (draft?.length ?? 0) > MAX_LENGTH
+  const [draft, setDraft] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const editing = draft !== null;
+  const tooLong = (draft?.length ?? 0) > MAX_LENGTH;
 
   const save = async () => {
-    if (draft === null || tooLong) return
-    if (draft.trim() === value.trim()) return setDraft(null)
-    setSaving(true)
-    const ok = await onSave(draft.trim())
-    setSaving(false)
-    if (ok) setDraft(null)
-  }
+    if (draft === null || tooLong) return;
+    if (draft.trim() === value.trim()) return setDraft(null);
+    setSaving(true);
+    const ok = await onSave(draft.trim());
+    setSaving(false);
+    if (ok) setDraft(null);
+  };
 
   if (editing) {
     return (
@@ -39,8 +39,8 @@ export function DescriptionEditor({ value, canEdit, onSave }: DescriptionEditorP
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === 'Escape') setDraft(null)
-            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) void save()
+            if (event.key === 'Escape') setDraft(null);
+            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) void save();
           }}
           rows={8}
           autoFocus
@@ -58,7 +58,7 @@ export function DescriptionEditor({ value, canEdit, onSave }: DescriptionEditorP
           </Button>
         </div>
       </Field>
-    )
+    );
   }
 
   return (
@@ -80,5 +80,5 @@ export function DescriptionEditor({ value, canEdit, onSave }: DescriptionEditorP
         <p className="text-sm text-muted-foreground italic">No description provided.</p>
       )}
     </section>
-  )
+  );
 }

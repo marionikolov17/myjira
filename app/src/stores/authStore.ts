@@ -1,16 +1,16 @@
-import { create } from 'zustand'
-import { createJSONStorage, persist } from 'zustand/middleware'
-import type { ActorContext } from '@/lib/api/schemas'
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import type { ActorContext } from '@/lib/api/schemas';
 
-export type AuthStatus = 'anonymous' | 'authenticating' | 'authenticated'
+export type AuthStatus = 'anonymous' | 'authenticating' | 'authenticated';
 
 type AuthState = {
-  token: string | null
-  actor: ActorContext | null
-  status: AuthStatus
-  setSession: (session: Partial<Pick<AuthState, 'token' | 'actor' | 'status'>>) => void
-  clear: () => void
-}
+  token: string | null;
+  actor: ActorContext | null;
+  status: AuthStatus;
+  setSession: (session: Partial<Pick<AuthState, 'token' | 'actor' | 'status'>>) => void;
+  clear: () => void;
+};
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -27,4 +27,4 @@ export const useAuthStore = create<AuthState>()(
       partialize: ({ token, actor, status }) => ({ token, actor, status }),
     },
   ),
-)
+);

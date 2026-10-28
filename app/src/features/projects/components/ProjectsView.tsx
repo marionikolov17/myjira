@@ -1,28 +1,32 @@
-'use client'
+'use client';
 
-import { AnimatePresence, motion } from 'framer-motion'
-import { FolderKanbanIcon } from 'lucide-react'
-import { parseAsInteger, parseAsStringLiteral, useQueryStates } from 'nuqs'
-import { EmptyState } from '@/components/common/EmptyState'
-import { ErrorState } from '@/components/common/ErrorState'
-import { OptionSelect } from '@/components/common/OptionSelect'
-import { PageHeader } from '@/components/common/PageHeader'
-import { PaginationBar } from '@/components/common/PaginationBar'
-import { Skeleton } from '@/components/ui/skeleton'
-import { PermissionGate } from '@/lib/authz/PermissionGate'
-import { useProjects } from '../queries'
-import { PROJECT_SORT_OPTIONS, PROJECT_SORT_VALUES, PROJECTS_PAGE_SIZE } from '../schemas'
-import { CreateProjectDialog } from './CreateProjectDialog'
-import { ProjectCard } from './ProjectCard'
+import { AnimatePresence, motion } from 'framer-motion';
+import { FolderKanbanIcon } from 'lucide-react';
+import { parseAsInteger, parseAsStringLiteral, useQueryStates } from 'nuqs';
+import { EmptyState } from '@/components/common/EmptyState';
+import { ErrorState } from '@/components/common/ErrorState';
+import { OptionSelect } from '@/components/common/OptionSelect';
+import { PageHeader } from '@/components/common/PageHeader';
+import { PaginationBar } from '@/components/common/PaginationBar';
+import { Skeleton } from '@/components/ui/skeleton';
+import { PermissionGate } from '@/lib/authz/PermissionGate';
+import { useProjects } from '../queries';
+import { PROJECT_SORT_OPTIONS, PROJECT_SORT_VALUES, PROJECTS_PAGE_SIZE } from '../schemas';
+import { CreateProjectDialog } from './CreateProjectDialog';
+import { ProjectCard } from './ProjectCard';
 
 const searchParams = {
   page: parseAsInteger.withDefault(1),
   sort: parseAsStringLiteral(PROJECT_SORT_VALUES).withDefault('-updatedAt'),
-}
+};
 
 export function ProjectsView() {
-  const [{ page, sort }, setParams] = useQueryStates(searchParams)
-  const { data, isLoading, error, refetch } = useProjects({ page, pageSize: PROJECTS_PAGE_SIZE, sort })
+  const [{ page, sort }, setParams] = useQueryStates(searchParams);
+  const { data, isLoading, error, refetch } = useProjects({
+    page,
+    pageSize: PROJECTS_PAGE_SIZE,
+    sort,
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -54,7 +58,11 @@ export function ProjectsView() {
           ))}
         </div>
       ) : !data?.data.length ? (
-        <EmptyState icon={FolderKanbanIcon} title="No projects yet" description="Create a project to start tracking work.">
+        <EmptyState
+          icon={FolderKanbanIcon}
+          title="No projects yet"
+          description="Create a project to start tracking work."
+        >
           <PermissionGate action="projects.create">
             <CreateProjectDialog />
           </PermissionGate>
@@ -77,9 +85,13 @@ export function ProjectsView() {
               ))}
             </AnimatePresence>
           </ul>
-          <PaginationBar pagination={data.meta.pagination} onPageChange={(next) => setParams({ page: next })} itemLabel="projects" />
+          <PaginationBar
+            pagination={data.meta.pagination}
+            onPageChange={(next) => setParams({ page: next })}
+            itemLabel="projects"
+          />
         </>
       )}
     </div>
-  )
+  );
 }

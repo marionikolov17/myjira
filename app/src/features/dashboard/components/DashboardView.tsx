@@ -1,30 +1,30 @@
-'use client'
+'use client';
 
-import { RoleBadge } from '@/components/common/RoleBadge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { useMyOpenIssues } from '@/features/issues/queries'
-import { useProjects } from '@/features/projects/queries'
-import { useUser } from '@/features/users/queries'
-import { useActor } from '@/lib/authz/useCan'
-import { ErrorState } from '@/components/common/ErrorState'
-import { MyOpenIssuesCard } from './MyOpenIssuesCard'
-import { MyProjectsCard } from './MyProjectsCard'
-import { PriorityDonutCard } from './PriorityDonutCard'
-import { WelcomeCard } from './WelcomeCard'
+import { RoleBadge } from '@/components/common/RoleBadge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useMyOpenIssues } from '@/features/issues/queries';
+import { useProjects } from '@/features/projects/queries';
+import { useUser } from '@/features/users/queries';
+import { useActor } from '@/lib/authz/useCan';
+import { ErrorState } from '@/components/common/ErrorState';
+import { MyOpenIssuesCard } from './MyOpenIssuesCard';
+import { MyProjectsCard } from './MyProjectsCard';
+import { PriorityDonutCard } from './PriorityDonutCard';
+import { WelcomeCard } from './WelcomeCard';
 
-export const DASHBOARD_PROJECTS_QUERY = { page: 1, pageSize: 6, sort: '-updatedAt' }
+export const DASHBOARD_PROJECTS_QUERY = { page: 1, pageSize: 6, sort: '-updatedAt' };
 
 export function DashboardView() {
-  const actor = useActor()
-  const { data: me } = useUser(actor?.userId)
-  const projects = useProjects(DASHBOARD_PROJECTS_QUERY)
-  const projectList = projects.data?.data ?? []
+  const actor = useActor();
+  const { data: me } = useUser(actor?.userId);
+  const projects = useProjects(DASHBOARD_PROJECTS_QUERY);
+  const projectList = projects.data?.data ?? [];
   const openIssues = useMyOpenIssues(
     projectList.map((project) => project.id),
     actor?.userId,
-  )
+  );
 
-  const firstName = me?.name.split(' ')[0]
+  const firstName = me?.name.split(' ')[0];
 
   return (
     <div className="flex flex-col gap-6">
@@ -50,12 +50,15 @@ export function DashboardView() {
               onRetry={openIssues.refetch}
             />
           </div>
-          <PriorityDonutCard issues={openIssues.issues} isLoading={projects.isLoading || openIssues.isLoading} />
+          <PriorityDonutCard
+            issues={openIssues.issues}
+            isLoading={projects.isLoading || openIssues.isLoading}
+          />
           <div className="lg:col-span-3">
             <MyProjectsCard projects={projectList} isLoading={projects.isLoading} />
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }

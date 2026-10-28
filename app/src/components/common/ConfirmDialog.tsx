@@ -1,6 +1,6 @@
-'use client'
+'use client';
 
-import type { ReactNode } from 'react'
+import type { ReactNode } from 'react';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -9,22 +9,22 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
-import { Spinner } from '@/components/ui/spinner'
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 
 type ConfirmDialogProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  title: string
-  description: ReactNode
-  confirmLabel: string
-  onConfirm: () => void
-  pending?: boolean
-  confirmDisabled?: boolean
-  destructive?: boolean
-  children?: ReactNode
-}
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description: ReactNode;
+  confirmLabel: string;
+  onConfirm: () => void;
+  pending?: boolean;
+  confirmDisabled?: boolean;
+  destructive?: boolean;
+  children?: ReactNode;
+};
 
 export function ConfirmDialog({
   open,
@@ -59,5 +59,5 @@ export function ConfirmDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }

@@ -1,11 +1,24 @@
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
-import { ProjectCard } from '@/features/projects/components/ProjectCard'
-import type { Project } from '@/lib/api/schemas'
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ProjectCard } from '@/features/projects/components/ProjectCard';
+import type { Project } from '@/lib/api/schemas';
 
-export function MyProjectsCard({ projects, isLoading }: { projects: Project[]; isLoading: boolean }) {
+export function MyProjectsCard({
+  projects,
+  isLoading,
+}: {
+  projects: Project[];
+  isLoading: boolean;
+}) {
   return (
     <Card>
       <CardHeader>
@@ -33,5 +46,5 @@ export function MyProjectsCard({ projects, isLoading }: { projects: Project[]; i
         </ul>
       </CardContent>
     </Card>
-  )
+  );
 }

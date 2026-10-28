@@ -1,8 +1,8 @@
-'use client'
+'use client';
 
-import { ChevronDownIcon, type LucideIcon } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { ChevronDownIcon, type LucideIcon } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -12,26 +12,28 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from '@/components/ui/dropdown-menu';
 
-export type FilterOption = { value: string; label: string; icon?: LucideIcon }
+export type FilterOption = { value: string; label: string; icon?: LucideIcon };
 
 type MultiSelectFilterProps = {
-  label: string
-  options: FilterOption[]
-  selected: string[]
-  onChange: (next: string[]) => void
-}
+  label: string;
+  options: FilterOption[];
+  selected: string[];
+  onChange: (next: string[]) => void;
+};
 
 export function MultiSelectFilter({ label, options, selected, onChange }: MultiSelectFilterProps) {
   const toggle = (value: string, checked: boolean) => {
-    onChange(checked ? [...selected, value] : selected.filter((v) => v !== value))
-  }
+    onChange(checked ? [...selected, value] : selected.filter((v) => v !== value));
+  };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<Button variant="outline" size="sm" aria-label={`Filter by ${label.toLowerCase()}`} />}
+        render={
+          <Button variant="outline" size="sm" aria-label={`Filter by ${label.toLowerCase()}`} />
+        }
       >
         {label}
         {selected.length > 0 && (
@@ -47,7 +49,7 @@ export function MultiSelectFilter({ label, options, selected, onChange }: MultiS
           <DropdownMenuLabel>{label}</DropdownMenuLabel>
           {options.length === 0 && <DropdownMenuItem disabled>No options</DropdownMenuItem>}
           {options.map((option) => {
-            const Icon = option.icon
+            const Icon = option.icon;
             return (
               <DropdownMenuCheckboxItem
                 key={option.value}
@@ -58,7 +60,7 @@ export function MultiSelectFilter({ label, options, selected, onChange }: MultiS
                 {Icon && <Icon aria-hidden="true" />}
                 <span className="truncate">{option.label}</span>
               </DropdownMenuCheckboxItem>
-            )
+            );
           })}
         </DropdownMenuGroup>
         {selected.length > 0 && (
@@ -71,5 +73,5 @@ export function MultiSelectFilter({ label, options, selected, onChange }: MultiS
         )}
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }

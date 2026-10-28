@@ -1,12 +1,18 @@
-import type { IssuePriority, IssueStatus, Project, ProjectRoleName, WorkspaceRoleName } from '@/lib/api/schemas'
-import type { DbIssue, DbMember, DbState, DbUser } from './db'
-import { PROJECT_ROLE_IDS, WORKSPACE_ROLE_IDS, createRandom } from './ids'
+import type {
+  IssuePriority,
+  IssueStatus,
+  Project,
+  ProjectRoleName,
+  WorkspaceRoleName,
+} from '@/lib/api/schemas';
+import type { DbIssue, DbMember, DbState, DbUser } from './db';
+import { PROJECT_ROLE_IDS, WORKSPACE_ROLE_IDS, createRandom } from './ids';
 
-export const DEMO_PASSWORD = 'password'
+export const DEMO_PASSWORD = 'password';
 
-const DAY = 24 * 60 * 60 * 1000
+const DAY = 24 * 60 * 60 * 1000;
 
-type SeedUser = { key: string; name: string; role: WorkspaceRoleName }
+type SeedUser = { key: string; name: string; role: WorkspaceRoleName };
 
 const SEED_USERS: SeedUser[] = [
   { key: 'olivia', name: 'Olivia Carter', role: 'Owner' },
@@ -24,21 +30,22 @@ const SEED_USERS: SeedUser[] = [
   { key: 'mia', name: 'Mia Kowalski', role: 'Developer' },
   { key: 'jonas', name: 'Jonas Berg', role: 'Developer' },
   { key: 'leila', name: 'Leila Haddad', role: 'Developer' },
-]
+];
 
 type SeedProject = {
-  name: string
-  description: string
-  owner: string
-  members: Array<[string, Exclude<ProjectRoleName, 'ProjectOwner'>]>
-  issueCount: number
-  area: string
-}
+  name: string;
+  description: string;
+  owner: string;
+  members: Array<[string, Exclude<ProjectRoleName, 'ProjectOwner'>]>;
+  issueCount: number;
+  area: string;
+};
 
 const SEED_PROJECTS: SeedProject[] = [
   {
     name: 'Atlas Platform',
-    description: 'Core API, authentication service and shared infrastructure that every product team builds on.',
+    description:
+      'Core API, authentication service and shared infrastructure that every product team builds on.',
     owner: 'marcus',
     members: [
       ['ethan', 'ProjectAdmin'],
@@ -52,7 +59,8 @@ const SEED_PROJECTS: SeedProject[] = [
   },
   {
     name: 'Nimbus Mobile',
-    description: 'iOS and Android apps for field teams, including offline sync and push notifications.',
+    description:
+      'iOS and Android apps for field teams, including offline sync and push notifications.',
     owner: 'priya',
     members: [
       ['hana', 'ProjectAdmin'],
@@ -79,7 +87,8 @@ const SEED_PROJECTS: SeedProject[] = [
   },
   {
     name: 'Orion Design System',
-    description: 'Shared component library, tokens and documentation site used across every web surface.',
+    description:
+      'Shared component library, tokens and documentation site used across every web surface.',
     owner: 'priya',
     members: [
       ['leila', 'ProjectAdmin'],
@@ -92,7 +101,7 @@ const SEED_PROJECTS: SeedProject[] = [
     issueCount: 16,
     area: 'UI',
   },
-]
+];
 
 const ISSUE_TITLES = [
   'Add rate limiting to public endpoints',
@@ -130,7 +139,7 @@ const ISSUE_TITLES = [
   'Fix scroll jump when opening drawer',
   'Add bulk actions to table view',
   'Improve onboarding checklist copy',
-]
+];
 
 const DESCRIPTION_TEMPLATES = [
   'Scope this for the {area} surface. Acceptance criteria: behaviour is covered by tests and documented in the changelog.',
@@ -138,23 +147,23 @@ const DESCRIPTION_TEMPLATES = [
   'Follow-up from the last retro. Keep the change small and behind a flag if it touches the {area} critical path.',
   'Needs a short design review before implementation. Coordinate with the {area} owners on rollout.',
   '',
-]
+];
 
-const STATUSES: IssueStatus[] = ['ToDo', 'ToDo', 'InProgress', 'InProgress', 'Done']
-const PRIORITIES: IssuePriority[] = ['Low', 'Medium', 'Medium', 'High']
+const STATUSES: IssueStatus[] = ['ToDo', 'ToDo', 'InProgress', 'InProgress', 'Done'];
+const PRIORITIES: IssuePriority[] = ['Low', 'Medium', 'Medium', 'High'];
 
 function emailFor(name: string, role?: WorkspaceRoleName): string {
-  if (role === 'Owner') return 'owner@myjira.dev'
-  return `${name.toLowerCase().replace(/\s+/g, '.')}@myjira.dev`
+  if (role === 'Owner') return 'owner@myjira.dev';
+  return `${name.toLowerCase().replace(/\s+/g, '.')}@myjira.dev`;
 }
 
 export function createSeed(): DbState {
-  const random = createRandom(20260601)
-  const now = Date.now()
-  const iso = (msAgo: number) => new Date(now - msAgo).toISOString()
+  const random = createRandom(20260601);
+  const now = Date.now();
+  const iso = (msAgo: number) => new Date(now - msAgo).toISOString();
 
   const users: DbUser[] = SEED_USERS.map((seed, index) => {
-    const createdAt = iso((90 - index * 3) * DAY)
+    const createdAt = iso((90 - index * 3) * DAY);
     return {
       id: random.uuid(),
       name: seed.name,
@@ -164,10 +173,10 @@ export function createSeed(): DbState {
       createdAt,
       updatedAt: createdAt,
       password: DEMO_PASSWORD,
-    }
-  })
+    };
+  });
 
-  const pendingCreatedAt = iso(2 * DAY)
+  const pendingCreatedAt = iso(2 * DAY);
   users.push({
     id: random.uuid(),
     name: 'Rafael Costa',
@@ -177,21 +186,21 @@ export function createSeed(): DbState {
     createdAt: pendingCreatedAt,
     updatedAt: pendingCreatedAt,
     password: null,
-  })
+  });
 
-  const userIdByKey = new Map(SEED_USERS.map((seed, index) => [seed.key, users[index].id]))
+  const userIdByKey = new Map(SEED_USERS.map((seed, index) => [seed.key, users[index].id]));
   const idOf = (key: string) => {
-    const id = userIdByKey.get(key)
-    if (!id) throw new Error(`Unknown seed user ${key}`)
-    return id
-  }
+    const id = userIdByKey.get(key);
+    if (!id) throw new Error(`Unknown seed user ${key}`);
+    return id;
+  };
 
-  const projects: Project[] = []
-  const members: DbMember[] = []
-  const issues: DbIssue[] = []
+  const projects: Project[] = [];
+  const members: DbMember[] = [];
+  const issues: DbIssue[] = [];
 
   SEED_PROJECTS.forEach((seed, projectIndex) => {
-    const createdAt = iso((60 - projectIndex * 6) * DAY)
+    const createdAt = iso((60 - projectIndex * 6) * DAY);
     const project: Project = {
       id: random.uuid(),
       name: seed.name,
@@ -199,28 +208,31 @@ export function createSeed(): DbState {
       creatorId: idOf(seed.owner),
       createdAt,
       updatedAt: createdAt,
-    }
-    projects.push(project)
+    };
+    projects.push(project);
 
-    const roster: Array<[string, ProjectRoleName]> = [[seed.owner, 'ProjectOwner'], ...seed.members]
-    const memberUserIds: string[] = []
+    const roster: Array<[string, ProjectRoleName]> = [
+      [seed.owner, 'ProjectOwner'],
+      ...seed.members,
+    ];
+    const memberUserIds: string[] = [];
     for (const [key, role] of roster) {
-      const userId = idOf(key)
-      memberUserIds.push(userId)
+      const userId = idOf(key);
+      memberUserIds.push(userId);
       members.push({
         id: random.uuid(),
         projectId: project.id,
         userId,
         projectRoleId: PROJECT_ROLE_IDS[role],
         createdAt,
-      })
+      });
     }
 
-    const titles = random.shuffle(ISSUE_TITLES).slice(0, seed.issueCount)
+    const titles = random.shuffle(ISSUE_TITLES).slice(0, seed.issueCount);
     for (const title of titles) {
-      const ageMs = random.int(1, 42) * DAY + random.int(0, DAY)
-      const issueCreatedAt = now - ageMs
-      const issueUpdatedAt = issueCreatedAt + random.next() * (ageMs - 60_000)
+      const ageMs = random.int(1, 42) * DAY + random.int(0, DAY);
+      const issueCreatedAt = now - ageMs;
+      const issueUpdatedAt = issueCreatedAt + random.next() * (ageMs - 60_000);
       issues.push({
         id: random.uuid(),
         title,
@@ -232,15 +244,15 @@ export function createSeed(): DbState {
         assigneeId: random.next() < 0.12 ? null : random.pick(memberUserIds),
         createdAt: new Date(issueCreatedAt).toISOString(),
         updatedAt: new Date(issueUpdatedAt).toISOString(),
-      })
+      });
     }
-  })
+  });
 
-  return { version: 1, users, projects, members, issues }
+  return { version: 1, users, projects, members, issues };
 }
 
 export const DEMO_ACCOUNTS = SEED_USERS.slice(0, 4).map((seed) => ({
   name: seed.name,
   email: emailFor(seed.name, seed.role),
   role: seed.role,
-}))
+}));

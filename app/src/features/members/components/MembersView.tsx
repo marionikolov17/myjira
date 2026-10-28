@@ -1,47 +1,57 @@
-'use client'
+'use client';
 
-import { UserMinusIcon, UserPlusIcon, UsersIcon } from 'lucide-react'
-import { useState } from 'react'
-import { toast } from 'sonner'
-import { ConfirmDialog } from '@/components/common/ConfirmDialog'
-import { type DataTableColumn, DataTable } from '@/components/common/DataTable'
-import { EmptyState } from '@/components/common/EmptyState'
-import { ErrorState } from '@/components/common/ErrorState'
-import { OptionSelect } from '@/components/common/OptionSelect'
-import { RoleBadge } from '@/components/common/RoleBadge'
-import { UserAvatar } from '@/components/common/UserAvatar'
-import { Button } from '@/components/ui/button'
-import { PROJECT_ROLE_IDS, PROJECT_ROLE_LABELS, type ProjectMember, type ProjectRoleName } from '@/lib/api/schemas'
-import { canChangeMemberRole, canRemoveMember } from '@/lib/authz/can'
-import { PermissionGate } from '@/lib/authz/PermissionGate'
-import { useActor } from '@/lib/authz/useCan'
-import { notifyError } from '@/lib/forms/handleFormError'
-import { useRemoveMember, useUpdateMemberRole } from '../mutations'
-import { useProjectMembers } from '../queries'
-import { AddMemberDialog } from './AddMemberDialog'
+import { UserMinusIcon, UserPlusIcon, UsersIcon } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { type DataTableColumn, DataTable } from '@/components/common/DataTable';
+import { EmptyState } from '@/components/common/EmptyState';
+import { ErrorState } from '@/components/common/ErrorState';
+import { OptionSelect } from '@/components/common/OptionSelect';
+import { RoleBadge } from '@/components/common/RoleBadge';
+import { UserAvatar } from '@/components/common/UserAvatar';
+import { Button } from '@/components/ui/button';
+import {
+  PROJECT_ROLE_IDS,
+  PROJECT_ROLE_LABELS,
+  type ProjectMember,
+  type ProjectRoleName,
+} from '@/lib/api/schemas';
+import { canChangeMemberRole, canRemoveMember } from '@/lib/authz/can';
+import { PermissionGate } from '@/lib/authz/PermissionGate';
+import { useActor } from '@/lib/authz/useCan';
+import { notifyError } from '@/lib/forms/handleFormError';
+import { useRemoveMember, useUpdateMemberRole } from '../mutations';
+import { useProjectMembers } from '../queries';
+import { AddMemberDialog } from './AddMemberDialog';
 
-const ROLE_ORDER: Record<ProjectRoleName, number> = { ProjectOwner: 0, ProjectAdmin: 1, Developer: 2 }
+const ROLE_ORDER: Record<ProjectRoleName, number> = {
+  ProjectOwner: 0,
+  ProjectAdmin: 1,
+  Developer: 2,
+};
 const EDITABLE_ROLES = (['ProjectAdmin', 'Developer'] as const).map((value) => ({
   value,
   label: PROJECT_ROLE_LABELS[value],
-}))
+}));
 
 export function MembersView({ projectId }: { projectId: string }) {
-  const actor = useActor()
-  const { data: members, isLoading, error, refetch } = useProjectMembers(projectId)
-  const updateRole = useUpdateMemberRole(projectId)
-  const removeMember = useRemoveMember(projectId)
-  const [addOpen, setAddOpen] = useState(false)
-  const [pendingRemoval, setPendingRemoval] = useState<ProjectMember | null>(null)
+  const actor = useActor();
+  const { data: members, isLoading, error, refetch } = useProjectMembers(projectId);
+  const updateRole = useUpdateMemberRole(projectId);
+  const removeMember = useRemoveMember(projectId);
+  const [addOpen, setAddOpen] = useState(false);
+  const [pendingRemoval, setPendingRemoval] = useState<ProjectMember | null>(null);
 
-  if (error) return <ErrorState error={error} onRetry={() => refetch()} />
+  if (error) return <ErrorState error={error} onRetry={() => refetch()} />;
 
   const sorted = members
     ? [...members].sort(
         (a, b) =>
-          ROLE_ORDER[a.projectRole.name] - ROLE_ORDER[b.projectRole.name] || a.user.name.localeCompare(b.user.name),
+          ROLE_ORDER[a.projectRole.name] - ROLE_ORDER[b.projectRole.name] ||
+          a.user.name.localeCompare(b.user.name),
       )
-    : undefined
+    : undefined;
 
   const changeRole = (member: ProjectMember, role: ProjectRoleName) =>
     updateRole.mutate(
@@ -50,19 +60,19 @@ export function MembersView({ projectId }: { projectId: string }) {
         onSuccess: () => toast.success(`${member.user.name} is now ${PROJECT_ROLE_LABELS[role]}`),
         onError: notifyError,
       },
-    )
+    );
 
   const confirmRemoval = () => {
-    if (!pendingRemoval) return
-    const member = pendingRemoval
+    if (!pendingRemoval) return;
+    const member = pendingRemoval;
     removeMember.mutate(member.id, {
       onSuccess: () => {
-        toast.success(`${member.user.name} removed from the project`)
-        setPendingRemoval(null)
+        toast.success(`${member.user.name} removed from the project`);
+        setPendingRemoval(null);
       },
       onError: notifyError,
-    })
-  }
+    });
+  };
 
   const columns: DataTableColumn<ProjectMember>[] = [
     {
@@ -74,7 +84,9 @@ export function MembersView({ projectId }: { projectId: string }) {
           <div className="flex min-w-0 flex-col">
             <span className="truncate font-medium">
               {member.user.name}
-              {member.user.id === actor?.userId && <span className="text-muted-foreground"> (you)</span>}
+              {member.user.id === actor?.userId && (
+                <span className="text-muted-foreground"> (you)</span>
+              )}
             </span>
             <span className="truncate text-xs text-muted-foreground">{member.user.email}</span>
           </div>
@@ -117,13 +129,15 @@ export function MembersView({ projectId }: { projectId: string }) {
           </Button>
         ) : null,
     },
-  ]
+  ];
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          {members ? `${members.length} ${members.length === 1 ? 'member' : 'members'}` : 'Loading members…'}
+          {members
+            ? `${members.length} ${members.length === 1 ? 'member' : 'members'}`
+            : 'Loading members…'}
         </p>
         <PermissionGate action="members.add" projectId={projectId}>
           <Button onClick={() => setAddOpen(true)}>
@@ -139,7 +153,13 @@ export function MembersView({ projectId }: { projectId: string }) {
         getRowId={(member) => member.id}
         isLoading={isLoading}
         caption="Project members"
-        empty={<EmptyState icon={UsersIcon} title="No members" description="Add someone to get started." />}
+        empty={
+          <EmptyState
+            icon={UsersIcon}
+            title="No members"
+            description="Add someone to get started."
+          />
+        }
       />
 
       <AddMemberDialog
@@ -163,5 +183,5 @@ export function MembersView({ projectId }: { projectId: string }) {
         onConfirm={confirmRemoval}
       />
     </div>
-  )
+  );
 }

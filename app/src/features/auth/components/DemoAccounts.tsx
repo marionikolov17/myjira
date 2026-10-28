@@ -1,12 +1,12 @@
-'use client'
+'use client';
 
-import { RoleBadge } from '@/components/common/RoleBadge'
-import { Separator } from '@/components/ui/separator'
-import { demoCredentials } from '@/lib/api/client/auth'
+import { RoleBadge } from '@/components/common/RoleBadge';
+import { Separator } from '@/components/ui/separator';
+import { demoCredentials } from '@/lib/api/client/auth';
 
 export function DemoAccounts({ onPick }: { onPick: (email: string, password: string) => void }) {
-  if (!demoCredentials) return null
-  const { accounts, password } = demoCredentials
+  if (!demoCredentials) return null;
+  const { accounts, password } = demoCredentials;
 
   return (
     <section aria-labelledby="demo-accounts" className="flex flex-col gap-3">
@@ -39,5 +39,5 @@ export function DemoAccounts({ onPick }: { onPick: (email: string, password: str
         <code className="rounded bg-muted px-1 py-0.5 font-mono">{password}</code>
       </p>
     </section>
-  )
+  );
 }
