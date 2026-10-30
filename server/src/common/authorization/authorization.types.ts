@@ -6,6 +6,8 @@ export enum AuthorizationScope {
 }
 
 export type AuthorizationAction =
+  | 'listWorkspaceRoles'
+  | 'listProjectRoles'
   | 'createUser'
   | 'listUsers'
   | 'getUserById'
