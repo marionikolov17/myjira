@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import { rateLimit, MINUTE } from 'express-rate-limit';
 import { errorMiddleware, loggerRequestMiddleware } from '@/common/middlewares';
@@ -16,6 +17,7 @@ const app = express();
 
 app.set('query parser', 'extended');
 
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 app.use(
   rateLimit({
