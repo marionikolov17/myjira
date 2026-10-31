@@ -4,8 +4,8 @@ import { ListIcon, PlusIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { type DataTableColumn, DataTable } from '@/components/common/DataTable';
-import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
+import { FilterAwareEmptyState } from '@/components/common/FilterAwareEmptyState';
 import { PaginationBar } from '@/components/common/PaginationBar';
 import { PriorityBadge } from '@/components/common/PriorityBadge';
 import { StatusBadge } from '@/components/common/StatusBadge';
@@ -115,21 +115,13 @@ export function IssuesView({ projectId }: { projectId: string }) {
             caption="Project issues"
             skeletonRows={8}
             empty={
-              <EmptyState
+              <FilterAwareEmptyState
                 icon={ListIcon}
-                title={filterActive ? 'No issues match these filters' : 'No issues yet'}
-                description={
-                  filterActive
-                    ? 'Try removing a filter.'
-                    : 'Issues created in this project will appear here.'
-                }
-              >
-                {filterActive && (
-                  <Button variant="outline" onClick={filters.clearFilters}>
-                    Clear filters
-                  </Button>
-                )}
-              </EmptyState>
+                entityLabel="issues"
+                filterActive={filterActive}
+                emptyDescription="Issues created in this project will appear here."
+                onClearFilters={filters.clearFilters}
+              />
             }
           />
 

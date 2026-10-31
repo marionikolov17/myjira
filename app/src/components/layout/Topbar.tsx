@@ -12,7 +12,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { WORKSPACE_NAME } from './navItems';
+import { APP_NAME, WORKSPACE_NAME } from '@/config/env';
 import { SidebarNav } from './Sidebar';
 import { ThemeToggle } from './ThemeToggle';
 import { UserMenu } from './UserMenu';
@@ -37,7 +37,7 @@ export function Topbar() {
         </SheetTrigger>
         <SheetContent side="left" className="w-72">
           <SheetHeader>
-            <SheetTitle>MyJira</SheetTitle>
+            <SheetTitle>{APP_NAME}</SheetTitle>
             <SheetDescription>{WORKSPACE_NAME}</SheetDescription>
           </SheetHeader>
           <div className="px-4">
@@ -64,7 +64,7 @@ function Brand() {
         <KanbanSquareIcon aria-hidden="true" className="size-4" />
       </span>
       <span className="flex min-w-0 flex-col leading-tight">
-        <span className="text-sm font-semibold">MyJira</span>
+        <span className="text-sm font-semibold">{APP_NAME}</span>
         <span className="truncate text-xs text-muted-foreground">{WORKSPACE_NAME}</span>
       </span>
     </Link>

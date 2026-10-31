@@ -4,8 +4,7 @@ import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query';
 import { issuesClient } from '@/lib/api/client/issues';
 import { OPEN_ISSUE_STATUSES, type Issue, type ListQuery } from '@/lib/api/schemas';
 import { queryKeys } from '@/lib/query/keys';
-
-const DETAIL_STALE_TIME_MS = 5 * 60_000;
+import { DETAIL_STALE_TIME_MS } from '@/lib/query/staleTime';
 
 export function useProjectIssues(
   projectId: string,
@@ -37,16 +36,11 @@ export function useBoardIssues(projectId: string) {
 
 const MY_OPEN_ISSUES_LIMIT = 10;
 
-export function myOpenIssuesQuery(userId: string): ListQuery {
-  return {
-    filter: { assigneeId: { eq: userId }, status: { in: [...OPEN_ISSUE_STATUSES] } },
-    sort: '-updatedAt',
-    // Per-project top N; merge below yields a true global top N across projects.
-    pageSize: MY_OPEN_ISSUES_LIMIT,
-  };
-}
-
-/** Fans out one issues query per project and merges them client-side. */
+/**
+ * Fans out one issues query per project and merges them client-side.
+ * Returns a useQuery-like `{ data, isLoading, error, refetch }` shape.
+ * Each underlying query still caches the full `Paginated<Issue>` envelope.
+ */
 export function useMyOpenIssues(projectIds: string[], userId: string | undefined) {
   return useQueries({
     queries: projectIds.map((projectId) => {
@@ -57,17 +51,32 @@ export function useMyOpenIssues(projectIds: string[], userId: string | undefined
         enabled: Boolean(userId),
       };
     }),
-    combine: (results) => {
-      const issues: Issue[] = results
-        .flatMap((result) => result.data?.data ?? [])
-        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-        .slice(0, MY_OPEN_ISSUES_LIMIT);
-      return {
-        issues,
-        isLoading: results.some((result) => result.isLoading),
-        error: results.find((result) => result.error)?.error ?? null,
-        refetch: () => results.forEach((result) => void result.refetch()),
-      };
-    },
+    combine: (results) => ({
+      data: mergeMyOpenIssues(results.map((result) => result.data)),
+      isLoading: results.some((result) => result.isLoading),
+      error: results.find((result) => result.error)?.error ?? null,
+      refetch: () => {
+        results.forEach((result) => void result.refetch());
+      },
+    }),
   });
+}
+
+function myOpenIssuesQuery(userId: string): ListQuery {
+  return {
+    filter: { assigneeId: { eq: userId }, status: { in: [...OPEN_ISSUE_STATUSES] } },
+    sort: '-updatedAt',
+    pageSize: MY_OPEN_ISSUES_LIMIT,
+  };
+}
+
+/** Merge per-project paginated issue lists into a global top-N by `updatedAt`. */
+function mergeMyOpenIssues(
+  pages: Array<{ data?: Issue[] } | undefined | null>,
+  limit = MY_OPEN_ISSUES_LIMIT,
+): Issue[] {
+  return pages
+    .flatMap((page) => page?.data ?? [])
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .slice(0, limit);
 }

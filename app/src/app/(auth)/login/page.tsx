@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import { useAuthHydrated } from '@/components/layout/useAuthHydrated';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { APP_NAME } from '@/config/env';
 import { LoginForm } from '@/features/auth/components/LoginForm';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -28,7 +29,7 @@ export default function LoginPage() {
           <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <KanbanSquareIcon aria-hidden="true" className="size-5" />
           </span>
-          <span className="text-lg font-semibold tracking-tight">MyJira</span>
+          <span className="text-lg font-semibold tracking-tight">{APP_NAME}</span>
         </div>
         <Card className="rounded-2xl shadow-sm">
           <CardHeader>

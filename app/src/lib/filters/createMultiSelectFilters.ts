@@ -16,6 +16,8 @@ export type MultiSelectFiltersApi<TFilterKey extends string> = {
   clearFilters: () => void;
 };
 
+type MultiSelectSetValues = Partial<Record<string, string[] | null>>;
+
 /** URL multi-select filters without sort/page (e.g. board-only params). */
 export function createMultiSelectFiltersHook<TFilterKey extends string>(
   config: MultiSelectFiltersConfig<TFilterKey>,
@@ -34,12 +36,14 @@ export function createMultiSelectFiltersHook<TFilterKey extends string>(
       filterKeys.map((key) => [key, (state[urlKeys[key]] as string[] | undefined) ?? []]),
     ) as Record<TFilterKey, string[]>;
 
+    const setValues = (patch: MultiSelectSetValues) =>
+      void setState(patch as Parameters<typeof setState>[0]);
+
     return {
       values,
-      setFilter: (key, next) =>
-        void setState({ [urlKeys[key]]: next.length > 0 ? next : null } as never),
+      setFilter: (key, next) => setValues({ [urlKeys[key]]: next.length > 0 ? next : null }),
       clearFilters: () =>
-        void setState(Object.fromEntries(filterKeys.map((key) => [urlKeys[key], null])) as never),
+        setValues(Object.fromEntries(filterKeys.map((key) => [urlKeys[key], null]))),
     };
   };
 }

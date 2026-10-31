@@ -12,21 +12,22 @@ import { RoleBadge } from '@/components/common/RoleBadge';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { Button } from '@/components/ui/button';
 import type { ProjectMember } from '@/lib/api/schemas';
-import { canChangeMemberRole, canRemoveMember } from '@/lib/authz/can';
+import { assignableProjectRoles, canChangeMemberRole, canRemoveMember } from '@/lib/authz/can';
 import { PermissionGate } from '@/lib/authz/PermissionGate';
 import { useActor } from '@/lib/authz/useCan';
-import { PROJECT_ROLE_LABELS } from '@/features/roles/labels';
-import { useProjectRoles } from '@/features/roles/queries';
+import { PROJECT_ROLE_LABELS } from '@/lib/labels/roles';
 import { notifyError } from '@/lib/forms/handleFormError';
+import { projectRoleByName, roleById, useProjectRoles } from '@/features/roles/queries';
 import { useRemoveMember, useUpdateMemberRole } from '../mutations';
-import { EDITABLE_PROJECT_ROLE_NAMES, PROJECT_ROLE_ORDER } from '../options';
 import { useProjectMembers } from '../queries';
+import { sortProjectMembers } from '../utils/sortMembers';
 import { AddMemberDialog } from './AddMemberDialog';
 
 export function MembersView({ projectId }: { projectId: string }) {
   const actor = useActor();
   const { data: members, isLoading, error, refetch } = useProjectMembers(projectId);
   const projectRoles = useProjectRoles();
+  const roles = projectRoles.data;
   const updateRole = useUpdateMemberRole(projectId);
   const removeMember = useRemoveMember(projectId);
 
@@ -35,21 +36,14 @@ export function MembersView({ projectId }: { projectId: string }) {
 
   const editableRoleOptions = useMemo(
     () =>
-      EDITABLE_PROJECT_ROLE_NAMES.flatMap((name) => {
-        const role = projectRoles.byName(name);
+      assignableProjectRoles(actor, projectId).flatMap((name) => {
+        const role = projectRoleByName(roles, name);
         return role ? [{ value: role.id, label: PROJECT_ROLE_LABELS[name] }] : [];
       }),
-    [projectRoles],
+    [actor, projectId, roles],
   );
 
-  const sorted = members
-    ? [...members].sort(
-        (a, b) =>
-          (PROJECT_ROLE_ORDER[a.projectRole.name] ?? 99) -
-            (PROJECT_ROLE_ORDER[b.projectRole.name] ?? 99) ||
-          a.user.name.localeCompare(b.user.name),
-      )
-    : undefined;
+  const sorted = members ? sortProjectMembers(members) : undefined;
 
   const changeRole = (member: ProjectMember, projectRoleId: string) => {
     if (projectRoleId === member.projectRole.id) return;
@@ -57,7 +51,7 @@ export function MembersView({ projectId }: { projectId: string }) {
       { memberId: member.id, projectRoleId },
       {
         onSuccess: () => {
-          const name = projectRoles.byId(projectRoleId)?.name;
+          const name = roleById(roles, projectRoleId)?.name;
           toast.success(
             `${member.user.name} is now ${name ? PROJECT_ROLE_LABELS[name] : 'updated'}`,
           );

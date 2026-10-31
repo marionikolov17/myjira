@@ -31,7 +31,7 @@ src/
     common/            Shared building blocks (DataTable, badges, dialogs, empty/error states)
     layout/            App shell, sidebar, topbar, auth guard
     ui/                shadcn/ui components
-  config/env.ts        Runtime config (API base URL)
+  config/env.ts        Runtime config (API base URL, APP_NAME, WORKSPACE_NAME)
   features/<domain>/   Resource or composite modules (see below)
   lib/
     api/schemas/       Zod contracts for every resource and error envelope
@@ -39,7 +39,8 @@ src/
     api/client/        Thin typed wrappers around transport
     authz/             can(), useCan(), <PermissionGate>
     filters/           Shared nuqs list-filter / multi-select factories
-    query/             Query client and key factory
+    labels/            Display labels and icons (issues, roles) for shared UI
+    query/             Query client, key factory, stale-time constants
   stores/              Zustand stores (auth token, persisted)
 ```
 
@@ -47,14 +48,15 @@ UI code never imports the transport directly. Everything goes through `lib/api/c
 
 ### Feature module shapes
 
-- **Resource modules** (`auth`, `projects`, `issues`, `members`, `users`, `roles`): own API hooks. Typical files are `queries.ts`, `mutations.ts`, `schemas.ts` (form re-exports + UI constants), optional `options.ts` / `labels.ts`, and `components/*View.tsx`.
+- **Resource modules** (`auth`, `projects`, `issues`, `members`, `users`, `roles`): own API hooks. Typical files are `queries.ts`, `mutations.ts`, optional `constants.ts` (sort options, page sizes), optional `options.ts`, and `components/*View.tsx`. Zod form/API contracts are imported from `@/lib/api/schemas` — features do not re-export them.
 - **Composite modules** (`dashboard`, `profile`): UI-only; they compose other features’ queries/mutations and have no API client of their own.
-- **Roles** is queries-only (lookup maps for invite / role-change UIs).
+- **Roles** is queries-only; hooks return standard TanStack Query results, with pure `roleById` / `workspaceRoleByName` / `projectRoleByName` helpers alongside.
 
 ### Query cache shapes
 
 - List hooks return the full `Paginated<T>` envelope (`{ data, meta }`).
 - Detail hooks and members unwrap `.data` in `queryFn` so consumers get the entity (or array) directly.
+- Lookup hooks (`useWorkspaceRoles`, `useProjectRoles`) return the same `useQuery` result shape; resolve entries with the pure helpers above.
 
 ### Dialogs
 
@@ -84,11 +86,11 @@ Shared factories live in `lib/filters/`. Issues table filters (`status`, `priori
   - `404` renders not-found.
   - `400` (`VALIDATION_ERROR`) field details map onto form fields via `handleFormError`.
 
-Display labels (issue status, role names) live next to UI (`features/*/labels.ts` or `options.ts`), not in the API schema layer.
+Display labels and icons live in `lib/labels/` so shared components never import feature modules. Feature `options.ts` files may re-export them for local convenience.
 
 ### Roles
 
-Workspace-role and project-role UUIDs are server-generated. The client fetches both lists once per session via `useWorkspaceRoles()` / `useProjectRoles()` (see `src/features/roles/queries.ts`), caches them, and uses `byName()` / `byId()` to resolve names ↔ UUIDs for the invite / add-member / role-change dialogs.
+Workspace-role and project-role UUIDs are server-generated. The client fetches both lists once per session via `useWorkspaceRoles()` / `useProjectRoles()` (see `src/features/roles/queries.ts`), caches them, and resolves names ↔ UUIDs with `roleById` / `workspaceRoleByName` / `projectRoleByName`. Assignable role lists for invite / add-member / role-change UIs come from `lib/authz/can.ts` (`invitableWorkspaceRoles`, `assignableWorkspaceRoles`, `assignableProjectRoles`).
 
 ## Authorization
 

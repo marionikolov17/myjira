@@ -34,7 +34,10 @@ export function createListFiltersHook<TFilterKey extends string, TSort extends s
   const { filterKeys, sortValues, defaultSort } = config;
 
   const parsers = {
-    ...Object.fromEntries(filterKeys.map((key) => [key, listParser])),
+    ...(Object.fromEntries(filterKeys.map((key) => [key, listParser])) as Record<
+      TFilterKey,
+      typeof listParser
+    >),
     sort: parseAsStringLiteral(sortValues).withDefault(defaultSort),
     page: parseAsInteger.withDefault(1),
   };
@@ -48,23 +51,30 @@ export function createListFiltersHook<TFilterKey extends string, TSort extends s
       values[key] = Array.isArray(raw) ? (raw as string[]) : [];
     }
 
+    // Dynamic filter keys prevent a fully inferred setState payload; narrow at the boundary.
+    type SetStateArg = Parameters<typeof setState>[0];
+    const setValues = (patch: SetStateArg) => void setState(patch);
+
     return {
       values,
       sort: state.sort as TSort,
       page: Math.max(1, Number(state.page) || 1),
       setFilter: (key, next) =>
-        void setState({ [key]: next.length > 0 ? next : null, page: null } as never),
+        setValues({ [key]: next.length > 0 ? next : null, page: null } as SetStateArg),
       clearFilters: () =>
-        void setState(
-          Object.fromEntries([...filterKeys.map((key) => [key, null]), ['page', null]]) as never,
+        setValues(
+          Object.fromEntries([
+            ...filterKeys.map((key) => [key, null]),
+            ['page', null],
+          ]) as SetStateArg,
         ),
       setSort: (sort) => {
         const value = (sortValues as readonly string[]).includes(sort ?? '')
           ? (sort as TSort)
           : null;
-        void setState({ sort: value, page: null } as never);
+        setValues({ sort: value, page: null } as SetStateArg);
       },
-      setPage: (page) => void setState({ page: page <= 1 ? null : page } as never),
+      setPage: (page) => setValues({ page: page <= 1 ? null : page } as SetStateArg),
     };
   };
 }

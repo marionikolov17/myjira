@@ -4,8 +4,8 @@ import { MailPlusIcon, UsersIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { type DataTableColumn, DataTable } from '@/components/common/DataTable';
-import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
+import { FilterAwareEmptyState } from '@/components/common/FilterAwareEmptyState';
 import { OptionSelect } from '@/components/common/OptionSelect';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PaginationBar } from '@/components/common/PaginationBar';
@@ -14,16 +14,16 @@ import { UserAvatar } from '@/components/common/UserAvatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { CreateUserResponse, User } from '@/lib/api/schemas';
-import { canChangeUserRole } from '@/lib/authz/can';
+import { assignableWorkspaceRoles, canChangeUserRole } from '@/lib/authz/can';
 import { PermissionGate } from '@/lib/authz/PermissionGate';
 import { useActor } from '@/lib/authz/useCan';
 import { formatDate } from '@/lib/format';
 import { notifyError } from '@/lib/forms/handleFormError';
-import { useWorkspaceRoles } from '@/features/roles/queries';
+import { WORKSPACE_ROLE_LABELS } from '@/lib/labels/roles';
+import { roleById, useWorkspaceRoles, workspaceRoleByName } from '@/features/roles/queries';
 import { useUpdateUserRole } from '../mutations';
-import { ASSIGNABLE_ROLE_NAMES } from '../options';
 import { useUsers } from '../queries';
-import { USER_SORT_OPTIONS } from '../schemas';
+import { USER_SORT_OPTIONS } from '../constants';
 import { userFiltersToListQuery, useUserFilters } from '../useUserFilters';
 import { ActivationLinkDialog } from './ActivationLinkDialog';
 import { InviteUserDialog } from './InviteUserDialog';
@@ -32,6 +32,7 @@ import { UserFilterBar } from './UserFilterBar';
 export function UsersView() {
   const actor = useActor();
   const workspaceRoles = useWorkspaceRoles();
+  const roles = workspaceRoles.data;
   const filters = useUserFilters();
   const query = userFiltersToListQuery(filters);
 
@@ -43,11 +44,11 @@ export function UsersView() {
 
   const assignableRoleOptions = useMemo(
     () =>
-      ASSIGNABLE_ROLE_NAMES.flatMap((name) => {
-        const role = workspaceRoles.byName(name);
-        return role ? [{ value: role.id, label: name }] : [];
+      assignableWorkspaceRoles(actor).flatMap((name) => {
+        const role = workspaceRoleByName(roles, name);
+        return role ? [{ value: role.id, label: WORKSPACE_ROLE_LABELS[name] }] : [];
       }),
-    [workspaceRoles],
+    [actor, roles],
   );
 
   const changeRole = (user: User, workspaceRoleId: string) => {
@@ -57,7 +58,7 @@ export function UsersView() {
       {
         onSuccess: (updated) =>
           toast.success(
-            `${updated.name} is now ${workspaceRoles.byId(updated.workspaceRoleId)?.name ?? 'updated'}`,
+            `${updated.name} is now ${roleById(roles, updated.workspaceRoleId)?.name ?? 'updated'}`,
           ),
         onError: notifyError,
       },
@@ -95,8 +96,8 @@ export function UsersView() {
       id: 'role',
       header: 'Workspace role',
       cell: (user) => {
-        const role = workspaceRoles.byId(user.workspaceRoleId)?.name ?? 'Developer';
-        const editable = canChangeUserRole(actor, user, (id) => workspaceRoles.byId(id)?.name);
+        const role = roleById(roles, user.workspaceRoleId)?.name ?? 'Developer';
+        const editable = canChangeUserRole(actor, user, (id) => roleById(roles, id)?.name);
         return editable ? (
           <OptionSelect
             size="sm"
@@ -173,28 +174,20 @@ export function UsersView() {
             caption="Workspace users"
             skeletonRows={8}
             empty={
-              <EmptyState
+              <FilterAwareEmptyState
                 icon={UsersIcon}
-                title={anyFilterActive ? 'No users match these filters' : 'No users yet'}
-                description={
-                  anyFilterActive
-                    ? 'Try removing a filter.'
-                    : 'Invite someone to join the workspace.'
-                }
+                entityLabel="users"
+                filterActive={anyFilterActive}
+                emptyDescription="Invite someone to join the workspace."
+                onClearFilters={filters.clearFilters}
               >
-                {anyFilterActive ? (
-                  <Button variant="outline" onClick={filters.clearFilters}>
-                    Clear filters
+                <PermissionGate action="users.create">
+                  <Button onClick={() => setInviteOpen(true)} disabled={workspaceRoles.isLoading}>
+                    <MailPlusIcon data-icon="inline-start" />
+                    Invite user
                   </Button>
-                ) : (
-                  <PermissionGate action="users.create">
-                    <Button onClick={() => setInviteOpen(true)} disabled={workspaceRoles.isLoading}>
-                      <MailPlusIcon data-icon="inline-start" />
-                      Invite user
-                    </Button>
-                  </PermissionGate>
-                )}
-              </EmptyState>
+                </PermissionGate>
+              </FilterAwareEmptyState>
             }
           />
           <PaginationBar

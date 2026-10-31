@@ -49,7 +49,7 @@ export function DashboardView() {
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <MyOpenIssuesCard
-              issues={openIssues.issues}
+              issues={openIssues.data}
               projects={projectList}
               isLoading={projects.isLoading || openIssues.isLoading}
               error={openIssues.error}
@@ -57,7 +57,7 @@ export function DashboardView() {
             />
           </div>
           <PriorityDonutCard
-            issues={openIssues.issues}
+            issues={openIssues.data}
             isLoading={projects.isLoading || openIssues.isLoading}
           />
           <div className="lg:col-span-3">

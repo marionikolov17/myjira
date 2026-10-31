@@ -4,8 +4,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { projectsClient } from '@/lib/api/client/projects';
 import type { ListQuery } from '@/lib/api/schemas';
 import { queryKeys } from '@/lib/query/keys';
-
-const DETAIL_STALE_TIME_MS = 5 * 60_000;
+import { DETAIL_STALE_TIME_MS } from '@/lib/query/staleTime';
 
 export function useProjects(query: ListQuery, options: { enabled?: boolean } = {}) {
   return useQuery({

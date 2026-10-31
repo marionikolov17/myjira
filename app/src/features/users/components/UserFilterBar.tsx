@@ -20,7 +20,7 @@ type UserFilterBarProps = {
 
 export function UserFilterBar({ keys, values, onChange, onClear }: UserFilterBarProps) {
   const workspaceRoles = useWorkspaceRoles();
-  const roleOptions: FilterOption[] = (workspaceRoles.roles ?? []).map((role) => ({
+  const roleOptions: FilterOption[] = (workspaceRoles.data ?? []).map((role) => ({
     value: role.id,
     label: role.name,
   }));

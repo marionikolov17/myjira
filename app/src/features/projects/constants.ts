@@ -1,10 +1,3 @@
-export {
-  createProjectInputSchema,
-  updateProjectInputSchema,
-  type CreateProjectInput,
-  type UpdateProjectInput,
-} from '@/lib/api/schemas';
-
 export const PROJECT_SORT_OPTIONS = [
   { value: '-updatedAt', label: 'Recently updated' },
   { value: 'updatedAt', label: 'Least recently updated' },

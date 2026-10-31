@@ -17,13 +17,17 @@ import {
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
-import type { CreateUserResponse } from '@/lib/api/schemas';
+import {
+  createUserInputSchema,
+  type CreateUserInput,
+  type CreateUserResponse,
+} from '@/lib/api/schemas';
 import { invitableWorkspaceRoles } from '@/lib/authz/can';
 import { useActor } from '@/lib/authz/useCan';
 import { handleFormError } from '@/lib/forms/handleFormError';
-import { useWorkspaceRoles } from '@/features/roles/queries';
+import { WORKSPACE_ROLE_LABELS } from '@/lib/labels/roles';
+import { useWorkspaceRoles, workspaceRoleByName } from '@/features/roles/queries';
 import { useCreateUser } from '../mutations';
-import { createUserInputSchema, type CreateUserInput } from '../schemas';
 
 type InviteUserDialogProps = {
   open: boolean;
@@ -39,10 +43,10 @@ export function InviteUserDialog({ open, onOpenChange, onInvited }: InviteUserDi
   const roleOptions = useMemo(
     () =>
       invitableNames.flatMap((name) => {
-        const role = workspaceRoles.byName(name);
-        return role ? [{ value: role.id, label: name }] : [];
+        const role = workspaceRoleByName(workspaceRoles.data, name);
+        return role ? [{ value: role.id, label: WORKSPACE_ROLE_LABELS[name] }] : [];
       }),
-    [invitableNames, workspaceRoles],
+    [invitableNames, workspaceRoles.data],
   );
 
   const createUser = useCreateUser();

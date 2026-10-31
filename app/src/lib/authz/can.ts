@@ -134,11 +134,18 @@ export function invitableWorkspaceRoles(
   return actor.workspaceRole.name === 'Owner' ? ['Admin', 'Developer'] : ['Developer'];
 }
 
+export function assignableWorkspaceRoles(
+  actor: ActorContext | null,
+): Array<Exclude<WorkspaceRoleName, 'Owner'>> {
+  if (!actor || !can(actor, 'users.updateRole')) return [];
+  return ['Admin', 'Developer'];
+}
+
 /**
  * Server-side role IDs aren't known to the client up-front, so callers must supply a
- * `workspaceRoleNameFor` lookup (built from `useWorkspaceRoles().byId`). While the lookup
- * is still loading we conservatively DISALLOW changing the role: it will re-render once
- * the roles arrive.
+ * `workspaceRoleNameFor` lookup (built from `roleById` over workspace roles). While the
+ * lookup is still loading we conservatively DISALLOW changing the role: it will re-render
+ * once the roles arrive.
  */
 export function canChangeUserRole(
   actor: ActorContext | null,

@@ -15,5 +15,3 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/users', label: 'Users', icon: UsersIcon, action: 'users.list' },
   { href: '/profile', label: 'Profile', icon: UserRoundIcon, action: 'me.read' },
 ];
-
-export const WORKSPACE_NAME = 'Northwind Labs';

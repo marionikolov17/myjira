@@ -23,17 +23,21 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
-import { isForbiddenOrNotFound, type Project } from '@/lib/api/schemas';
+import {
+  isForbiddenOrNotFound,
+  updateProjectFormSchema,
+  type Project,
+  type UpdateProjectFormValues,
+} from '@/lib/api/schemas';
 import { useCan } from '@/lib/authz/useCan';
 import { handleFormError, notifyError } from '@/lib/forms/handleFormError';
 import { useDeleteProject, useUpdateProject } from '../mutations';
 import { useProject } from '../queries';
-import { createProjectInputSchema, type CreateProjectInput } from '../schemas';
 
 function DetailsForm({ project, canUpdate }: { project: Project; canUpdate: boolean }) {
   const updateProject = useUpdateProject(project.id);
-  const form = useForm<CreateProjectInput>({
-    resolver: zodResolver(createProjectInputSchema),
+  const form = useForm<UpdateProjectFormValues>({
+    resolver: zodResolver(updateProjectFormSchema),
     values: { name: project.name, description: project.description },
   });
   const { errors, isDirty } = form.formState;

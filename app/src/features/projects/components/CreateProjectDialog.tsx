@@ -17,9 +17,9 @@ import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
+import { createProjectInputSchema, type CreateProjectInput } from '@/lib/api/schemas';
 import { handleFormError } from '@/lib/forms/handleFormError';
 import { useCreateProject } from '../mutations';
-import { createProjectInputSchema, type CreateProjectInput } from '../schemas';
 
 type CreateProjectDialogProps = {
   open: boolean;

@@ -1,13 +1,7 @@
-import { SignalHighIcon, SignalLowIcon, SignalMediumIcon, type LucideIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { IssuePriority } from '@/lib/api/schemas';
+import { PRIORITY_ICONS } from '@/lib/labels/issues';
 import { cn } from '@/lib/utils';
-
-export const PRIORITY_ICONS: Record<IssuePriority, LucideIcon> = {
-  Low: SignalLowIcon,
-  Medium: SignalMediumIcon,
-  High: SignalHighIcon,
-};
 
 const PRIORITY_VARIANTS: Record<IssuePriority, 'outline' | 'secondary' | 'destructive'> = {
   Low: 'outline',

@@ -8,10 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
-import { isApiError } from '@/lib/api/schemas';
+import { isApiError, loginInputSchema, type LoginInput } from '@/lib/api/schemas';
 import { handleFormError } from '@/lib/forms/handleFormError';
 import { useLogin } from '../mutations';
-import { loginInputSchema, type LoginInput } from '../schemas';
 
 export function LoginForm() {
   const router = useRouter();

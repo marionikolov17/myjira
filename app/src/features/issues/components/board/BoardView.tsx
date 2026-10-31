@@ -23,7 +23,8 @@ import { ISSUE_MODIFY_DENIED_REASON } from '@/lib/authz/can';
 import { PermissionGate } from '@/lib/authz/PermissionGate';
 import { useCan } from '@/lib/authz/useCan';
 import { notifyError } from '@/lib/forms/handleFormError';
-import { ISSUE_STATUS_LABELS } from '../../labels';
+import { ISSUE_STATUS_LABELS } from '@/lib/labels/issues';
+import { filterBoardIssues } from '../../utils/boardFilters';
 import { useUpdateIssue } from '../../mutations';
 import { useBoardIssues } from '../../queries';
 import { useBoardFilters } from '../../useBoardFilters';
@@ -51,11 +52,7 @@ export function BoardView({ projectId }: { projectId: string }) {
   );
 
   const allIssues = data?.data ?? [];
-  const issues = allIssues.filter(
-    (issue) =>
-      (filters.values.priority.length === 0 || filters.values.priority.includes(issue.priority)) &&
-      (filters.values.assignee.length === 0 || filters.values.assignee.includes(issue.assignee.id)),
-  );
+  const issues = filterBoardIssues(allIssues, filters.values);
   const titleOf = (id: string | number) =>
     issues.find((issue) => issue.id === id)?.title ?? 'Issue';
   const columnOf = (id: string | number | undefined) =>

@@ -20,14 +20,14 @@ import { Field, FieldLabel } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { useUsers } from '@/features/users/queries';
-import { useProjectRoles } from '@/features/roles/queries';
-import { PROJECT_ROLE_LABELS } from '@/features/roles/labels';
+import { projectRoleByName, useProjectRoles } from '@/features/roles/queries';
 import { assignableProjectRoles } from '@/lib/authz/can';
 import { useActor } from '@/lib/authz/useCan';
+import { PROJECT_ROLE_LABELS } from '@/lib/labels/roles';
 import { notifyError } from '@/lib/forms/handleFormError';
 import { cn } from '@/lib/utils';
 import { useAddMember } from '../mutations';
-import { ADD_MEMBER_PAGE_SIZE } from '../schemas';
+import { ADD_MEMBER_PAGE_SIZE } from '../constants';
 
 type AddMemberDialogProps = {
   projectId: string;
@@ -59,10 +59,10 @@ export function AddMemberDialog({
   const roleOptions = useMemo(
     () =>
       assignableNames.flatMap((name) => {
-        const role = projectRoles.byName(name);
+        const role = projectRoleByName(projectRoles.data, name);
         return role ? [{ value: role.id, label: PROJECT_ROLE_LABELS[name] }] : [];
       }),
-    [assignableNames, projectRoles],
+    [assignableNames, projectRoles.data],
   );
   const defaultRoleId =
     roleOptions.find((option) => option.label === 'Developer')?.value ??

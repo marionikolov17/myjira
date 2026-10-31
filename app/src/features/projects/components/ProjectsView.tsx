@@ -3,8 +3,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { FolderKanbanIcon, PlusIcon } from 'lucide-react';
 import { useState } from 'react';
-import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
+import { FilterAwareEmptyState } from '@/components/common/FilterAwareEmptyState';
 import { OptionSelect } from '@/components/common/OptionSelect';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PaginationBar } from '@/components/common/PaginationBar';
@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PermissionGate } from '@/lib/authz/PermissionGate';
 import { useProjects } from '../queries';
-import { PROJECT_SORT_OPTIONS } from '../schemas';
+import { PROJECT_SORT_OPTIONS } from '../constants';
 import { projectFiltersToListQuery, useProjectFilters } from '../useProjectFilters';
 import { CreateProjectDialog } from './CreateProjectDialog';
 import { ProjectCard } from './ProjectCard';
@@ -65,26 +65,20 @@ export function ProjectsView() {
           ))}
         </div>
       ) : !data?.data.length ? (
-        <EmptyState
+        <FilterAwareEmptyState
           icon={FolderKanbanIcon}
-          title={anyFilterActive ? 'No projects match these filters' : 'No projects yet'}
-          description={
-            anyFilterActive ? 'Try removing a filter.' : 'Create a project to start tracking work.'
-          }
+          entityLabel="projects"
+          filterActive={anyFilterActive}
+          emptyDescription="Create a project to start tracking work."
+          onClearFilters={filters.clearFilters}
         >
-          {anyFilterActive ? (
-            <Button variant="outline" onClick={filters.clearFilters}>
-              Clear filters
+          <PermissionGate action="projects.create">
+            <Button onClick={() => setCreateOpen(true)}>
+              <PlusIcon data-icon="inline-start" />
+              New project
             </Button>
-          ) : (
-            <PermissionGate action="projects.create">
-              <Button onClick={() => setCreateOpen(true)}>
-                <PlusIcon data-icon="inline-start" />
-                New project
-              </Button>
-            </PermissionGate>
-          )}
-        </EmptyState>
+          </PermissionGate>
+        </FilterAwareEmptyState>
       ) : (
         <>
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

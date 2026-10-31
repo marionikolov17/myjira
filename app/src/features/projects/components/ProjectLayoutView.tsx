@@ -10,13 +10,12 @@ import { NoAccessState } from '@/components/common/NoAccessState';
 import { Breadcrumbs, type Crumb } from '@/components/layout/Breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { isForbiddenOrNotFound } from '@/lib/api/schemas';
+import { isForbiddenOrNotFound, projectNameSchema } from '@/lib/api/schemas';
 import { useCan } from '@/lib/authz/useCan';
 import { notifyError } from '@/lib/forms/handleFormError';
 import { shortIssueId } from '@/lib/format';
 import { useUpdateProject } from '../mutations';
 import { useProject } from '../queries';
-import { createProjectInputSchema } from '../schemas';
 import { ProjectSubNav } from './ProjectSubNav';
 
 const TAB_LABELS: Record<string, string> = {
@@ -69,7 +68,7 @@ export function ProjectLayoutView({ children }: { children: ReactNode }) {
           <div className="flex flex-col gap-1">
             <InlineEditText
               value={project.name}
-              schema={createProjectInputSchema.shape.name}
+              schema={projectNameSchema}
               canEdit={canUpdate}
               label="project name"
               onSave={(name) =>

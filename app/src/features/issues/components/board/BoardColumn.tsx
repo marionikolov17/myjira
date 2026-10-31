@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { Issue, IssueStatus } from '@/lib/api/schemas';
 import { PermissionGate } from '@/lib/authz/PermissionGate';
 import { cn } from '@/lib/utils';
-import { ISSUE_STATUS_LABELS } from '../../labels';
+import { ISSUE_STATUS_LABELS } from '@/lib/labels/issues';
 import { BoardCard } from './BoardCard';
 
 type BoardColumnProps = {

@@ -18,12 +18,11 @@ import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
-import type { UserRef } from '@/lib/api/schemas';
+import { createIssueInputSchema, type CreateIssueInput, type UserRef } from '@/lib/api/schemas';
 import { useMe } from '@/features/auth/queries';
 import { handleFormError } from '@/lib/forms/handleFormError';
 import { useCreateIssue } from '../mutations';
 import { PRIORITY_OPTIONS } from '../options';
-import { createIssueInputSchema, type CreateIssueInput } from '../schemas';
 import { AssigneeSelect } from './AssigneeSelect';
 
 type CreateIssueDialogProps = {

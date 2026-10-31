@@ -1,7 +1,7 @@
 import { CodeIcon, CrownIcon, ShieldIcon, type LucideIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { PROJECT_ROLE_LABELS, WORKSPACE_ROLE_LABELS } from '@/features/roles/labels';
 import type { ProjectRoleName, WorkspaceRoleName } from '@/lib/api/schemas';
+import { PROJECT_ROLE_LABELS, WORKSPACE_ROLE_LABELS } from '@/lib/labels/roles';
 
 type RoleBadgeProps =
   { scope: 'workspace'; role: WorkspaceRoleName } | { scope: 'project'; role: ProjectRoleName };
