@@ -58,20 +58,20 @@ function DetailsForm({ project, canUpdate }: { project: Project; canUpdate: bool
         <CardContent>
           <FieldGroup>
             <Field
-              data-invalid={errors.name ? true : undefined}
+              data-invalid={Boolean(errors.name) || undefined}
               data-disabled={!canUpdate || undefined}
             >
               <FieldLabel htmlFor="settings-name">Name</FieldLabel>
               <Input
                 id="settings-name"
                 disabled={!canUpdate}
-                aria-invalid={errors.name ? true : undefined}
+                aria-invalid={Boolean(errors.name) || undefined}
                 {...form.register('name')}
               />
-              <FieldError>{errors.name?.message}</FieldError>
+              <FieldError errors={[errors.name]} />
             </Field>
             <Field
-              data-invalid={errors.description ? true : undefined}
+              data-invalid={Boolean(errors.description) || undefined}
               data-disabled={!canUpdate || undefined}
             >
               <FieldLabel htmlFor="settings-description">Description</FieldLabel>
@@ -79,10 +79,10 @@ function DetailsForm({ project, canUpdate }: { project: Project; canUpdate: bool
                 id="settings-description"
                 rows={4}
                 disabled={!canUpdate}
-                aria-invalid={errors.description ? true : undefined}
+                aria-invalid={Boolean(errors.description) || undefined}
                 {...form.register('description')}
               />
-              <FieldError>{errors.description?.message}</FieldError>
+              <FieldError errors={[errors.description]} />
             </Field>
           </FieldGroup>
         </CardContent>

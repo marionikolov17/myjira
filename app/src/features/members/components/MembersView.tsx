@@ -1,7 +1,7 @@
 'use client';
 
 import { UserMinusIcon, UserPlusIcon, UsersIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { type DataTableColumn, DataTable } from '@/components/common/DataTable';
@@ -11,59 +11,69 @@ import { OptionSelect } from '@/components/common/OptionSelect';
 import { RoleBadge } from '@/components/common/RoleBadge';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { Button } from '@/components/ui/button';
-import {
-  PROJECT_ROLE_IDS,
-  PROJECT_ROLE_LABELS,
-  type ProjectMember,
-  type ProjectRoleName,
-} from '@/lib/api/schemas';
+import { PROJECT_ROLE_LABELS, type ProjectMember } from '@/lib/api/schemas';
 import { canChangeMemberRole, canRemoveMember } from '@/lib/authz/can';
 import { PermissionGate } from '@/lib/authz/PermissionGate';
 import { useActor } from '@/lib/authz/useCan';
+import { useProjectRoles } from '@/features/roles/queries';
 import { notifyError } from '@/lib/forms/handleFormError';
 import { useRemoveMember, useUpdateMemberRole } from '../mutations';
+import { EDITABLE_PROJECT_ROLE_NAMES } from '../options';
 import { useProjectMembers } from '../queries';
 import { AddMemberDialog } from './AddMemberDialog';
 
-const ROLE_ORDER: Record<ProjectRoleName, number> = {
+const ROLE_ORDER: Record<string, number> = {
   ProjectOwner: 0,
   ProjectAdmin: 1,
   Developer: 2,
 };
-const EDITABLE_ROLES = (['ProjectAdmin', 'Developer'] as const).map((value) => ({
-  value,
-  label: PROJECT_ROLE_LABELS[value],
-}));
 
 export function MembersView({ projectId }: { projectId: string }) {
   const actor = useActor();
   const { data: members, isLoading, error, refetch } = useProjectMembers(projectId);
+  const projectRoles = useProjectRoles();
   const updateRole = useUpdateMemberRole(projectId);
   const removeMember = useRemoveMember(projectId);
+
   const [addOpen, setAddOpen] = useState(false);
   const [pendingRemoval, setPendingRemoval] = useState<ProjectMember | null>(null);
 
-  if (error) return <ErrorState error={error} onRetry={() => refetch()} />;
+  const editableRoleOptions = useMemo(
+    () =>
+      EDITABLE_PROJECT_ROLE_NAMES.flatMap((name) => {
+        const role = projectRoles.byName(name);
+        return role ? [{ value: role.id, label: PROJECT_ROLE_LABELS[name] }] : [];
+      }),
+    [projectRoles],
+  );
 
   const sorted = members
     ? [...members].sort(
         (a, b) =>
-          ROLE_ORDER[a.projectRole.name] - ROLE_ORDER[b.projectRole.name] ||
+          (ROLE_ORDER[a.projectRole.name] ?? 99) - (ROLE_ORDER[b.projectRole.name] ?? 99) ||
           a.user.name.localeCompare(b.user.name),
       )
     : undefined;
 
-  const changeRole = (member: ProjectMember, role: ProjectRoleName) =>
+  const changeRole = (member: ProjectMember, projectRoleId: string) => {
+    if (projectRoleId === member.projectRole.id) return;
     updateRole.mutate(
-      { memberId: member.id, projectRoleId: PROJECT_ROLE_IDS[role] },
+      { memberId: member.id, projectRoleId },
       {
-        onSuccess: () => toast.success(`${member.user.name} is now ${PROJECT_ROLE_LABELS[role]}`),
+        onSuccess: () => {
+          const name = projectRoles.byId(projectRoleId)?.name;
+          toast.success(
+            `${member.user.name} is now ${name ? PROJECT_ROLE_LABELS[name] : 'updated'}`,
+          );
+        },
         onError: notifyError,
       },
     );
+  };
 
   const confirmRemoval = () => {
     if (!pendingRemoval) return;
+
     const member = pendingRemoval;
     removeMember.mutate(member.id, {
       onSuccess: () => {
@@ -101,10 +111,10 @@ export function MembersView({ projectId }: { projectId: string }) {
           <OptionSelect
             size="sm"
             ariaLabel={`Project role for ${member.user.name}`}
-            value={member.projectRole.name}
-            options={EDITABLE_ROLES}
-            onChange={(role) => role !== member.projectRole.name && changeRole(member, role)}
-            disabled={updateRole.isPending}
+            value={member.projectRole.id}
+            options={editableRoleOptions}
+            onChange={(projectRoleId) => changeRole(member, projectRoleId)}
+            disabled={updateRole.isPending || editableRoleOptions.length === 0}
             className="w-40"
           />
         ) : (
@@ -147,20 +157,24 @@ export function MembersView({ projectId }: { projectId: string }) {
         </PermissionGate>
       </div>
 
-      <DataTable
-        columns={columns}
-        rows={sorted}
-        getRowId={(member) => member.id}
-        isLoading={isLoading}
-        caption="Project members"
-        empty={
-          <EmptyState
-            icon={UsersIcon}
-            title="No members"
-            description="Add someone to get started."
-          />
-        }
-      />
+      {error ? (
+        <ErrorState error={error} onRetry={() => refetch()} />
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={sorted}
+          getRowId={(member) => member.id}
+          isLoading={isLoading}
+          caption="Project members"
+          empty={
+            <EmptyState
+              icon={UsersIcon}
+              title="No members"
+              description="Add someone to get started."
+            />
+          }
+        />
+      )}
 
       <AddMemberDialog
         projectId={projectId}

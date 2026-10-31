@@ -17,7 +17,7 @@ export const issueSchema = z.object({
   priority: issuePrioritySchema,
   projectId: z.uuid(),
   creator: userRefSchema,
-  assignee: userRefSchema.nullable(),
+  assignee: userRefSchema,
   createdAt: timestampSchema,
   updatedAt: timestampSchema,
 });
@@ -28,14 +28,17 @@ const issueTitle = z
   .trim()
   .min(1, 'Title is required')
   .max(200, 'Title must be 200 characters or fewer');
-const issueDescription = z.string().max(5000, 'Description must be 5000 characters or fewer');
+const issueDescription = z
+  .string()
+  .trim()
+  .min(1, 'Description is required')
+  .max(5000, 'Description must be 5000 characters or fewer');
 
 export const createIssueInputSchema = z.object({
   title: issueTitle,
-  description: issueDescription.optional(),
-  status: issueStatusSchema.optional(),
+  description: issueDescription,
   priority: issuePrioritySchema.optional(),
-  assigneeId: z.uuid('Select a valid assignee').nullable().optional(),
+  assigneeId: z.uuid('Select a valid assignee').optional(),
 });
 export type CreateIssueInput = z.infer<typeof createIssueInputSchema>;
 
@@ -44,7 +47,7 @@ export const updateIssueInputSchema = z.object({
   description: issueDescription.optional(),
   status: issueStatusSchema.optional(),
   priority: issuePrioritySchema.optional(),
-  assigneeId: z.uuid('Select a valid assignee').nullable().optional(),
+  assigneeId: z.uuid('Select a valid assignee').optional(),
 });
 export type UpdateIssueInput = z.infer<typeof updateIssueInputSchema>;
 

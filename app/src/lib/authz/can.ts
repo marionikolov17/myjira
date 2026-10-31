@@ -5,7 +5,6 @@ import type {
   User,
   WorkspaceRoleName,
 } from '@/lib/api/schemas';
-import { workspaceRoleNameById } from '@/lib/api/schemas';
 
 export const ACTIONS = [
   'auth.login',
@@ -94,7 +93,7 @@ export function can(
 }
 
 /** A ProjectAdmin without the workspace-Owner bypass may only manage Developer-tier members. */
-export function actsWithProjectAdminLimits(actor: ActorContext, projectId: string): boolean {
+function actsWithProjectAdminLimits(actor: ActorContext, projectId: string): boolean {
   return !hasWorkspaceRole(actor, 'Owner') && getProjectRole(actor, projectId) === 'ProjectAdmin';
 }
 
@@ -135,7 +134,19 @@ export function invitableWorkspaceRoles(
   return actor.workspaceRole.name === 'Owner' ? ['Admin', 'Developer'] : ['Developer'];
 }
 
-export function canChangeUserRole(actor: ActorContext | null, user: User): boolean {
+/**
+ * Server-side role IDs aren't known to the client up-front, so callers must supply a
+ * `workspaceRoleNameFor` lookup (built from `useWorkspaceRoles().byId`). While the lookup
+ * is still loading we conservatively DISALLOW changing the role: it will re-render once
+ * the roles arrive.
+ */
+export function canChangeUserRole(
+  actor: ActorContext | null,
+  user: User,
+  workspaceRoleNameFor: (id: string) => WorkspaceRoleName | undefined,
+): boolean {
   if (!actor || !can(actor, 'users.updateRole')) return false;
-  return workspaceRoleNameById(user.workspaceRoleId) !== 'Owner';
+  const roleName = workspaceRoleNameFor(user.workspaceRoleId);
+  if (!roleName) return false;
+  return roleName !== 'Owner';
 }

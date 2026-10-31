@@ -7,24 +7,25 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ISSUE_STATUS_LABELS, type Issue, type IssueStatus } from '@/lib/api/schemas';
+import { PermissionGate } from '@/lib/authz/PermissionGate';
 import { cn } from '@/lib/utils';
 import { BoardCard } from './BoardCard';
 
 type BoardColumnProps = {
+  projectId: string;
   status: IssueStatus;
   issues: Issue[];
   isLoading: boolean;
   canDrag: boolean;
-  canCreate: boolean;
-  onCreate: (status: IssueStatus) => void;
+  onCreate: () => void;
 };
 
 export function BoardColumn({
+  projectId,
   status,
   issues,
   isLoading,
   canDrag,
-  canCreate,
   onCreate,
 }: BoardColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
@@ -48,16 +49,16 @@ export function BoardColumn({
             {isLoading ? '–' : issues.length}
           </Badge>
         </h2>
-        {canCreate && (
+        <PermissionGate action="issues.create" projectId={projectId}>
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={() => onCreate(status)}
+            onClick={() => onCreate()}
             aria-label={`New issue in ${label}`}
           >
             <PlusIcon />
           </Button>
-        )}
+        </PermissionGate>
       </header>
       <ul className="flex flex-1 flex-col gap-2">
         {isLoading

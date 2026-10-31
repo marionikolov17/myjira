@@ -5,18 +5,27 @@ import { issuesClient } from '@/lib/api/client/issues';
 import type { Issue, ListQuery } from '@/lib/api/schemas';
 import { queryKeys } from '@/lib/query/keys';
 
-export function useProjectIssues(projectId: string, query: ListQuery) {
+const DETAIL_STALE_TIME_MS = 5 * 60_000;
+
+export function useProjectIssues(
+  projectId: string,
+  query: ListQuery,
+  options: { enabled?: boolean } = {},
+) {
   return useQuery({
     queryKey: queryKeys.issues.list(projectId, query),
     queryFn: () => issuesClient.list(projectId, query),
     placeholderData: keepPreviousData,
+    enabled: options.enabled ?? true,
   });
 }
 
-export function useIssue(projectId: string, issueId: string) {
+export function useIssue(projectId: string | undefined, issueId: string | undefined) {
   return useQuery({
-    queryKey: queryKeys.issues.detail(projectId, issueId),
-    queryFn: async () => (await issuesClient.getById(projectId, issueId)).data,
+    queryKey: queryKeys.issues.detail(projectId ?? '', issueId ?? ''),
+    queryFn: async () => (await issuesClient.getById(projectId as string, issueId as string)).data,
+    enabled: Boolean(projectId && issueId),
+    staleTime: DETAIL_STALE_TIME_MS,
   });
 }
 

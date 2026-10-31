@@ -12,7 +12,6 @@ import { isApiError } from '@/lib/api/schemas';
 import { handleFormError } from '@/lib/forms/handleFormError';
 import { useLogin } from '../mutations';
 import { loginInputSchema, type LoginInput } from '../schemas';
-import { DemoAccounts } from './DemoAccounts';
 
 export function LoginForm() {
   const router = useRouter();
@@ -35,11 +34,6 @@ export function LoginForm() {
       },
     });
   });
-
-  const fillDemo = (email: string, password: string) => {
-    form.setValue('email', email, { shouldValidate: true });
-    form.setValue('password', password, { shouldValidate: true });
-  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -86,7 +80,6 @@ export function LoginForm() {
           </Button>
         </FieldGroup>
       </form>
-      <DemoAccounts onPick={fillDemo} />
     </div>
   );
 }

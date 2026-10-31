@@ -25,11 +25,11 @@ import {
   type IssueStatus,
 } from '@/lib/api/schemas';
 import { ISSUE_MODIFY_DENIED_REASON } from '@/lib/authz/can';
+import { PermissionGate } from '@/lib/authz/PermissionGate';
 import { useCan } from '@/lib/authz/useCan';
 import { notifyError } from '@/lib/forms/handleFormError';
 import { useUpdateIssue } from '../../mutations';
 import { useBoardIssues } from '../../queries';
-import { UNASSIGNED } from '../../schemas';
 import { useIssueFilters } from '../../useIssueFilters';
 import { CreateIssueDialog } from '../CreateIssueDialog';
 import { IssueFilterBar } from '../IssueFilterBar';
@@ -43,10 +43,9 @@ function isStatus(value: unknown): value is IssueStatus {
 export function BoardView({ projectId }: { projectId: string }) {
   const { data, isLoading, error, refetch } = useBoardIssues(projectId);
   const canUpdate = useCan('issues.update', { projectId });
-  const canCreate = useCan('issues.create', { projectId });
   const updateIssue = useUpdateIssue(projectId);
   const [activeIssue, setActiveIssue] = useState<Issue | null>(null);
-  const [createStatus, setCreateStatus] = useState<IssueStatus | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
   const filters = useIssueFilters();
 
   const sensors = useSensors(
@@ -59,8 +58,7 @@ export function BoardView({ projectId }: { projectId: string }) {
   const issues = allIssues.filter(
     (issue) =>
       (filters.values.priority.length === 0 || filters.values.priority.includes(issue.priority)) &&
-      (filters.values.assignee.length === 0 ||
-        filters.values.assignee.includes(issue.assignee?.id ?? UNASSIGNED)),
+      (filters.values.assignee.length === 0 || filters.values.assignee.includes(issue.assignee.id)),
   );
   const titleOf = (id: string | number) =>
     issues.find((issue) => issue.id === id)?.title ?? 'Issue';
@@ -95,8 +93,6 @@ export function BoardView({ projectId }: { projectId: string }) {
     );
   };
 
-  if (error) return <ErrorState error={error} onRetry={() => refetch()} />;
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -110,12 +106,12 @@ export function BoardView({ projectId }: { projectId: string }) {
             Drag cards between columns to change their status.
           </p>
         )}
-        {canCreate && (
-          <Button onClick={() => setCreateStatus('ToDo')}>
+        <PermissionGate action="issues.create" projectId={projectId}>
+          <Button onClick={() => setCreateOpen(true)}>
             <PlusIcon data-icon="inline-start" />
             New issue
           </Button>
-        )}
+        </PermissionGate>
       </div>
 
       <IssueFilterBar
@@ -126,44 +122,45 @@ export function BoardView({ projectId }: { projectId: string }) {
         onClear={filters.clearFilters}
       />
 
-      <DndContext
-        sensors={sensors}
-        onDragStart={onDragStart}
-        onDragEnd={onDragEnd}
-        onDragCancel={() => setActiveIssue(null)}
-        accessibility={{ announcements }}
-      >
-        <div className="grid gap-4 md:grid-cols-3">
-          {ISSUE_STATUSES.map((status) => (
-            <BoardColumn
-              key={status}
-              status={status}
-              issues={issues.filter((issue) => issue.status === status)}
-              isLoading={isLoading}
-              canDrag={canUpdate}
-              canCreate={canCreate}
-              onCreate={setCreateStatus}
-            />
-          ))}
-        </div>
-        <DragOverlay dropAnimation={null}>
-          {activeIssue ? <BoardCardBody issue={activeIssue} overlay /> : null}
-        </DragOverlay>
-      </DndContext>
+      {error ? (
+        <ErrorState error={error} onRetry={() => refetch()} />
+      ) : (
+        <>
+          <DndContext
+            sensors={sensors}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            onDragCancel={() => setActiveIssue(null)}
+            accessibility={{ announcements }}
+          >
+            <div className="grid gap-4 md:grid-cols-3">
+              {ISSUE_STATUSES.map((status) => (
+                <BoardColumn
+                  key={status}
+                  projectId={projectId}
+                  status={status}
+                  issues={issues.filter((issue) => issue.status === status)}
+                  isLoading={isLoading}
+                  canDrag={canUpdate}
+                  onCreate={() => setCreateOpen(true)}
+                />
+              ))}
+            </div>
+            <DragOverlay dropAnimation={null}>
+              {activeIssue ? <BoardCardBody issue={activeIssue} overlay /> : null}
+            </DragOverlay>
+          </DndContext>
 
-      {data && data.meta.pagination.totalItems > allIssues.length && (
-        <p className="text-xs text-muted-foreground">
-          Showing the {allIssues.length} most recently updated issues. Use the Issues tab to see
-          everything.
-        </p>
+          {data && data.meta.pagination.totalItems > allIssues.length && (
+            <p className="text-xs text-muted-foreground">
+              Showing the {allIssues.length} most recently updated issues. Use the Issues tab to see
+              everything.
+            </p>
+          )}
+        </>
       )}
 
-      <CreateIssueDialog
-        projectId={projectId}
-        open={createStatus !== null}
-        defaultStatus={createStatus ?? 'ToDo'}
-        onOpenChange={(open) => !open && setCreateStatus(null)}
-      />
+      <CreateIssueDialog projectId={projectId} open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   );
 }

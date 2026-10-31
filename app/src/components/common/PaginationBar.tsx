@@ -16,9 +16,9 @@ export function PaginationBar({
   itemLabel = 'items',
 }: PaginationBarProps) {
   if (!pagination || pagination.totalItems === 0) return null;
-  const { pageNumber, pageSize, totalItems, totalPages } = pagination;
-  const from = (pageNumber - 1) * pageSize + 1;
-  const to = Math.min(pageNumber * pageSize, totalItems);
+  const { page, pageSize, totalItems, totalPages } = pagination;
+  const from = (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, totalItems);
 
   return (
     <nav aria-label="Pagination" className="flex flex-wrap items-center justify-between gap-3">
@@ -29,19 +29,19 @@ export function PaginationBar({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => onPageChange(pageNumber - 1)}
-          disabled={pageNumber <= 1}
+          onClick={() => onPageChange(page - 1)}
+          disabled={page <= 1}
           aria-label="Previous page"
         >
           <ChevronLeftIcon data-icon="inline-start" aria-hidden="true" />
           Prev
         </Button>
-        <span className="min-w-20 text-center text-sm tabular-nums">{`${pageNumber} / ${Math.max(totalPages, 1)}`}</span>
+        <span className="min-w-20 text-center text-sm tabular-nums">{`${page} / ${Math.max(totalPages, 1)}`}</span>
         <Button
           variant="outline"
           size="sm"
-          onClick={() => onPageChange(pageNumber + 1)}
-          disabled={pageNumber >= totalPages}
+          onClick={() => onPageChange(page + 1)}
+          disabled={page >= totalPages}
           aria-label="Next page"
         >
           Next

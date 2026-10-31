@@ -2,31 +2,41 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { FolderKanbanIcon } from 'lucide-react';
-import { parseAsInteger, parseAsStringLiteral, useQueryStates } from 'nuqs';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { OptionSelect } from '@/components/common/OptionSelect';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PaginationBar } from '@/components/common/PaginationBar';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { ListFilter, ListQuery } from '@/lib/api/schemas';
 import { PermissionGate } from '@/lib/authz/PermissionGate';
 import { useProjects } from '../queries';
-import { PROJECT_SORT_OPTIONS, PROJECT_SORT_VALUES, PROJECTS_PAGE_SIZE } from '../schemas';
+import { PROJECTS_PAGE_SIZE, PROJECT_SORT_OPTIONS } from '../schemas';
+import { useProjectFilters, type ProjectFilterValues } from '../useProjectFilters';
 import { CreateProjectDialog } from './CreateProjectDialog';
 import { ProjectCard } from './ProjectCard';
+import { ProjectFilterBar } from './ProjectFilterBar';
 
-const searchParams = {
-  page: parseAsInteger.withDefault(1),
-  sort: parseAsStringLiteral(PROJECT_SORT_VALUES).withDefault('-updatedAt'),
-};
+function buildFilter(values: ProjectFilterValues): ListFilter | undefined {
+  if (values.creator.length === 0) return undefined;
+  return { creatorId: { in: values.creator } };
+}
 
 export function ProjectsView() {
-  const [{ page, sort }, setParams] = useQueryStates(searchParams);
-  const { data, isLoading, error, refetch } = useProjects({
-    page,
+  const filters = useProjectFilters();
+
+  const filter = buildFilter(filters.values);
+  const query: ListQuery = {
+    page: filters.page,
     pageSize: PROJECTS_PAGE_SIZE,
-    sort,
-  });
+    sort: filters.sort,
+    filter,
+  };
+
+  const { data, isLoading, error, refetch } = useProjects(query);
+
+  const anyFilterActive = filters.values.creator.length > 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -36,9 +46,9 @@ export function ProjectsView() {
         actions={
           <>
             <OptionSelect
-              value={sort}
+              value={filters.sort}
               options={PROJECT_SORT_OPTIONS}
-              onChange={(next) => setParams({ sort: next, page: 1 })}
+              onChange={filters.setSort}
               ariaLabel="Sort projects"
               className="w-48"
             />
@@ -47,6 +57,13 @@ export function ProjectsView() {
             </PermissionGate>
           </>
         }
+      />
+
+      <ProjectFilterBar
+        keys={['creator']}
+        values={filters.values}
+        onChange={filters.setFilter}
+        onClear={filters.clearFilters}
       />
 
       {error ? (
@@ -60,12 +77,20 @@ export function ProjectsView() {
       ) : !data?.data.length ? (
         <EmptyState
           icon={FolderKanbanIcon}
-          title="No projects yet"
-          description="Create a project to start tracking work."
+          title={anyFilterActive ? 'No projects match these filters' : 'No projects yet'}
+          description={
+            anyFilterActive ? 'Try removing a filter.' : 'Create a project to start tracking work.'
+          }
         >
-          <PermissionGate action="projects.create">
-            <CreateProjectDialog />
-          </PermissionGate>
+          {anyFilterActive ? (
+            <Button variant="outline" onClick={filters.clearFilters}>
+              Clear filters
+            </Button>
+          ) : (
+            <PermissionGate action="projects.create">
+              <CreateProjectDialog />
+            </PermissionGate>
+          )}
         </EmptyState>
       ) : (
         <>
@@ -87,7 +112,7 @@ export function ProjectsView() {
           </ul>
           <PaginationBar
             pagination={data.meta.pagination}
-            onPageChange={(next) => setParams({ page: next })}
+            onPageChange={filters.setPage}
             itemLabel="projects"
           />
         </>

@@ -9,7 +9,7 @@ export function useCreateUser() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: CreateUserInput) => (await usersClient.create(input)).data,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.users.all() }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.users.lists() }),
   });
 }
 
@@ -20,7 +20,7 @@ export function useUpdateUserRole() {
       (await usersClient.updateRole(userId, { workspaceRoleId })).data,
     onSuccess: (user) => {
       queryClient.setQueryData(queryKeys.users.detail(user.id), user);
-      return queryClient.invalidateQueries({ queryKey: queryKeys.users.all() });
+      return queryClient.invalidateQueries({ queryKey: queryKeys.users.lists() });
     },
   });
 }

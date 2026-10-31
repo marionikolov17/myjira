@@ -1,7 +1,7 @@
 'use client';
 
 import { CheckIcon, UserPlusIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { OptionSelect } from '@/components/common/OptionSelect';
 import { PaginationBar } from '@/components/common/PaginationBar';
@@ -20,7 +20,8 @@ import { Field, FieldLabel } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { useUsers } from '@/features/users/queries';
-import { PROJECT_ROLE_IDS, PROJECT_ROLE_LABELS, type ProjectRoleName } from '@/lib/api/schemas';
+import { useProjectRoles } from '@/features/roles/queries';
+import { PROJECT_ROLE_LABELS } from '@/lib/api/schemas';
 import { assignableProjectRoles } from '@/lib/authz/can';
 import { useActor } from '@/lib/authz/useCan';
 import { notifyError } from '@/lib/forms/handleFormError';
@@ -42,15 +43,38 @@ export function AddMemberDialog({
   onOpenChange,
 }: AddMemberDialogProps) {
   const actor = useActor();
-  const roles = assignableProjectRoles(actor, projectId);
+  const projectRoles = useProjectRoles();
+  const assignableNames = assignableProjectRoles(actor, projectId);
+
   const [page, setPage] = useState(1);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [role, setRole] = useState<ProjectRoleName>('Developer');
+  const [projectRoleId, setProjectRoleId] = useState('');
+
   const addMember = useAddMember(projectId);
   const { data, isLoading } = useUsers(
     { page, pageSize: ADD_MEMBER_PAGE_SIZE, sort: 'name' },
     { enabled: open },
   );
+
+  const roleOptions = useMemo(
+    () =>
+      assignableNames.flatMap((name) => {
+        const role = projectRoles.byName(name);
+        return role ? [{ value: role.id, label: PROJECT_ROLE_LABELS[name] }] : [];
+      }),
+    [assignableNames, projectRoles],
+  );
+  const defaultRoleId =
+    roleOptions.find((option) => option.label === 'Developer')?.value ??
+    roleOptions[0]?.value ??
+    '';
+
+  useEffect(() => {
+    if (!open) return;
+    if (!projectRoleId || !roleOptions.some((option) => option.value === projectRoleId)) {
+      setProjectRoleId(defaultRoleId);
+    }
+  }, [open, projectRoleId, defaultRoleId, roleOptions]);
 
   const pageUsers = data?.data ?? [];
   const candidates = pageUsers.filter((user) => !memberUserIds.includes(user.id));
@@ -58,7 +82,7 @@ export function AddMemberDialog({
 
   const reset = () => {
     setSelectedUserId(null);
-    setRole('Developer');
+    setProjectRoleId(defaultRoleId);
     setPage(1);
   };
 
@@ -69,9 +93,9 @@ export function AddMemberDialog({
   };
 
   const submit = () => {
-    if (!selectedUserId) return;
+    if (!selectedUserId || !projectRoleId) return;
     addMember.mutate(
-      { userId: selectedUserId, projectRoleId: PROJECT_ROLE_IDS[role] },
+      { userId: selectedUserId, projectRoleId },
       {
         onSuccess: (member) => {
           toast.success(
@@ -84,6 +108,8 @@ export function AddMemberDialog({
       },
     );
   };
+
+  const rolesReady = roleOptions.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -148,10 +174,10 @@ export function AddMemberDialog({
             <OptionSelect
               id="add-member-role"
               ariaLabel="Project role"
-              value={role}
-              options={roles.map((value) => ({ value, label: PROJECT_ROLE_LABELS[value] }))}
-              onChange={setRole}
-              disabled={roles.length <= 1}
+              value={projectRoleId}
+              options={roleOptions}
+              onChange={setProjectRoleId}
+              disabled={roleOptions.length <= 1 || !rolesReady}
             />
           </Field>
         </div>
@@ -164,7 +190,10 @@ export function AddMemberDialog({
           >
             Cancel
           </Button>
-          <Button onClick={submit} disabled={!selectedUserId || addMember.isPending}>
+          <Button
+            onClick={submit}
+            disabled={!selectedUserId || !projectRoleId || addMember.isPending || !rolesReady}
+          >
             {addMember.isPending ? (
               <Spinner data-icon="inline-start" />
             ) : (

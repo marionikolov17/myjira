@@ -11,10 +11,9 @@ export function useCreateProject() {
     mutationFn: async (input: CreateProjectInput) => (await projectsClient.create(input)).data,
     onSuccess: async (project) => {
       queryClient.setQueryData(queryKeys.projects.detail(project.id), project);
-      // The creator becomes ProjectOwner, so the actor context must be refreshed.
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.me() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.projects.all() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.projects.lists() }),
       ]);
     },
   });
@@ -27,7 +26,7 @@ export function useUpdateProject(projectId: string) {
       (await projectsClient.update(projectId, input)).data,
     onSuccess: (project) => {
       queryClient.setQueryData(queryKeys.projects.detail(projectId), project);
-      return queryClient.invalidateQueries({ queryKey: ['projects', 'list'] });
+      return queryClient.invalidateQueries({ queryKey: queryKeys.projects.lists() });
     },
   });
 }
@@ -39,10 +38,10 @@ export function useDeleteProject(projectId: string) {
     onSuccess: async () => {
       queryClient.removeQueries({ queryKey: queryKeys.projects.detail(projectId) });
       queryClient.removeQueries({ queryKey: queryKeys.issues.project(projectId) });
-      queryClient.removeQueries({ queryKey: queryKeys.members.list(projectId) });
+      queryClient.removeQueries({ queryKey: queryKeys.members.project(projectId) });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.me() }),
-        queryClient.invalidateQueries({ queryKey: ['projects', 'list'] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.projects.lists() }),
       ]);
     },
   });

@@ -46,6 +46,8 @@ export function useUpdateIssue(projectId: string) {
         }),
       };
 
+      // Strip assigneeId from the optimistic scalar patch — the richer assignee UserRef
+      // (if any) is carried in `optimistic.assignee` so the UI can repaint immediately.
       const { assigneeId: _assigneeId, ...scalarPatch } = input;
       const patch: Partial<Issue> = {
         ...scalarPatch,

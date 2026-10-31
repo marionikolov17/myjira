@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { timestampSchema } from './common';
 
 export const WORKSPACE_ROLE_NAMES = ['Owner', 'Admin', 'Developer'] as const;
 export const workspaceRoleNameSchema = z.enum(WORKSPACE_ROLE_NAMES);
@@ -8,35 +9,27 @@ export const PROJECT_ROLE_NAMES = ['ProjectOwner', 'ProjectAdmin', 'Developer'] 
 export const projectRoleNameSchema = z.enum(PROJECT_ROLE_NAMES);
 export type ProjectRoleName = z.infer<typeof projectRoleNameSchema>;
 
-export const WORKSPACE_ROLE_IDS: Record<WorkspaceRoleName, string> = {
-  Owner: '00000000-0000-4000-8000-000000000001',
-  Admin: '00000000-0000-4000-8000-000000000002',
-  Developer: '00000000-0000-4000-8000-000000000003',
+export const workspaceRoleSchema = z.object({
+  id: z.uuid(),
+  name: workspaceRoleNameSchema,
+  createdAt: timestampSchema,
+  updatedAt: timestampSchema,
+});
+export type WorkspaceRole = z.infer<typeof workspaceRoleSchema>;
+
+export const projectRoleSchema = z.object({
+  id: z.uuid(),
+  name: projectRoleNameSchema,
+  createdAt: timestampSchema,
+  updatedAt: timestampSchema,
+});
+export type ProjectRole = z.infer<typeof projectRoleSchema>;
+
+export const WORKSPACE_ROLE_LABELS: Record<WorkspaceRoleName, string> = {
+  Owner: 'Owner',
+  Admin: 'Admin',
+  Developer: 'Developer',
 };
-
-export const PROJECT_ROLE_IDS: Record<ProjectRoleName, string> = {
-  ProjectOwner: '00000000-0000-4000-8000-000000000011',
-  ProjectAdmin: '00000000-0000-4000-8000-000000000012',
-  Developer: '00000000-0000-4000-8000-000000000013',
-};
-
-function invert<K extends string>(record: Record<K, string>): Record<string, K> {
-  return Object.fromEntries(Object.entries(record).map(([name, id]) => [id, name])) as Record<
-    string,
-    K
-  >;
-}
-
-const workspaceRoleNamesById = invert(WORKSPACE_ROLE_IDS);
-const projectRoleNamesById = invert(PROJECT_ROLE_IDS);
-
-export function workspaceRoleNameById(id: string): WorkspaceRoleName | undefined {
-  return workspaceRoleNamesById[id];
-}
-
-export function projectRoleNameById(id: string): ProjectRoleName | undefined {
-  return projectRoleNamesById[id];
-}
 
 export const PROJECT_ROLE_LABELS: Record<ProjectRoleName, string> = {
   ProjectOwner: 'Project Owner',

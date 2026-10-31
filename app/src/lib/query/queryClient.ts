@@ -18,7 +18,9 @@ export function makeQueryClient(): QueryClient {
         staleTime: 30_000,
         refetchOnWindowFocus: false,
         retry: (failureCount, error) => {
-          if (isApiError(error) && error.status < 500) return false;
+          if (isApiError(error) && (error.status < 500 || error.code === 'TRANSPORT_UNAVAILABLE')) {
+            return false;
+          }
           return failureCount < 2;
         },
       },

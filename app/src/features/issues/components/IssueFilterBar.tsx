@@ -5,7 +5,6 @@ import { MultiSelectFilter, type FilterOption } from '@/components/common/MultiS
 import { Button } from '@/components/ui/button';
 import { useProjectMembers } from '@/features/members/queries';
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from '../options';
-import { UNASSIGNED } from '../schemas';
 import type { IssueFilterKey, IssueFilterValues } from '../useIssueFilters';
 
 const LABELS: Record<IssueFilterKey, string> = {
@@ -39,7 +38,7 @@ export function IssueFilterBar({
   const optionsFor: Record<IssueFilterKey, FilterOption[]> = {
     status: STATUS_OPTIONS,
     priority: PRIORITY_OPTIONS,
-    assignee: [{ value: UNASSIGNED, label: 'Unassigned' }, ...memberOptions],
+    assignee: memberOptions,
     creator: memberOptions,
   };
 

@@ -807,7 +807,7 @@
                     "meta": {
                       "pagination": {
                         "pageSize": 10,
-                        "pageNumber": 1,
+                        "page": 1,
                         "totalItems": 1,
                         "totalPages": 1
                       }
@@ -4214,13 +4214,13 @@
       },
       "Pagination": {
         "type": "object",
-        "required": ["pageSize", "pageNumber", "totalItems", "totalPages"],
+        "required": ["pageSize", "page", "totalItems", "totalPages"],
         "properties": {
           "pageSize": {
             "type": "integer",
             "description": "The number of items per page."
           },
-          "pageNumber": {
+          "page": {
             "type": "integer",
             "description": "The current page number."
           },

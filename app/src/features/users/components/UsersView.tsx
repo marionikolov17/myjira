@@ -1,9 +1,10 @@
 'use client';
 
-import { parseAsInteger, parseAsStringLiteral, useQueryStates } from 'nuqs';
-import { useState } from 'react';
+import { UsersIcon } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { type DataTableColumn, DataTable } from '@/components/common/DataTable';
+import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { OptionSelect } from '@/components/common/OptionSelect';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -11,56 +12,56 @@ import { PaginationBar } from '@/components/common/PaginationBar';
 import { RoleBadge } from '@/components/common/RoleBadge';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { Badge } from '@/components/ui/badge';
-import {
-  WORKSPACE_ROLE_IDS,
-  workspaceRoleNameById,
-  type CreateUserResponse,
-  type User,
-} from '@/lib/api/schemas';
+import { Button } from '@/components/ui/button';
+import type { CreateUserResponse, ListFilter, ListQuery, User } from '@/lib/api/schemas';
 import { canChangeUserRole } from '@/lib/authz/can';
 import { PermissionGate } from '@/lib/authz/PermissionGate';
 import { useActor } from '@/lib/authz/useCan';
 import { formatDate } from '@/lib/format';
 import { notifyError } from '@/lib/forms/handleFormError';
+import { useWorkspaceRoles } from '@/features/roles/queries';
 import { useUpdateUserRole } from '../mutations';
+import { ASSIGNABLE_ROLE_NAMES } from '../options';
 import { useUsers } from '../queries';
-import { USER_SORT_OPTIONS } from '../schemas';
+import { USERS_PAGE_SIZE, USER_SORT_OPTIONS } from '../schemas';
+import { useUserFilters, type UserFilterValues } from '../useUserFilters';
 import { ActivationLinkDialog } from './ActivationLinkDialog';
 import { InviteUserDialog } from './InviteUserDialog';
+import { UserFilterBar } from './UserFilterBar';
 
-const PAGE_SIZE = 12;
-const SORT_VALUES = USER_SORT_OPTIONS.map((option) => option.value);
-type UserSort = (typeof SORT_VALUES)[number];
-const DEFAULT_SORT: UserSort = 'name';
-
-const ROLE_OPTIONS = (['Admin', 'Developer'] as const).map((role) => ({
-  value: WORKSPACE_ROLE_IDS[role],
-  label: role,
-}));
+function buildFilter(values: UserFilterValues): ListFilter | undefined {
+  const next: ListFilter = {};
+  if (values.status.length > 0) next.status = { in: values.status };
+  if (values.role.length > 0) next.workspaceRoleId = { in: values.role };
+  return Object.keys(next).length > 0 ? next : undefined;
+}
 
 export function UsersView() {
   const actor = useActor();
-  const [{ page, sort }, setParams] = useQueryStates(
-    {
-      page: parseAsInteger.withDefault(1),
-      sort: parseAsStringLiteral(SORT_VALUES).withDefault(DEFAULT_SORT),
-    },
-    { history: 'replace' },
-  );
-  const { data, isLoading, error, refetch } = useUsers({
-    page: Math.max(1, page),
-    pageSize: PAGE_SIZE,
-    sort,
-  });
+  const workspaceRoles = useWorkspaceRoles();
+  const filters = useUserFilters();
+
+  const filter = buildFilter(filters.values);
+  const query: ListQuery = {
+    page: filters.page,
+    pageSize: USERS_PAGE_SIZE,
+    sort: filters.sort,
+    filter,
+  };
+
+  const { data, isLoading, error, refetch } = useUsers(query);
   const updateRole = useUpdateUserRole();
+
   const [invite, setInvite] = useState<CreateUserResponse | null>(null);
 
-  const setSort = (next: string | null) => {
-    const value = (SORT_VALUES as readonly string[]).includes(next ?? '')
-      ? (next as UserSort)
-      : null;
-    void setParams({ sort: value, page: null });
-  };
+  const assignableRoleOptions = useMemo(
+    () =>
+      ASSIGNABLE_ROLE_NAMES.flatMap((name) => {
+        const role = workspaceRoles.byName(name);
+        return role ? [{ value: role.id, label: name }] : [];
+      }),
+    [workspaceRoles],
+  );
 
   const changeRole = (user: User, workspaceRoleId: string) => {
     if (workspaceRoleId === user.workspaceRoleId) return;
@@ -69,7 +70,7 @@ export function UsersView() {
       {
         onSuccess: (updated) =>
           toast.success(
-            `${updated.name} is now ${workspaceRoleNameById(updated.workspaceRoleId) ?? 'updated'}`,
+            `${updated.name} is now ${workspaceRoles.byId(updated.workspaceRoleId)?.name ?? 'updated'}`,
           ),
         onError: notifyError,
       },
@@ -107,15 +108,16 @@ export function UsersView() {
       id: 'role',
       header: 'Workspace role',
       cell: (user) => {
-        const role = workspaceRoleNameById(user.workspaceRoleId) ?? 'Developer';
-        return canChangeUserRole(actor, user) ? (
+        const role = workspaceRoles.byId(user.workspaceRoleId)?.name ?? 'Developer';
+        const editable = canChangeUserRole(actor, user, (id) => workspaceRoles.byId(id)?.name);
+        return editable ? (
           <OptionSelect
             size="sm"
             ariaLabel={`Workspace role for ${user.name}`}
             value={user.workspaceRoleId}
-            options={ROLE_OPTIONS}
+            options={assignableRoleOptions}
             onChange={(next) => changeRole(user, next)}
-            disabled={updateRole.isPending}
+            disabled={updateRole.isPending || assignableRoleOptions.length === 0}
             className="w-36"
           />
         ) : (
@@ -137,6 +139,8 @@ export function UsersView() {
     },
   ];
 
+  const anyFilterActive = filters.values.status.length > 0 || filters.values.role.length > 0;
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -146,16 +150,23 @@ export function UsersView() {
           <div className="flex flex-wrap items-center gap-2">
             <OptionSelect
               ariaLabel="Sort users"
-              value={sort}
+              value={filters.sort}
               options={USER_SORT_OPTIONS}
-              onChange={(next) => setSort(next)}
-              className="w-40"
+              onChange={filters.setSort}
+              className="w-44"
             />
             <PermissionGate action="users.create">
               <InviteUserDialog onInvited={setInvite} />
             </PermissionGate>
           </div>
         }
+      />
+
+      <UserFilterBar
+        keys={['status', 'role']}
+        values={filters.values}
+        onChange={filters.setFilter}
+        onClear={filters.clearFilters}
       />
 
       {error ? (
@@ -167,14 +178,35 @@ export function UsersView() {
             rows={data?.data}
             getRowId={(user) => user.id}
             isLoading={isLoading}
-            sort={sort}
-            onSortChange={setSort}
+            sort={filters.sort}
+            onSortChange={filters.setSort}
             caption="Workspace users"
             skeletonRows={8}
+            empty={
+              <EmptyState
+                icon={UsersIcon}
+                title={anyFilterActive ? 'No users match these filters' : 'No users yet'}
+                description={
+                  anyFilterActive
+                    ? 'Try removing a filter.'
+                    : 'Invite someone to join the workspace.'
+                }
+              >
+                {anyFilterActive ? (
+                  <Button variant="outline" onClick={filters.clearFilters}>
+                    Clear filters
+                  </Button>
+                ) : (
+                  <PermissionGate action="users.create">
+                    <InviteUserDialog onInvited={setInvite} />
+                  </PermissionGate>
+                )}
+              </EmptyState>
+            }
           />
           <PaginationBar
             pagination={data?.meta.pagination}
-            onPageChange={(next) => void setParams({ page: next <= 1 ? null : next })}
+            onPageChange={filters.setPage}
             itemLabel="users"
           />
         </>

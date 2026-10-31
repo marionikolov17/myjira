@@ -10,7 +10,8 @@ export function useAddMember(projectId: string) {
   return useMutation({
     mutationFn: async (input: AddProjectMemberInput) =>
       (await membersClient.add(projectId, input)).data,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.members.list(projectId) }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.members.lists(projectId) }),
   });
 }
 
@@ -19,7 +20,8 @@ export function useUpdateMemberRole(projectId: string) {
   return useMutation({
     mutationFn: async ({ memberId, projectRoleId }: { memberId: string; projectRoleId: string }) =>
       (await membersClient.updateRole(projectId, memberId, { projectRoleId })).data,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.members.list(projectId) }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.members.lists(projectId) }),
   });
 }
 
@@ -27,6 +29,7 @@ export function useRemoveMember(projectId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (memberId: string) => membersClient.remove(projectId, memberId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.members.list(projectId) }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.members.lists(projectId) }),
   });
 }

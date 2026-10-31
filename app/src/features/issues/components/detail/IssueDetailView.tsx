@@ -193,9 +193,7 @@ export function IssueDetailView({ projectId, issueId }: { projectId: string; iss
                     value={issue.assignee}
                     disabled={!canUpdate}
                     className="w-full"
-                    onChange={(assignee) =>
-                      void save({ assigneeId: assignee?.id ?? null }, { assignee })
-                    }
+                    onChange={(assignee) => void save({ assigneeId: assignee.id }, { assignee })}
                   />
                 </DisabledReason>
               </MetaRow>

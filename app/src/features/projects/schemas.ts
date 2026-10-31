@@ -18,4 +18,5 @@ export type ProjectSort = (typeof PROJECT_SORT_OPTIONS)[number]['value'];
 export const PROJECT_SORT_VALUES = PROJECT_SORT_OPTIONS.map(
   (option) => option.value,
 ) as ProjectSort[];
+
 export const PROJECTS_PAGE_SIZE = 9;

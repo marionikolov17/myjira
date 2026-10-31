@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { createIssueInputSchema, ISSUE_PRIORITIES, ISSUE_STATUSES } from '@/lib/api/schemas';
+import { createIssueInputSchema, ISSUE_PRIORITIES } from '@/lib/api/schemas';
 
 export {
   createIssueInputSchema,
@@ -8,15 +8,29 @@ export {
   type UpdateIssueInput,
 } from '@/lib/api/schemas';
 
-/** Form shape for the create dialog: same contract, with concrete defaults for the selects. */
+/**
+ * Form shape for the create dialog. Mirrors the API contract (no `status` field; the server
+ * always starts new issues in `ToDo`) and requires concrete defaults for the selects so the
+ * form always submits a valid payload.
+ */
 export const createIssueFormSchema = createIssueInputSchema.extend({
-  description: z.string().max(5000, 'Description must be 5000 characters or fewer'),
-  status: z.enum(ISSUE_STATUSES),
   priority: z.enum(ISSUE_PRIORITIES),
-  assigneeId: z.uuid('Select a valid assignee').nullable(),
+  assigneeId: z.uuid('Select a valid assignee'),
 });
 export type CreateIssueForm = z.infer<typeof createIssueFormSchema>;
 
-export const ISSUE_SORT_FIELDS = ['title', 'status', 'priority', 'updatedAt', 'createdAt'] as const;
+export const ISSUE_SORT_FIELDS = [
+  'title',
+  '-title',
+  'status',
+  '-status',
+  'priority',
+  '-priority',
+  'updatedAt',
+  '-updatedAt',
+  'createdAt',
+  '-createdAt',
+] as const;
+export type IssueSortField = (typeof ISSUE_SORT_FIELDS)[number];
+
 export const ISSUES_PAGE_SIZE = 15;
-export const UNASSIGNED = 'unassigned';

@@ -34,12 +34,18 @@ export function CreateProjectDialog() {
   });
   const { errors } = form.formState;
 
+  const handleOpenChange = (next: boolean) => {
+    if (createProject.isPending) return;
+    if (!next) form.reset();
+    setOpen(next);
+  };
+
   const onSubmit = form.handleSubmit((values) =>
     createProject.mutate(values, {
       onSuccess: (project) => {
         toast.success(`Project "${project.name}" created`);
-        setOpen(false);
         form.reset();
+        setOpen(false);
         router.push(`/projects/${project.id}/board`);
       },
       onError: (error) => handleFormError(error, form),
@@ -47,13 +53,7 @@ export function CreateProjectDialog() {
   );
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) form.reset();
-      }}
-    >
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={<Button />}>
         <PlusIcon data-icon="inline-start" />
         New project
@@ -87,6 +87,14 @@ export function CreateProjectDialog() {
             </Field>
           </FieldGroup>
           <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleOpenChange(false)}
+              disabled={createProject.isPending}
+            >
+              Cancel
+            </Button>
             <Button type="submit" disabled={createProject.isPending}>
               {createProject.isPending && <Spinner data-icon="inline-start" />}
               Create project

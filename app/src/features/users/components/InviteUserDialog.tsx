@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { MailPlusIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { OptionSelect } from '@/components/common/OptionSelect';
@@ -18,10 +18,11 @@ import {
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
-import { WORKSPACE_ROLE_IDS, type CreateUserResponse } from '@/lib/api/schemas';
+import type { CreateUserResponse } from '@/lib/api/schemas';
 import { invitableWorkspaceRoles } from '@/lib/authz/can';
 import { useActor } from '@/lib/authz/useCan';
 import { handleFormError } from '@/lib/forms/handleFormError';
+import { useWorkspaceRoles } from '@/features/roles/queries';
 import { useCreateUser } from '../mutations';
 import { createUserInputSchema, type CreateUserInput } from '../schemas';
 
@@ -31,13 +32,25 @@ export function InviteUserDialog({
   onInvited: (invite: CreateUserResponse) => void;
 }) {
   const actor = useActor();
-  const roles = invitableWorkspaceRoles(actor);
+  const workspaceRoles = useWorkspaceRoles();
+  const invitableNames = invitableWorkspaceRoles(actor);
+
+  const roleOptions = useMemo(
+    () =>
+      invitableNames.flatMap((name) => {
+        const role = workspaceRoles.byName(name);
+        return role ? [{ value: role.id, label: name }] : [];
+      }),
+    [invitableNames, workspaceRoles],
+  );
+
   const [open, setOpen] = useState(false);
   const createUser = useCreateUser();
+
   const defaultValues: CreateUserInput = {
     name: '',
     email: '',
-    workspaceRoleId: WORKSPACE_ROLE_IDS.Developer,
+    workspaceRoleId: roleOptions[0]?.value ?? '',
   };
   const form = useForm<CreateUserInput>({
     resolver: zodResolver(createUserInputSchema),
@@ -45,9 +58,16 @@ export function InviteUserDialog({
   });
   const { errors } = form.formState;
 
+  // Backfill the default role once the roles finish loading or when the dialog opens.
+  useEffect(() => {
+    if (!open) return;
+    const current = form.getValues('workspaceRoleId');
+    if (!current && roleOptions[0]) form.setValue('workspaceRoleId', roleOptions[0].value);
+  }, [open, roleOptions, form]);
+
   const handleOpenChange = (next: boolean) => {
     if (createUser.isPending) return;
-    if (!next) form.reset(defaultValues);
+    if (!next) form.reset({ ...defaultValues, workspaceRoleId: roleOptions[0]?.value ?? '' });
     setOpen(next);
   };
 
@@ -55,7 +75,7 @@ export function InviteUserDialog({
     createUser.mutate(values, {
       onSuccess: (invite) => {
         toast.success(`Invited ${invite.user.name}`);
-        form.reset(defaultValues);
+        form.reset({ ...defaultValues, workspaceRoleId: roleOptions[0]?.value ?? '' });
         setOpen(false);
         onInvited(invite);
       },
@@ -63,11 +83,11 @@ export function InviteUserDialog({
     }),
   );
 
-  const roleOptions = roles.map((role) => ({ value: WORKSPACE_ROLE_IDS[role], label: role }));
+  const rolesReady = roleOptions.length > 0;
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>
+      <Button onClick={() => setOpen(true)} disabled={workspaceRoles.isLoading || !rolesReady}>
         <MailPlusIcon data-icon="inline-start" />
         Invite user
       </Button>
@@ -82,28 +102,28 @@ export function InviteUserDialog({
               </DialogDescription>
             </DialogHeader>
             <FieldGroup>
-              <Field data-invalid={errors.name ? true : undefined}>
+              <Field data-invalid={Boolean(errors.name) || undefined}>
                 <FieldLabel htmlFor="invite-name">Name</FieldLabel>
                 <Input
                   id="invite-name"
                   autoComplete="off"
-                  aria-invalid={errors.name ? true : undefined}
+                  aria-invalid={Boolean(errors.name) || undefined}
                   {...form.register('name')}
                 />
-                <FieldError>{errors.name?.message}</FieldError>
+                <FieldError errors={[errors.name]} />
               </Field>
-              <Field data-invalid={errors.email ? true : undefined}>
+              <Field data-invalid={Boolean(errors.email) || undefined}>
                 <FieldLabel htmlFor="invite-email">Email</FieldLabel>
                 <Input
                   id="invite-email"
                   type="email"
                   autoComplete="off"
-                  aria-invalid={errors.email ? true : undefined}
+                  aria-invalid={Boolean(errors.email) || undefined}
                   {...form.register('email')}
                 />
-                <FieldError>{errors.email?.message}</FieldError>
+                <FieldError errors={[errors.email]} />
               </Field>
-              <Field data-invalid={errors.workspaceRoleId ? true : undefined}>
+              <Field data-invalid={Boolean(errors.workspaceRoleId) || undefined}>
                 <FieldLabel htmlFor="invite-role">Workspace role</FieldLabel>
                 <Controller
                   control={form.control}
@@ -120,7 +140,7 @@ export function InviteUserDialog({
                     />
                   )}
                 />
-                <FieldError>{errors.workspaceRoleId?.message}</FieldError>
+                <FieldError errors={[errors.workspaceRoleId]} />
               </Field>
             </FieldGroup>
             <DialogFooter>
@@ -132,7 +152,7 @@ export function InviteUserDialog({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={createUser.isPending}>
+              <Button type="submit" disabled={createUser.isPending || !rolesReady}>
                 {createUser.isPending && <Spinner data-icon="inline-start" />}
                 Send invite
               </Button>

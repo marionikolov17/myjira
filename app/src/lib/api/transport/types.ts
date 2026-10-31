@@ -2,29 +2,38 @@ import type {
   ActorContext,
   Collection,
   CreateIssueInput,
+  CreateUserResponse,
   Envelope,
   Issue,
   ListQuery,
   Paginated,
   Project,
   ProjectMember,
+  ProjectRole,
   UpdateIssueInput,
   User,
+  WorkspaceRole,
 } from '@/lib/api/schemas';
 
 export interface Transport {
   // auth
   login(input: { email: string; password: string }): Promise<Envelope<{ token: string }>>;
+
+  // roles
+  listWorkspaceRoles(): Promise<Collection<WorkspaceRole>>;
+  listProjectRoles(): Promise<Collection<ProjectRole>>;
+
   // users
   getCurrentUser(): Promise<Envelope<ActorContext>>;
   createUser(input: {
     name: string;
     email: string;
     workspaceRoleId: string;
-  }): Promise<Envelope<{ user: User; activation: { url: string; expiresAt: string } }>>;
+  }): Promise<Envelope<CreateUserResponse>>;
   listUsers(query: ListQuery): Promise<Paginated<User>>;
   getUserById(id: string): Promise<Envelope<User>>;
   updateUserRole(id: string, input: { workspaceRoleId: string }): Promise<Envelope<User>>;
+
   // projects
   createProject(input: { name: string; description: string }): Promise<Envelope<Project>>;
   listProjects(query: ListQuery): Promise<Paginated<Project>>;
@@ -34,6 +43,7 @@ export interface Transport {
     input: Partial<{ name: string; description: string }>,
   ): Promise<Envelope<Project>>;
   deleteProject(id: string): Promise<void>;
+
   // members
   addProjectMember(
     projectId: string,
@@ -46,6 +56,7 @@ export interface Transport {
     input: { projectRoleId: string },
   ): Promise<Envelope<ProjectMember>>;
   removeProjectMember(projectId: string, memberId: string): Promise<void>;
+
   // issues
   createIssue(projectId: string, input: CreateIssueInput): Promise<Envelope<Issue>>;
   listIssues(projectId: string, query: ListQuery): Promise<Paginated<Issue>>;
