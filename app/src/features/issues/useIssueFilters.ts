@@ -7,7 +7,7 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from 'nuqs';
-import { ISSUE_SORT_FIELDS, type IssueSortField } from './schemas';
+import { ISSUE_SORT_VALUES, type IssueSortField } from './schemas';
 
 export const ISSUE_FILTER_KEYS = ['status', 'priority', 'assignee', 'creator'] as const;
 export type IssueFilterKey = (typeof ISSUE_FILTER_KEYS)[number];
@@ -21,7 +21,7 @@ const issueFilterParsers = {
   priority: listParser,
   assignee: listParser,
   creator: listParser,
-  sort: parseAsStringLiteral(ISSUE_SORT_FIELDS).withDefault(DEFAULT_SORT),
+  sort: parseAsStringLiteral(ISSUE_SORT_VALUES).withDefault(DEFAULT_SORT),
   page: parseAsInteger.withDefault(1),
 };
 
@@ -44,7 +44,7 @@ export function useIssueFilters() {
     clearFilters: () =>
       void setState({ status: null, priority: null, assignee: null, creator: null, page: null }),
     setSort: (sort: string | null) => {
-      const value = (ISSUE_SORT_FIELDS as readonly string[]).includes(sort ?? '')
+      const value = (ISSUE_SORT_VALUES as readonly string[]).includes(sort ?? '')
         ? (sort as IssueSortField)
         : null;
       void setState({ sort: value, page: null });

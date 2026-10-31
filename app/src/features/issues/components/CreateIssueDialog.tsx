@@ -23,7 +23,7 @@ import { useMe } from '@/features/auth/queries';
 import { handleFormError } from '@/lib/forms/handleFormError';
 import { useCreateIssue } from '../mutations';
 import { PRIORITY_OPTIONS } from '../options';
-import { createIssueFormSchema, type CreateIssueForm } from '../schemas';
+import { createIssueInputSchema, type CreateIssueInput } from '../schemas';
 import { AssigneeSelect } from './AssigneeSelect';
 
 type CreateIssueDialogProps = {
@@ -32,7 +32,7 @@ type CreateIssueDialogProps = {
   onOpenChange: (open: boolean) => void;
 };
 
-const emptyForm = (assigneeId: string): CreateIssueForm => ({
+const emptyForm = (assigneeId: string): CreateIssueInput => ({
   title: '',
   description: '',
   priority: 'Medium',
@@ -47,8 +47,8 @@ export function CreateIssueDialog({ projectId, open, onOpenChange }: CreateIssue
   const defaultAssignee: UserRef | null = me ? { id: me.userId, name: 'You', email: '' } : null;
   const [assignee, setAssignee] = useState<UserRef | null>(defaultAssignee);
 
-  const form = useForm<CreateIssueForm>({
-    resolver: zodResolver(createIssueFormSchema),
+  const form = useForm<CreateIssueInput>({
+    resolver: zodResolver(createIssueInputSchema),
     defaultValues: emptyForm(me?.userId ?? ''),
   });
   const { errors } = form.formState;
