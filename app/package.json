@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "lint": "eslint .",
     "prettier": "prettier --write .",
     "prettier:check": "prettier --check ."
   },
@@ -34,13 +35,16 @@
     "zustand": "^5.0.16"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.28",
     "postcss": "^8.5",
+    "prettier": "^3.8.1",
     "tailwindcss": "^4.3.3",
-    "typescript": "5.7.3",
-    "prettier": "^3.8.1"
+    "typescript": "5.7.3"
   }
 }
