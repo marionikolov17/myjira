@@ -4,7 +4,7 @@ import { FilterBarShell } from '@/components/common/FilterBarShell';
 import type { FilterOption } from '@/components/common/MultiSelectFilter';
 import { useProjectMembers } from '@/features/members/queries';
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from '../options';
-import type { IssueFilterKey, IssueFilterValues } from '../useIssueFilters';
+import type { IssueFilterKey, IssueFilterValues } from '../hooks/useIssueFilters';
 
 const LABELS: Record<IssueFilterKey, string> = {
   status: 'Status',

@@ -3,7 +3,7 @@
 import { FilterBarShell } from '@/components/common/FilterBarShell';
 import type { FilterOption } from '@/components/common/MultiSelectFilter';
 import { useUsers } from '@/features/users/queries';
-import type { ProjectFilterKey, ProjectFilterValues } from '../useProjectFilters';
+import type { ProjectFilterKey, ProjectFilterValues } from '../hooks/useProjectFilters';
 
 const CREATOR_PAGE_SIZE = 100;
 

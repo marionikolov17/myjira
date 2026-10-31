@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PermissionGate } from '@/lib/authz/PermissionGate';
 import { useProjects } from '../queries';
 import { PROJECT_SORT_OPTIONS } from '../constants';
-import { projectFiltersToListQuery, useProjectFilters } from '../useProjectFilters';
+import { projectFiltersToListQuery, useProjectFilters } from '../hooks/useProjectFilters';
 import { CreateProjectDialog } from './CreateProjectDialog';
 import { ProjectCard } from './ProjectCard';
 import { ProjectFilterBar } from './ProjectFilterBar';

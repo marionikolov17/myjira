@@ -27,7 +27,7 @@ import { ISSUE_STATUS_LABELS } from '@/lib/labels/issues';
 import { filterBoardIssues } from '../../utils/boardFilters';
 import { useUpdateIssue } from '../../mutations';
 import { useBoardIssues } from '../../queries';
-import { useBoardFilters } from '../../useBoardFilters';
+import { useBoardFilters } from '../../hooks/useBoardFilters';
 import { CreateIssueDialog } from '../CreateIssueDialog';
 import { BoardCardBody } from './BoardCard';
 import { BoardColumn } from './BoardColumn';

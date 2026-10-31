@@ -24,7 +24,7 @@ import { roleById, useWorkspaceRoles, workspaceRoleByName } from '@/features/rol
 import { useUpdateUserRole } from '../mutations';
 import { useUsers } from '../queries';
 import { USER_SORT_OPTIONS } from '../constants';
-import { userFiltersToListQuery, useUserFilters } from '../useUserFilters';
+import { userFiltersToListQuery, useUserFilters } from '../hooks/useUserFilters';
 import { ActivationLinkDialog } from './ActivationLinkDialog';
 import { InviteUserDialog } from './InviteUserDialog';
 import { UserFilterBar } from './UserFilterBar';

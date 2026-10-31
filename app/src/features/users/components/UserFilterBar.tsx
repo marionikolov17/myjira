@@ -4,7 +4,7 @@ import { FilterBarShell } from '@/components/common/FilterBarShell';
 import type { FilterOption } from '@/components/common/MultiSelectFilter';
 import { useWorkspaceRoles } from '@/features/roles/queries';
 import { USER_STATUS_OPTIONS } from '../options';
-import type { UserFilterKey, UserFilterValues } from '../useUserFilters';
+import type { UserFilterKey, UserFilterValues } from '../hooks/useUserFilters';
 
 const LABELS: Record<UserFilterKey, string> = {
   status: 'Status',

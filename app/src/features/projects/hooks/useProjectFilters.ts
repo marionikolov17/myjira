@@ -2,7 +2,7 @@
 
 import { createListFiltersHook, inFilter, toListQuery } from '@/lib/filters/createListFilters';
 import type { ListQuery } from '@/lib/api/schemas';
-import { PROJECT_SORT_VALUES, PROJECTS_PAGE_SIZE, type ProjectSort } from './constants';
+import { PROJECT_SORT_VALUES, PROJECTS_PAGE_SIZE, type ProjectSort } from '../constants';
 
 export const PROJECT_FILTER_KEYS = ['creator'] as const;
 export type ProjectFilterKey = (typeof PROJECT_FILTER_KEYS)[number];

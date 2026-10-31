@@ -7,7 +7,7 @@ import {
   toListQuery,
 } from '@/lib/filters/createListFilters';
 import type { ListQuery } from '@/lib/api/schemas';
-import { USER_SORT_VALUES, USERS_PAGE_SIZE, type UserSort } from './constants';
+import { USER_SORT_VALUES, USERS_PAGE_SIZE, type UserSort } from '../constants';
 
 export const USER_FILTER_KEYS = ['status', 'role'] as const;
 export type UserFilterKey = (typeof USER_FILTER_KEYS)[number];

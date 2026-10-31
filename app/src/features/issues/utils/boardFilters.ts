@@ -1,5 +1,5 @@
 import type { Issue } from '@/lib/api/schemas';
-import type { BoardFilterValues } from '../useBoardFilters';
+import type { BoardFilterValues } from '../hooks/useBoardFilters';
 
 /** Apply board URL multi-select filters client-side. */
 export function filterBoardIssues(issues: Issue[], values: BoardFilterValues): Issue[] {

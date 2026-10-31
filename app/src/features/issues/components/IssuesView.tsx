@@ -15,7 +15,7 @@ import type { Issue } from '@/lib/api/schemas';
 import { PermissionGate } from '@/lib/authz/PermissionGate';
 import { formatRelative, shortIssueId } from '@/lib/format';
 import { useProjectIssues } from '../queries';
-import { issueFiltersToListQuery, useIssueFilters } from '../useIssueFilters';
+import { issueFiltersToListQuery, useIssueFilters } from '../hooks/useIssueFilters';
 import { CreateIssueDialog } from './CreateIssueDialog';
 import { IssueFilterBar } from './IssueFilterBar';
 

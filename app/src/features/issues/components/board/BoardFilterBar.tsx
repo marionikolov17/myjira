@@ -4,7 +4,7 @@ import { FilterBarShell } from '@/components/common/FilterBarShell';
 import type { FilterOption } from '@/components/common/MultiSelectFilter';
 import { useProjectMembers } from '@/features/members/queries';
 import { PRIORITY_OPTIONS } from '../../options';
-import type { BoardFilterKey, BoardFilterValues } from '../../useBoardFilters';
+import type { BoardFilterKey, BoardFilterValues } from '../../hooks/useBoardFilters';
 
 const LABELS: Record<BoardFilterKey, string> = {
   priority: 'Priority',

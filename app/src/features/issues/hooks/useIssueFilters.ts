@@ -7,7 +7,7 @@ import {
   toListQuery,
 } from '@/lib/filters/createListFilters';
 import type { ListQuery } from '@/lib/api/schemas';
-import { ISSUE_SORT_FIELDS, ISSUES_PAGE_SIZE, type IssueSortField } from './constants';
+import { ISSUE_SORT_FIELDS, ISSUES_PAGE_SIZE, type IssueSortField } from '../constants';
 
 export const ISSUE_FILTER_KEYS = ['status', 'priority', 'assignee', 'creator'] as const;
 export type IssueFilterKey = (typeof ISSUE_FILTER_KEYS)[number];
