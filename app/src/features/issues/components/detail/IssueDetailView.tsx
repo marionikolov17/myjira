@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import { z } from 'zod';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { DisabledReason } from '@/components/common/DisabledReason';
 import { ErrorState } from '@/components/common/ErrorState';
@@ -17,7 +16,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { isForbiddenOrNotFound, type Issue, type UpdateIssueInput } from '@/lib/api/schemas';
+import {
+  isForbiddenOrNotFound,
+  issueTitle,
+  type Issue,
+  type UpdateIssueInput,
+} from '@/lib/api/schemas';
 import { ISSUE_MODIFY_DENIED_REASON } from '@/lib/authz/can';
 import { useCan } from '@/lib/authz/useCan';
 import { formatDateTime, shortIssueId } from '@/lib/format';
@@ -27,12 +31,6 @@ import { PRIORITY_OPTIONS, STATUS_OPTIONS } from '../../options';
 import { useIssue } from '../../queries';
 import { AssigneeSelect } from '../AssigneeSelect';
 import { DescriptionEditor } from './DescriptionEditor';
-
-const titleSchema = z
-  .string()
-  .trim()
-  .min(1, 'Title is required')
-  .max(200, 'Title must be 200 characters or fewer');
 
 function MetaRow({
   label,
@@ -136,7 +134,7 @@ export function IssueDetailView({ projectId, issueId }: { projectId: string; iss
             </span>
             <InlineEditText
               value={issue.title}
-              schema={titleSchema}
+              schema={issueTitle}
               canEdit={canUpdate}
               label="issue title"
               as="h1"

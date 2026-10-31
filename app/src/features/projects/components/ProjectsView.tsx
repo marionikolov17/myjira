@@ -1,7 +1,8 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { FolderKanbanIcon } from 'lucide-react';
+import { FolderKanbanIcon, PlusIcon } from 'lucide-react';
+import { useState } from 'react';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { OptionSelect } from '@/components/common/OptionSelect';
@@ -9,33 +10,19 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { PaginationBar } from '@/components/common/PaginationBar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { ListFilter, ListQuery } from '@/lib/api/schemas';
 import { PermissionGate } from '@/lib/authz/PermissionGate';
 import { useProjects } from '../queries';
-import { PROJECTS_PAGE_SIZE, PROJECT_SORT_OPTIONS } from '../schemas';
-import { useProjectFilters, type ProjectFilterValues } from '../useProjectFilters';
+import { PROJECT_SORT_OPTIONS } from '../schemas';
+import { projectFiltersToListQuery, useProjectFilters } from '../useProjectFilters';
 import { CreateProjectDialog } from './CreateProjectDialog';
 import { ProjectCard } from './ProjectCard';
 import { ProjectFilterBar } from './ProjectFilterBar';
 
-function buildFilter(values: ProjectFilterValues): ListFilter | undefined {
-  if (values.creator.length === 0) return undefined;
-  return { creatorId: { in: values.creator } };
-}
-
 export function ProjectsView() {
   const filters = useProjectFilters();
-
-  const filter = buildFilter(filters.values);
-  const query: ListQuery = {
-    page: filters.page,
-    pageSize: PROJECTS_PAGE_SIZE,
-    sort: filters.sort,
-    filter,
-  };
-
+  const [createOpen, setCreateOpen] = useState(false);
+  const query = projectFiltersToListQuery(filters);
   const { data, isLoading, error, refetch } = useProjects(query);
-
   const anyFilterActive = filters.values.creator.length > 0;
 
   return (
@@ -53,7 +40,10 @@ export function ProjectsView() {
               className="w-48"
             />
             <PermissionGate action="projects.create">
-              <CreateProjectDialog />
+              <Button onClick={() => setCreateOpen(true)}>
+                <PlusIcon data-icon="inline-start" />
+                New project
+              </Button>
             </PermissionGate>
           </>
         }
@@ -88,7 +78,10 @@ export function ProjectsView() {
             </Button>
           ) : (
             <PermissionGate action="projects.create">
-              <CreateProjectDialog />
+              <Button onClick={() => setCreateOpen(true)}>
+                <PlusIcon data-icon="inline-start" />
+                New project
+              </Button>
             </PermissionGate>
           )}
         </EmptyState>
@@ -117,6 +110,8 @@ export function ProjectsView() {
           />
         </>
       )}
+
+      <CreateProjectDialog open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   );
 }

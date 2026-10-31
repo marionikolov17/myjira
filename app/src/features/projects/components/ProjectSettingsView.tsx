@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { ErrorState } from '@/components/common/ErrorState';
 import { NoAccessState } from '@/components/common/NoAccessState';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,7 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
-import type { Project } from '@/lib/api/schemas';
+import { isForbiddenOrNotFound, type Project } from '@/lib/api/schemas';
 import { useCan } from '@/lib/authz/useCan';
 import { handleFormError, notifyError } from '@/lib/forms/handleFormError';
 import { useDeleteProject, useUpdateProject } from '../mutations';
@@ -171,12 +172,19 @@ function DangerZone({ project }: { project: Project }) {
 }
 
 export function ProjectSettingsView({ projectId }: { projectId: string }) {
-  const { data: project } = useProject(projectId);
+  const { data: project, isLoading, error, refetch } = useProject(projectId);
   const canUpdate = useCan('projects.update', { projectId });
   const canDelete = useCan('projects.delete', { projectId });
 
   if (!canUpdate && !canDelete) return <NoAccessState />;
-  if (!project) return <Skeleton className="h-72 w-full max-w-2xl rounded-2xl" />;
+  if (error) {
+    return isForbiddenOrNotFound(error) ? (
+      <NoAccessState />
+    ) : (
+      <ErrorState error={error} onRetry={() => void refetch()} />
+    );
+  }
+  if (isLoading || !project) return <Skeleton className="h-72 w-full max-w-2xl rounded-2xl" />;
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">

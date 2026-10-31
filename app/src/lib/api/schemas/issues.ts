@@ -5,6 +5,9 @@ export const ISSUE_STATUSES = ['ToDo', 'InProgress', 'Done'] as const;
 export const issueStatusSchema = z.enum(ISSUE_STATUSES);
 export type IssueStatus = z.infer<typeof issueStatusSchema>;
 
+/** Statuses treated as open for dashboards and “my issues” queries. */
+export const OPEN_ISSUE_STATUSES = ['ToDo', 'InProgress'] as const satisfies readonly IssueStatus[];
+
 export const ISSUE_PRIORITIES = ['Low', 'Medium', 'High'] as const;
 export const issuePrioritySchema = z.enum(ISSUE_PRIORITIES);
 export type IssuePriority = z.infer<typeof issuePrioritySchema>;
@@ -23,16 +26,22 @@ export const issueSchema = z.object({
 });
 export type Issue = z.infer<typeof issueSchema>;
 
-const issueTitle = z
+export const ISSUE_TITLE_MAX_LENGTH = 200;
+export const ISSUE_DESCRIPTION_MAX_LENGTH = 5000;
+
+export const issueTitle = z
   .string()
   .trim()
   .min(1, 'Title is required')
-  .max(200, 'Title must be 200 characters or fewer');
-const issueDescription = z
+  .max(ISSUE_TITLE_MAX_LENGTH, `Title must be ${ISSUE_TITLE_MAX_LENGTH} characters or fewer`);
+export const issueDescription = z
   .string()
   .trim()
   .min(1, 'Description is required')
-  .max(5000, 'Description must be 5000 characters or fewer');
+  .max(
+    ISSUE_DESCRIPTION_MAX_LENGTH,
+    `Description must be ${ISSUE_DESCRIPTION_MAX_LENGTH} characters or fewer`,
+  );
 
 export const createIssueInputSchema = z.object({
   title: issueTitle,
@@ -50,9 +59,3 @@ export const updateIssueInputSchema = z.object({
   assigneeId: z.uuid('Select a valid assignee').optional(),
 });
 export type UpdateIssueInput = z.infer<typeof updateIssueInputSchema>;
-
-export const ISSUE_STATUS_LABELS: Record<IssueStatus, string> = {
-  ToDo: 'To do',
-  InProgress: 'In progress',
-  Done: 'Done',
-};

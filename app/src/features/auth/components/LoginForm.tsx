@@ -27,7 +27,7 @@ export function LoginForm() {
       onSuccess: () => router.replace('/dashboard'),
       onError: (error) => {
         if (isApiError(error) && error.code === 'INVALID_LOGIN_CREDENTIALS') {
-          toast.error('Invalid email or password');
+          toast.error(error.message);
           return;
         }
         handleFormError(error, form);

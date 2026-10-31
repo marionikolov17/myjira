@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
-
-const MAX_LENGTH = 5000;
+import { ISSUE_DESCRIPTION_MAX_LENGTH } from '@/lib/api/schemas';
 
 type DescriptionEditorProps = {
   value: string;
@@ -19,7 +18,7 @@ export function DescriptionEditor({ value, canEdit, onSave }: DescriptionEditorP
   const [draft, setDraft] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const editing = draft !== null;
-  const tooLong = (draft?.length ?? 0) > MAX_LENGTH;
+  const tooLong = (draft?.length ?? 0) > ISSUE_DESCRIPTION_MAX_LENGTH;
 
   const save = async () => {
     if (draft === null || tooLong) return;
@@ -47,7 +46,11 @@ export function DescriptionEditor({ value, canEdit, onSave }: DescriptionEditorP
           aria-invalid={tooLong || undefined}
           className="min-h-40"
         />
-        {tooLong && <FieldError>Description must be 5000 characters or fewer</FieldError>}
+        {tooLong && (
+          <FieldError>
+            Description must be {ISSUE_DESCRIPTION_MAX_LENGTH} characters or fewer
+          </FieldError>
+        )}
         <div className="flex items-center justify-end gap-2">
           <Button variant="ghost" onClick={() => setDraft(null)} disabled={saving}>
             Cancel

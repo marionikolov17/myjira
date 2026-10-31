@@ -2,7 +2,7 @@
 
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query';
 import { issuesClient } from '@/lib/api/client/issues';
-import type { Issue, ListQuery } from '@/lib/api/schemas';
+import { OPEN_ISSUE_STATUSES, type Issue, type ListQuery } from '@/lib/api/schemas';
 import { queryKeys } from '@/lib/query/keys';
 
 const DETAIL_STALE_TIME_MS = 5 * 60_000;
@@ -35,11 +35,14 @@ export function useBoardIssues(projectId: string) {
   return useProjectIssues(projectId, BOARD_QUERY);
 }
 
+const MY_OPEN_ISSUES_LIMIT = 10;
+
 export function myOpenIssuesQuery(userId: string): ListQuery {
   return {
-    filter: { assigneeId: { eq: userId }, status: { in: ['ToDo', 'InProgress'] } },
+    filter: { assigneeId: { eq: userId }, status: { in: [...OPEN_ISSUE_STATUSES] } },
     sort: '-updatedAt',
-    pageSize: 5,
+    // Per-project top N; merge below yields a true global top N across projects.
+    pageSize: MY_OPEN_ISSUES_LIMIT,
   };
 }
 
@@ -58,7 +61,7 @@ export function useMyOpenIssues(projectIds: string[], userId: string | undefined
       const issues: Issue[] = results
         .flatMap((result) => result.data?.data ?? [])
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-        .slice(0, 10);
+        .slice(0, MY_OPEN_ISSUES_LIMIT);
       return {
         issues,
         isLoading: results.some((result) => result.isLoading),

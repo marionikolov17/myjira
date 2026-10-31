@@ -11,37 +11,21 @@ import { PriorityBadge } from '@/components/common/PriorityBadge';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { Button } from '@/components/ui/button';
-import type { Issue, ListFilter, ListQuery } from '@/lib/api/schemas';
+import type { Issue } from '@/lib/api/schemas';
 import { PermissionGate } from '@/lib/authz/PermissionGate';
 import { formatRelative, shortIssueId } from '@/lib/format';
 import { useProjectIssues } from '../queries';
-import { ISSUES_PAGE_SIZE } from '../schemas';
-import { useIssueFilters, type IssueFilterValues } from '../useIssueFilters';
+import { issueFiltersToListQuery, useIssueFilters } from '../useIssueFilters';
 import { CreateIssueDialog } from './CreateIssueDialog';
 import { IssueFilterBar } from './IssueFilterBar';
 
-function buildFilter(values: IssueFilterValues): ListFilter | undefined {
-  const filter: ListFilter = {};
-  if (values.status.length) filter.status = { in: values.status };
-  if (values.priority.length) filter.priority = { in: values.priority };
-  if (values.assignee.length) filter.assigneeId = { in: values.assignee };
-  if (values.creator.length) filter.creatorId = { in: values.creator };
-  return Object.keys(filter).length > 0 ? filter : undefined;
-}
-
-export function IssuesTableView({ projectId }: { projectId: string }) {
+export function IssuesView({ projectId }: { projectId: string }) {
   const router = useRouter();
   const filters = useIssueFilters();
   const [createOpen, setCreateOpen] = useState(false);
-  const filter = buildFilter(filters.values);
-
-  const query: ListQuery = {
-    page: filters.page,
-    pageSize: ISSUES_PAGE_SIZE,
-    sort: filters.sort,
-    filter,
-  };
+  const query = issueFiltersToListQuery(filters);
   const { data, isLoading, error, refetch } = useProjectIssues(projectId, query);
+  const filterActive = Boolean(query.filter);
 
   const columns: DataTableColumn<Issue>[] = [
     {
@@ -133,14 +117,14 @@ export function IssuesTableView({ projectId }: { projectId: string }) {
             empty={
               <EmptyState
                 icon={ListIcon}
-                title={filter ? 'No issues match these filters' : 'No issues yet'}
+                title={filterActive ? 'No issues match these filters' : 'No issues yet'}
                 description={
-                  filter
+                  filterActive
                     ? 'Try removing a filter.'
                     : 'Issues created in this project will appear here.'
                 }
               >
-                {filter && (
+                {filterActive && (
                   <Button variant="outline" onClick={filters.clearFilters}>
                     Clear filters
                   </Button>

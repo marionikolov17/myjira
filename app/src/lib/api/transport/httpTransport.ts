@@ -1,7 +1,20 @@
+import { z } from 'zod';
 import {
   ApiError,
+  actorContextSchema,
   apiErrorBodySchema,
+  collectionOf,
+  createUserResponseSchema,
+  envelopeOf,
   getApiErrorMessageFromCode,
+  issueSchema,
+  loginResponseSchema,
+  paginatedOf,
+  projectMemberSchema,
+  projectRoleSchema,
+  projectSchema,
+  userSchema,
+  workspaceRoleSchema,
   type ListQuery,
 } from '@/lib/api/schemas';
 import { serializeListQuery } from './queryString';
@@ -50,7 +63,7 @@ export function createHttpTransport({ baseUrl, getToken }: HttpTransportOptions)
     }
   }
 
-  async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  async function requestRaw(path: string, options: RequestOptions = {}): Promise<unknown> {
     const response = await execute(path, options);
     const text = await response.text();
     const parsed = text ? safeJsonParse(text) : undefined;
@@ -66,7 +79,24 @@ export function createHttpTransport({ baseUrl, getToken }: HttpTransportOptions)
         message: 'The server returned an unexpected response.',
       });
     }
-    return parsed as T;
+    return parsed;
+  }
+
+  async function request<T>(
+    schema: z.ZodType<T>,
+    path: string,
+    options: RequestOptions = {},
+  ): Promise<T> {
+    const parsed = await requestRaw(path, options);
+    const result = schema.safeParse(parsed);
+    if (!result.success) {
+      throw new ApiError({
+        code: 'INTERNAL_SERVER_ERROR',
+        status: 500,
+        message: 'The server returned an unexpected response.',
+      });
+    }
+    return result.data;
   }
 
   async function requestVoid(path: string, options: RequestOptions = {}): Promise<void> {
@@ -88,38 +118,52 @@ export function createHttpTransport({ baseUrl, getToken }: HttpTransportOptions)
   }
 
   return {
-    login: (input) => request('/auth/login', { method: 'POST', body: input }),
+    login: (input) =>
+      request(envelopeOf(loginResponseSchema), '/auth/login', { method: 'POST', body: input }),
 
-    // roles
-    listWorkspaceRoles: () => request('/workspace-roles'),
-    listProjectRoles: () => request('/project-roles'),
+    listWorkspaceRoles: () => request(collectionOf(workspaceRoleSchema), '/workspace-roles'),
+    listProjectRoles: () => request(collectionOf(projectRoleSchema), '/project-roles'),
 
-    // users
-    getCurrentUser: () => request('/users/me'),
-    createUser: (input) => request('/users', { method: 'POST', body: input }),
-    listUsers: (query) => request('/users', { query }),
-    getUserById: (id) => request(`/users/${encodeURIComponent(id)}`),
+    getCurrentUser: () => request(envelopeOf(actorContextSchema), '/users/me'),
+    createUser: (input) =>
+      request(envelopeOf(createUserResponseSchema), '/users', { method: 'POST', body: input }),
+    listUsers: (query) => request(paginatedOf(userSchema), '/users', { query }),
+    getUserById: (id) => request(envelopeOf(userSchema), `/users/${encodeURIComponent(id)}`),
     updateUserRole: (id, input) =>
-      request(`/users/${encodeURIComponent(id)}/role`, { method: 'PATCH', body: input }),
-
-    // projects
-    createProject: (input) => request('/projects', { method: 'POST', body: input }),
-    listProjects: (query) => request('/projects', { query }),
-    getProjectById: (id) => request(`/projects/${encodeURIComponent(id)}`),
-    updateProject: (id, input) =>
-      request(`/projects/${encodeURIComponent(id)}`, { method: 'PATCH', body: input }),
-    deleteProject: (id) => requestVoid(`/projects/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-
-    // members
-    addProjectMember: (projectId, input) =>
-      request(`/projects/${encodeURIComponent(projectId)}/members`, {
-        method: 'POST',
+      request(envelopeOf(userSchema), `/users/${encodeURIComponent(id)}/role`, {
+        method: 'PATCH',
         body: input,
       }),
+
+    createProject: (input) =>
+      request(envelopeOf(projectSchema), '/projects', { method: 'POST', body: input }),
+    listProjects: (query) => request(paginatedOf(projectSchema), '/projects', { query }),
+    getProjectById: (id) =>
+      request(envelopeOf(projectSchema), `/projects/${encodeURIComponent(id)}`),
+    updateProject: (id, input) =>
+      request(envelopeOf(projectSchema), `/projects/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: input,
+      }),
+    deleteProject: (id) => requestVoid(`/projects/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
+    addProjectMember: (projectId, input) =>
+      request(
+        envelopeOf(projectMemberSchema),
+        `/projects/${encodeURIComponent(projectId)}/members`,
+        {
+          method: 'POST',
+          body: input,
+        },
+      ),
     listProjectMembers: (projectId) =>
-      request(`/projects/${encodeURIComponent(projectId)}/members`),
+      request(
+        collectionOf(projectMemberSchema),
+        `/projects/${encodeURIComponent(projectId)}/members`,
+      ),
     updateProjectMemberRole: (projectId, memberId, input) =>
       request(
+        envelopeOf(projectMemberSchema),
         `/projects/${encodeURIComponent(projectId)}/members/${encodeURIComponent(memberId)}`,
         { method: 'PATCH', body: input },
       ),
@@ -129,21 +173,26 @@ export function createHttpTransport({ baseUrl, getToken }: HttpTransportOptions)
         { method: 'DELETE' },
       ),
 
-    // issues
     createIssue: (projectId, input) =>
-      request(`/projects/${encodeURIComponent(projectId)}/issues`, {
+      request(envelopeOf(issueSchema), `/projects/${encodeURIComponent(projectId)}/issues`, {
         method: 'POST',
         body: input,
       }),
     listIssues: (projectId, query) =>
-      request(`/projects/${encodeURIComponent(projectId)}/issues`, { query }),
-    getIssueById: (projectId, issueId) =>
-      request(`/projects/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueId)}`),
-    updateIssue: (projectId, issueId, input) =>
-      request(`/projects/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueId)}`, {
-        method: 'PATCH',
-        body: input,
+      request(paginatedOf(issueSchema), `/projects/${encodeURIComponent(projectId)}/issues`, {
+        query,
       }),
+    getIssueById: (projectId, issueId) =>
+      request(
+        envelopeOf(issueSchema),
+        `/projects/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueId)}`,
+      ),
+    updateIssue: (projectId, issueId, input) =>
+      request(
+        envelopeOf(issueSchema),
+        `/projects/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueId)}`,
+        { method: 'PATCH', body: input },
+      ),
     deleteIssue: (projectId, issueId) =>
       requestVoid(
         `/projects/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueId)}`,

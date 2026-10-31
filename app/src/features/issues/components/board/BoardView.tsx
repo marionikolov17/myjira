@@ -18,23 +18,19 @@ import { toast } from 'sonner';
 import { ErrorState } from '@/components/common/ErrorState';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import {
-  ISSUE_STATUS_LABELS,
-  ISSUE_STATUSES,
-  type Issue,
-  type IssueStatus,
-} from '@/lib/api/schemas';
+import { ISSUE_STATUSES, type Issue, type IssueStatus } from '@/lib/api/schemas';
 import { ISSUE_MODIFY_DENIED_REASON } from '@/lib/authz/can';
 import { PermissionGate } from '@/lib/authz/PermissionGate';
 import { useCan } from '@/lib/authz/useCan';
 import { notifyError } from '@/lib/forms/handleFormError';
+import { ISSUE_STATUS_LABELS } from '../../labels';
 import { useUpdateIssue } from '../../mutations';
 import { useBoardIssues } from '../../queries';
-import { useIssueFilters } from '../../useIssueFilters';
+import { useBoardFilters } from '../../useBoardFilters';
 import { CreateIssueDialog } from '../CreateIssueDialog';
-import { IssueFilterBar } from '../IssueFilterBar';
 import { BoardCardBody } from './BoardCard';
 import { BoardColumn } from './BoardColumn';
+import { BoardFilterBar } from './BoardFilterBar';
 
 function isStatus(value: unknown): value is IssueStatus {
   return typeof value === 'string' && (ISSUE_STATUSES as readonly string[]).includes(value);
@@ -46,7 +42,7 @@ export function BoardView({ projectId }: { projectId: string }) {
   const updateIssue = useUpdateIssue(projectId);
   const [activeIssue, setActiveIssue] = useState<Issue | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const filters = useIssueFilters();
+  const filters = useBoardFilters();
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
@@ -114,9 +110,8 @@ export function BoardView({ projectId }: { projectId: string }) {
         </PermissionGate>
       </div>
 
-      <IssueFilterBar
+      <BoardFilterBar
         projectId={projectId}
-        keys={['priority', 'assignee']}
         values={filters.values}
         onChange={filters.setFilter}
         onClear={filters.clearFilters}

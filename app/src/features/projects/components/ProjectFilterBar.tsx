@@ -1,8 +1,7 @@
 'use client';
 
-import { XIcon } from 'lucide-react';
-import { MultiSelectFilter, type FilterOption } from '@/components/common/MultiSelectFilter';
-import { Button } from '@/components/ui/button';
+import { FilterBarShell } from '@/components/common/FilterBarShell';
+import type { FilterOption } from '@/components/common/MultiSelectFilter';
 import { useUsers } from '@/features/users/queries';
 import type { ProjectFilterKey, ProjectFilterValues } from '../useProjectFilters';
 
@@ -13,7 +12,7 @@ const LABELS: Record<ProjectFilterKey, string> = {
 };
 
 type ProjectFilterBarProps = {
-  keys: ProjectFilterKey[];
+  keys: readonly ProjectFilterKey[];
   values: ProjectFilterValues;
   onChange: (key: ProjectFilterKey, next: string[]) => void;
   onClear: () => void;
@@ -30,25 +29,15 @@ export function ProjectFilterBar({ keys, values, onChange, onClear }: ProjectFil
     creator: creatorOptions,
   };
 
-  const active = keys.some((key) => values[key].length > 0);
-
   return (
-    <div role="group" aria-label="Filter projects" className="flex flex-wrap items-center gap-2">
-      {keys.map((key) => (
-        <MultiSelectFilter
-          key={key}
-          label={LABELS[key]}
-          options={optionsFor[key]}
-          selected={values[key]}
-          onChange={(next) => onChange(key, next)}
-        />
-      ))}
-      {active && (
-        <Button variant="ghost" size="sm" onClick={onClear}>
-          <XIcon data-icon="inline-start" />
-          Clear filters
-        </Button>
-      )}
-    </div>
+    <FilterBarShell
+      ariaLabel="Filter projects"
+      keys={keys}
+      labels={LABELS}
+      optionsFor={optionsFor}
+      values={values}
+      onChange={onChange}
+      onClear={onClear}
+    />
   );
 }

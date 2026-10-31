@@ -1,14 +1,16 @@
 'use client';
 
 import { useDroppable } from '@dnd-kit/core';
-import { PlusIcon } from 'lucide-react';
+import { InboxIcon, PlusIcon } from 'lucide-react';
+import { EmptyState } from '@/components/common/EmptyState';
 import { StatusIcon } from '@/components/common/StatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ISSUE_STATUS_LABELS, type Issue, type IssueStatus } from '@/lib/api/schemas';
+import type { Issue, IssueStatus } from '@/lib/api/schemas';
 import { PermissionGate } from '@/lib/authz/PermissionGate';
 import { cn } from '@/lib/utils';
+import { ISSUE_STATUS_LABELS } from '../../labels';
 import { BoardCard } from './BoardCard';
 
 type BoardColumnProps = {
@@ -69,8 +71,12 @@ export function BoardColumn({
             ))
           : issues.map((issue) => <BoardCard key={issue.id} issue={issue} draggable={canDrag} />)}
         {!isLoading && issues.length === 0 && (
-          <li className="flex flex-1 items-center justify-center rounded-xl border border-dashed p-6 text-center text-xs text-muted-foreground">
-            {canDrag ? 'Drop issues here' : 'No issues'}
+          <li className="flex flex-1 items-center justify-center">
+            <EmptyState
+              icon={InboxIcon}
+              title={canDrag ? 'Drop issues here' : 'No issues'}
+              className="min-h-0 border-0 bg-transparent p-4"
+            />
           </li>
         )}
       </ul>

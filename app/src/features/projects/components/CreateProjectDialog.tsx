@@ -1,9 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { PlusIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -14,7 +12,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -24,8 +21,12 @@ import { handleFormError } from '@/lib/forms/handleFormError';
 import { useCreateProject } from '../mutations';
 import { createProjectInputSchema, type CreateProjectInput } from '../schemas';
 
-export function CreateProjectDialog() {
-  const [open, setOpen] = useState(false);
+type CreateProjectDialogProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
+
+export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogProps) {
   const router = useRouter();
   const createProject = useCreateProject();
   const form = useForm<CreateProjectInput>({
@@ -37,7 +38,7 @@ export function CreateProjectDialog() {
   const handleOpenChange = (next: boolean) => {
     if (createProject.isPending) return;
     if (!next) form.reset();
-    setOpen(next);
+    onOpenChange(next);
   };
 
   const onSubmit = form.handleSubmit((values) =>
@@ -45,7 +46,7 @@ export function CreateProjectDialog() {
       onSuccess: (project) => {
         toast.success(`Project "${project.name}" created`);
         form.reset();
-        setOpen(false);
+        onOpenChange(false);
         router.push(`/projects/${project.id}/board`);
       },
       onError: (error) => handleFormError(error, form),
@@ -54,10 +55,6 @@ export function CreateProjectDialog() {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button />}>
-        <PlusIcon data-icon="inline-start" />
-        New project
-      </DialogTrigger>
       <DialogContent>
         <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
           <DialogHeader>

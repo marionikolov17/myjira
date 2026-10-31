@@ -6,4 +6,7 @@ export const loginInputSchema = z.object({
 });
 export type LoginInput = z.infer<typeof loginInputSchema>;
 
-export type LoginResponse = { token: string };
+export const loginResponseSchema = z.object({
+  token: z.string().min(1),
+});
+export type LoginResponse = z.infer<typeof loginResponseSchema>;

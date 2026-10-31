@@ -47,7 +47,11 @@ export const userActivationSchema = z.object({
 });
 export type UserActivation = z.infer<typeof userActivationSchema>;
 
-export type CreateUserResponse = { user: User; activation: UserActivation };
+export const createUserResponseSchema = z.object({
+  user: userSchema,
+  activation: userActivationSchema,
+});
+export type CreateUserResponse = z.infer<typeof createUserResponseSchema>;
 
 export const updateUserRoleInputSchema = z.object({
   workspaceRoleId: z.uuid('Select a workspace role'),

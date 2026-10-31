@@ -21,7 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { useUsers } from '@/features/users/queries';
 import { useProjectRoles } from '@/features/roles/queries';
-import { PROJECT_ROLE_LABELS } from '@/lib/api/schemas';
+import { PROJECT_ROLE_LABELS } from '@/features/roles/labels';
 import { assignableProjectRoles } from '@/lib/authz/can';
 import { useActor } from '@/lib/authz/useCan';
 import { notifyError } from '@/lib/forms/handleFormError';

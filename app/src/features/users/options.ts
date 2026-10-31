@@ -1,9 +1,9 @@
 import type { FilterOption } from '@/components/common/MultiSelectFilter';
-import type { WorkspaceRoleName } from '@/lib/api/schemas';
+import { USER_STATUSES, type WorkspaceRoleName } from '@/lib/api/schemas';
 
-export const USER_STATUS_OPTIONS: FilterOption[] = [
-  { value: 'Active', label: 'Active' },
-  { value: 'Pending', label: 'Pending' },
-];
+export const USER_STATUS_OPTIONS: FilterOption[] = USER_STATUSES.map((status) => ({
+  value: status,
+  label: status,
+}));
 
 export const ASSIGNABLE_ROLE_NAMES: WorkspaceRoleName[] = ['Admin', 'Developer'];

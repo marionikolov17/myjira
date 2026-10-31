@@ -24,15 +24,3 @@ export const projectRoleSchema = z.object({
   updatedAt: timestampSchema,
 });
 export type ProjectRole = z.infer<typeof projectRoleSchema>;
-
-export const WORKSPACE_ROLE_LABELS: Record<WorkspaceRoleName, string> = {
-  Owner: 'Owner',
-  Admin: 'Admin',
-  Developer: 'Developer',
-};
-
-export const PROJECT_ROLE_LABELS: Record<ProjectRoleName, string> = {
-  ProjectOwner: 'Project Owner',
-  ProjectAdmin: 'Project Admin',
-  Developer: 'Developer',
-};

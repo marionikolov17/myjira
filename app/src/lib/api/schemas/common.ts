@@ -16,6 +16,28 @@ export type Paginated<T> = {
   meta: { pagination: Pagination };
 };
 
+export const paginationSchema = z.object({
+  page: z.number().int(),
+  pageSize: z.number().int(),
+  totalItems: z.number().int(),
+  totalPages: z.number().int(),
+});
+
+export function envelopeOf<T extends z.ZodType>(dataSchema: T) {
+  return z.object({ data: dataSchema });
+}
+
+export function collectionOf<T extends z.ZodType>(itemSchema: T) {
+  return z.object({ data: z.array(itemSchema) });
+}
+
+export function paginatedOf<T extends z.ZodType>(itemSchema: T) {
+  return z.object({
+    data: z.array(itemSchema),
+    meta: z.object({ pagination: paginationSchema }),
+  });
+}
+
 export const FILTER_OPS = ['eq', 'ne', 'in', 'gt', 'gte', 'lt', 'lte'] as const;
 export type FilterOp = (typeof FILTER_OPS)[number];
 export type FilterValue = string | string[];

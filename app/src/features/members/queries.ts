@@ -9,7 +9,7 @@ export function useProjectMembers(
   options: { enabled?: boolean } = {},
 ) {
   return useQuery({
-    queryKey: queryKeys.members.list(projectId ?? ''),
+    queryKey: queryKeys.members.lists(projectId ?? ''),
     queryFn: async () => (await membersClient.list(projectId as string)).data,
     enabled: Boolean(projectId) && (options.enabled ?? true),
   });

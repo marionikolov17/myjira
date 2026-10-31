@@ -1,4 +1,7 @@
+import type { Metadata } from 'next';
 import { MembersView } from '@/features/members/components/MembersView';
+
+export const metadata: Metadata = { title: 'Members' };
 
 export default async function ProjectMembersPage({
   params,

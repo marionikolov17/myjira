@@ -10,6 +10,9 @@ export const USER_SORT_OPTIONS = [
 ] as const;
 
 export type UserSort = (typeof USER_SORT_OPTIONS)[number]['value'];
-export const USER_SORT_VALUES = USER_SORT_OPTIONS.map((option) => option.value) as UserSort[];
+export const USER_SORT_VALUES = USER_SORT_OPTIONS.map((option) => option.value) as unknown as [
+  UserSort,
+  ...UserSort[],
+];
 
 export const USERS_PAGE_SIZE = 12;

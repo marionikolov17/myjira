@@ -1,6 +1,7 @@
 import { CircleCheckIcon, CircleDashedIcon, CircleDotIcon, type LucideIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { ISSUE_STATUS_LABELS, type IssueStatus } from '@/lib/api/schemas';
+import { ISSUE_STATUS_LABELS } from '@/features/issues/labels';
+import type { IssueStatus } from '@/lib/api/schemas';
 
 export const STATUS_ICONS: Record<IssueStatus, LucideIcon> = {
   ToDo: CircleDashedIcon,

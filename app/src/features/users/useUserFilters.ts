@@ -1,49 +1,36 @@
 'use client';
 
 import {
-  parseAsArrayOf,
-  parseAsInteger,
-  parseAsString,
-  parseAsStringLiteral,
-  useQueryStates,
-} from 'nuqs';
-import { USER_SORT_VALUES, type UserSort } from './schemas';
+  createListFiltersHook,
+  inFilter,
+  mergeFilters,
+  toListQuery,
+} from '@/lib/filters/createListFilters';
+import type { ListQuery } from '@/lib/api/schemas';
+import { USER_SORT_VALUES, USERS_PAGE_SIZE, type UserSort } from './schemas';
 
 export const USER_FILTER_KEYS = ['status', 'role'] as const;
 export type UserFilterKey = (typeof USER_FILTER_KEYS)[number];
 export type UserFilterValues = Record<UserFilterKey, string[]>;
 
-const DEFAULT_SORT: UserSort = 'name';
-const listParser = parseAsArrayOf(parseAsString).withDefault([]);
-
-const userFilterParsers = {
-  status: listParser,
-  role: listParser,
-  sort: parseAsStringLiteral(USER_SORT_VALUES).withDefault(DEFAULT_SORT),
-  page: parseAsInteger.withDefault(1),
-};
+const useUserFiltersBase = createListFiltersHook({
+  filterKeys: USER_FILTER_KEYS,
+  sortValues: USER_SORT_VALUES,
+  defaultSort: 'name' satisfies UserSort,
+});
 
 export function useUserFilters() {
-  const [state, setState] = useQueryStates(userFilterParsers, { history: 'replace' });
+  return useUserFiltersBase();
+}
 
-  const values: UserFilterValues = {
-    status: state.status,
-    role: state.role,
-  };
-
-  return {
-    values,
-    sort: state.sort,
-    page: Math.max(1, state.page),
-    setFilter: (key: UserFilterKey, next: string[]) =>
-      void setState({ [key]: next.length > 0 ? next : null, page: null }),
-    clearFilters: () => void setState({ status: null, role: null, page: null }),
-    setSort: (sort: string | null) => {
-      const value = (USER_SORT_VALUES as readonly string[]).includes(sort ?? '')
-        ? (sort as UserSort)
-        : null;
-      void setState({ sort: value, page: null });
-    },
-    setPage: (page: number) => void setState({ page: page <= 1 ? null : page }),
-  };
+export function userFiltersToListQuery(filters: ReturnType<typeof useUserFilters>): ListQuery {
+  return toListQuery({
+    page: filters.page,
+    pageSize: USERS_PAGE_SIZE,
+    sort: filters.sort,
+    filter: mergeFilters(
+      inFilter('status', filters.values.status),
+      inFilter('workspaceRoleId', filters.values.role),
+    ),
+  });
 }

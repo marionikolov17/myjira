@@ -11,22 +11,17 @@ import { OptionSelect } from '@/components/common/OptionSelect';
 import { RoleBadge } from '@/components/common/RoleBadge';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { Button } from '@/components/ui/button';
-import { PROJECT_ROLE_LABELS, type ProjectMember } from '@/lib/api/schemas';
+import type { ProjectMember } from '@/lib/api/schemas';
 import { canChangeMemberRole, canRemoveMember } from '@/lib/authz/can';
 import { PermissionGate } from '@/lib/authz/PermissionGate';
 import { useActor } from '@/lib/authz/useCan';
+import { PROJECT_ROLE_LABELS } from '@/features/roles/labels';
 import { useProjectRoles } from '@/features/roles/queries';
 import { notifyError } from '@/lib/forms/handleFormError';
 import { useRemoveMember, useUpdateMemberRole } from '../mutations';
-import { EDITABLE_PROJECT_ROLE_NAMES } from '../options';
+import { EDITABLE_PROJECT_ROLE_NAMES, PROJECT_ROLE_ORDER } from '../options';
 import { useProjectMembers } from '../queries';
 import { AddMemberDialog } from './AddMemberDialog';
-
-const ROLE_ORDER: Record<string, number> = {
-  ProjectOwner: 0,
-  ProjectAdmin: 1,
-  Developer: 2,
-};
 
 export function MembersView({ projectId }: { projectId: string }) {
   const actor = useActor();
@@ -50,7 +45,8 @@ export function MembersView({ projectId }: { projectId: string }) {
   const sorted = members
     ? [...members].sort(
         (a, b) =>
-          (ROLE_ORDER[a.projectRole.name] ?? 99) - (ROLE_ORDER[b.projectRole.name] ?? 99) ||
+          (PROJECT_ROLE_ORDER[a.projectRole.name] ?? 99) -
+            (PROJECT_ROLE_ORDER[b.projectRole.name] ?? 99) ||
           a.user.name.localeCompare(b.user.name),
       )
     : undefined;

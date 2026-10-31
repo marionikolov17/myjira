@@ -2,6 +2,7 @@
 
 import { LogOutIcon } from 'lucide-react';
 import Link from 'next/link';
+import { ErrorState } from '@/components/common/ErrorState';
 import { PageHeader } from '@/components/common/PageHeader';
 import { RoleBadge } from '@/components/common/RoleBadge';
 import { UserAvatar } from '@/components/common/UserAvatar';
@@ -53,10 +54,19 @@ function MembershipRow({ membership }: { membership: Membership }) {
 
 export function ProfileView() {
   const actor = useActor();
-  const { data: user } = useUser(actor?.userId);
+  const { data: user, isLoading, error, refetch } = useUser(actor?.userId);
   const logout = useLogout();
 
   if (!actor) return null;
+
+  if (error) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader title="Profile" description="Your account and project access." />
+        <ErrorState error={error} onRetry={() => void refetch()} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -71,12 +81,12 @@ export function ProfileView() {
                 <p className="truncate text-lg font-semibold">{user.name}</p>
                 <p className="truncate text-sm text-muted-foreground">{user.email}</p>
               </>
-            ) : (
+            ) : isLoading ? (
               <>
                 <Skeleton className="h-6 w-40" />
                 <Skeleton className="h-4 w-56" />
               </>
-            )}
+            ) : null}
           </div>
           <RoleBadge scope="workspace" role={actor.workspaceRole.name} />
           <Button variant="outline" onClick={() => logout()}>

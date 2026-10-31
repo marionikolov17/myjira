@@ -1,6 +1,6 @@
 'use client';
 
-import { UsersIcon } from 'lucide-react';
+import { MailPlusIcon, UsersIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { type DataTableColumn, DataTable } from '@/components/common/DataTable';
@@ -13,7 +13,7 @@ import { RoleBadge } from '@/components/common/RoleBadge';
 import { UserAvatar } from '@/components/common/UserAvatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { CreateUserResponse, ListFilter, ListQuery, User } from '@/lib/api/schemas';
+import type { CreateUserResponse, User } from '@/lib/api/schemas';
 import { canChangeUserRole } from '@/lib/authz/can';
 import { PermissionGate } from '@/lib/authz/PermissionGate';
 import { useActor } from '@/lib/authz/useCan';
@@ -23,35 +23,22 @@ import { useWorkspaceRoles } from '@/features/roles/queries';
 import { useUpdateUserRole } from '../mutations';
 import { ASSIGNABLE_ROLE_NAMES } from '../options';
 import { useUsers } from '../queries';
-import { USERS_PAGE_SIZE, USER_SORT_OPTIONS } from '../schemas';
-import { useUserFilters, type UserFilterValues } from '../useUserFilters';
+import { USER_SORT_OPTIONS } from '../schemas';
+import { userFiltersToListQuery, useUserFilters } from '../useUserFilters';
 import { ActivationLinkDialog } from './ActivationLinkDialog';
 import { InviteUserDialog } from './InviteUserDialog';
 import { UserFilterBar } from './UserFilterBar';
-
-function buildFilter(values: UserFilterValues): ListFilter | undefined {
-  const next: ListFilter = {};
-  if (values.status.length > 0) next.status = { in: values.status };
-  if (values.role.length > 0) next.workspaceRoleId = { in: values.role };
-  return Object.keys(next).length > 0 ? next : undefined;
-}
 
 export function UsersView() {
   const actor = useActor();
   const workspaceRoles = useWorkspaceRoles();
   const filters = useUserFilters();
-
-  const filter = buildFilter(filters.values);
-  const query: ListQuery = {
-    page: filters.page,
-    pageSize: USERS_PAGE_SIZE,
-    sort: filters.sort,
-    filter,
-  };
+  const query = userFiltersToListQuery(filters);
 
   const { data, isLoading, error, refetch } = useUsers(query);
   const updateRole = useUpdateUserRole();
 
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [invite, setInvite] = useState<CreateUserResponse | null>(null);
 
   const assignableRoleOptions = useMemo(
@@ -156,7 +143,10 @@ export function UsersView() {
               className="w-44"
             />
             <PermissionGate action="users.create">
-              <InviteUserDialog onInvited={setInvite} />
+              <Button onClick={() => setInviteOpen(true)} disabled={workspaceRoles.isLoading}>
+                <MailPlusIcon data-icon="inline-start" />
+                Invite user
+              </Button>
             </PermissionGate>
           </div>
         }
@@ -198,7 +188,10 @@ export function UsersView() {
                   </Button>
                 ) : (
                   <PermissionGate action="users.create">
-                    <InviteUserDialog onInvited={setInvite} />
+                    <Button onClick={() => setInviteOpen(true)} disabled={workspaceRoles.isLoading}>
+                      <MailPlusIcon data-icon="inline-start" />
+                      Invite user
+                    </Button>
                   </PermissionGate>
                 )}
               </EmptyState>
@@ -212,6 +205,7 @@ export function UsersView() {
         </>
       )}
 
+      <InviteUserDialog open={inviteOpen} onOpenChange={setInviteOpen} onInvited={setInvite} />
       <ActivationLinkDialog invite={invite} onDismiss={() => setInvite(null)} />
     </div>
   );

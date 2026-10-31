@@ -1,4 +1,7 @@
+import type { Metadata } from 'next';
 import { IssueDetailView } from '@/features/issues/components/detail/IssueDetailView';
+
+export const metadata: Metadata = { title: 'Issue' };
 
 export default async function IssueDetailPage({
   params,

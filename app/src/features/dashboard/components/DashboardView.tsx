@@ -16,7 +16,7 @@ export const DASHBOARD_PROJECTS_QUERY = { page: 1, pageSize: 6, sort: '-updatedA
 
 export function DashboardView() {
   const actor = useActor();
-  const { data: me } = useUser(actor?.userId);
+  const { data: me, isLoading: meLoading, error: meError } = useUser(actor?.userId);
   const projects = useProjects(DASHBOARD_PROJECTS_QUERY);
   const projectList = projects.data?.data ?? [];
   const openIssues = useMyOpenIssues(
@@ -30,7 +30,13 @@ export function DashboardView() {
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold tracking-tight text-balance">
-          {firstName ? `Welcome back, ${firstName}` : <Skeleton className="h-8 w-56" />}
+          {firstName ? (
+            `Welcome back, ${firstName}`
+          ) : meLoading && !meError ? (
+            <Skeleton className="h-8 w-56" />
+          ) : (
+            'Welcome back'
+          )}
         </h1>
         {actor && <RoleBadge scope="workspace" role={actor.workspaceRole.name} />}
       </header>

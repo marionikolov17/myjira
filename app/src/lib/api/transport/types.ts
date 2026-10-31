@@ -1,23 +1,31 @@
 import type {
   ActorContext,
+  AddProjectMemberInput,
   Collection,
   CreateIssueInput,
+  CreateProjectInput,
+  CreateUserInput,
   CreateUserResponse,
   Envelope,
   Issue,
   ListQuery,
+  LoginInput,
+  LoginResponse,
   Paginated,
   Project,
   ProjectMember,
   ProjectRole,
   UpdateIssueInput,
+  UpdateProjectInput,
+  UpdateProjectMemberRoleInput,
+  UpdateUserRoleInput,
   User,
   WorkspaceRole,
 } from '@/lib/api/schemas';
 
 export interface Transport {
   // auth
-  login(input: { email: string; password: string }): Promise<Envelope<{ token: string }>>;
+  login(input: LoginInput): Promise<Envelope<LoginResponse>>;
 
   // roles
   listWorkspaceRoles(): Promise<Collection<WorkspaceRole>>;
@@ -25,35 +33,28 @@ export interface Transport {
 
   // users
   getCurrentUser(): Promise<Envelope<ActorContext>>;
-  createUser(input: {
-    name: string;
-    email: string;
-    workspaceRoleId: string;
-  }): Promise<Envelope<CreateUserResponse>>;
+  createUser(input: CreateUserInput): Promise<Envelope<CreateUserResponse>>;
   listUsers(query: ListQuery): Promise<Paginated<User>>;
   getUserById(id: string): Promise<Envelope<User>>;
-  updateUserRole(id: string, input: { workspaceRoleId: string }): Promise<Envelope<User>>;
+  updateUserRole(id: string, input: UpdateUserRoleInput): Promise<Envelope<User>>;
 
   // projects
-  createProject(input: { name: string; description: string }): Promise<Envelope<Project>>;
+  createProject(input: CreateProjectInput): Promise<Envelope<Project>>;
   listProjects(query: ListQuery): Promise<Paginated<Project>>;
   getProjectById(id: string): Promise<Envelope<Project>>;
-  updateProject(
-    id: string,
-    input: Partial<{ name: string; description: string }>,
-  ): Promise<Envelope<Project>>;
+  updateProject(id: string, input: UpdateProjectInput): Promise<Envelope<Project>>;
   deleteProject(id: string): Promise<void>;
 
   // members
   addProjectMember(
     projectId: string,
-    input: { userId: string; projectRoleId: string },
+    input: AddProjectMemberInput,
   ): Promise<Envelope<ProjectMember>>;
   listProjectMembers(projectId: string): Promise<Collection<ProjectMember>>;
   updateProjectMemberRole(
     projectId: string,
     memberId: string,
-    input: { projectRoleId: string },
+    input: UpdateProjectMemberRoleInput,
   ): Promise<Envelope<ProjectMember>>;
   removeProjectMember(projectId: string, memberId: string): Promise<void>;
 

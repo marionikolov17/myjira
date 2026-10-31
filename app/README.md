@@ -32,17 +32,37 @@ src/
     layout/            App shell, sidebar, topbar, auth guard
     ui/                shadcn/ui components
   config/env.ts        Runtime config (API base URL)
-  features/<domain>/   queries.ts, mutations.ts, schemas.ts and components per domain
+  features/<domain>/   Resource or composite modules (see below)
   lib/
     api/schemas/       Zod contracts for every resource and error envelope
-    api/transport/     Transport interface + HTTP implementation
+    api/transport/     Transport interface + HTTP implementation (validates responses)
     api/client/        Thin typed wrappers around transport
     authz/             can(), useCan(), <PermissionGate>
+    filters/           Shared nuqs list-filter / multi-select factories
     query/             Query client and key factory
   stores/              Zustand stores (auth token, persisted)
 ```
 
 UI code never imports the transport directly. Everything goes through `lib/api/client/*`, which calls the `Transport` interface, which is implemented by `createHttpTransport` in `lib/api/transport/httpTransport.ts`.
+
+### Feature module shapes
+
+- **Resource modules** (`auth`, `projects`, `issues`, `members`, `users`, `roles`): own API hooks. Typical files are `queries.ts`, `mutations.ts`, `schemas.ts` (form re-exports + UI constants), optional `options.ts` / `labels.ts`, and `components/*View.tsx`.
+- **Composite modules** (`dashboard`, `profile`): UI-only; they compose other features’ queries/mutations and have no API client of their own.
+- **Roles** is queries-only (lookup maps for invite / role-change UIs).
+
+### Query cache shapes
+
+- List hooks return the full `Paginated<T>` envelope (`{ data, meta }`).
+- Detail hooks and members unwrap `.data` in `queryFn` so consumers get the entity (or array) directly.
+
+### Dialogs
+
+Create/invite dialogs are **controlled** by the parent View (`open` / `onOpenChange`). The View owns the trigger button so the same dialog can be opened from headers and empty states.
+
+### URL filters
+
+Shared factories live in `lib/filters/`. Issues table filters (`status`, `priority`, …) are separate from board filters (`boardPriority`, `boardAssignee`) so Board ↔ Issues navigation does not clash.
 
 ## Environment
 
@@ -56,13 +76,15 @@ UI code never imports the transport directly. Everything goes through `lib/api/c
 
 - Sends `Authorization: Bearer <token>` using the token persisted in the auth store.
 - Serializes list queries with `serializeListQuery()` so `page`, `pageSize`, `sort` and `filter` match the server contract.
-- Parses `{ data }` / `{ data, meta }` envelopes.
+- Parses `{ data }` / `{ data, meta }` envelopes and **validates success bodies** with the Zod resource schemas.
 - Rewrites `401 AUTHENTICATION_REQUIRED`, `401 INVALID_LOGIN_CREDENTIALS` and `403 FORBIDDEN` to friendly client-side copy; validation / business-rule / conflict messages are surfaced verbatim so field-specific feedback still reaches the user.
 - On a non-2xx response throws an `ApiError` with the server-supplied code; the UI relies on it for several behaviors:
   - `401` clears the session and redirects to `/login`.
   - `403` renders the no-access state.
   - `404` renders not-found.
   - `400` (`VALIDATION_ERROR`) field details map onto form fields via `handleFormError`.
+
+Display labels (issue status, role names) live next to UI (`features/*/labels.ts` or `options.ts`), not in the API schema layer.
 
 ### Roles
 

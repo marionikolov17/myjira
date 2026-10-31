@@ -18,7 +18,6 @@ export const queryKeys = {
     all: () => ['members'] as const,
     project: (projectId: string) => ['members', projectId] as const,
     lists: (projectId: string) => ['members', projectId, 'list'] as const,
-    list: (projectId: string) => ['members', projectId, 'list'] as const,
   },
   issues: {
     all: () => ['issues'] as const,

@@ -1,8 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { MailPlusIcon } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { OptionSelect } from '@/components/common/OptionSelect';
@@ -26,11 +25,13 @@ import { useWorkspaceRoles } from '@/features/roles/queries';
 import { useCreateUser } from '../mutations';
 import { createUserInputSchema, type CreateUserInput } from '../schemas';
 
-export function InviteUserDialog({
-  onInvited,
-}: {
+type InviteUserDialogProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onInvited: (invite: CreateUserResponse) => void;
-}) {
+};
+
+export function InviteUserDialog({ open, onOpenChange, onInvited }: InviteUserDialogProps) {
   const actor = useActor();
   const workspaceRoles = useWorkspaceRoles();
   const invitableNames = invitableWorkspaceRoles(actor);
@@ -44,7 +45,6 @@ export function InviteUserDialog({
     [invitableNames, workspaceRoles],
   );
 
-  const [open, setOpen] = useState(false);
   const createUser = useCreateUser();
 
   const defaultValues: CreateUserInput = {
@@ -58,7 +58,6 @@ export function InviteUserDialog({
   });
   const { errors } = form.formState;
 
-  // Backfill the default role once the roles finish loading or when the dialog opens.
   useEffect(() => {
     if (!open) return;
     const current = form.getValues('workspaceRoleId');
@@ -68,7 +67,7 @@ export function InviteUserDialog({
   const handleOpenChange = (next: boolean) => {
     if (createUser.isPending) return;
     if (!next) form.reset({ ...defaultValues, workspaceRoleId: roleOptions[0]?.value ?? '' });
-    setOpen(next);
+    onOpenChange(next);
   };
 
   const onSubmit = form.handleSubmit((values) =>
@@ -76,7 +75,7 @@ export function InviteUserDialog({
       onSuccess: (invite) => {
         toast.success(`Invited ${invite.user.name}`);
         form.reset({ ...defaultValues, workspaceRoleId: roleOptions[0]?.value ?? '' });
-        setOpen(false);
+        onOpenChange(false);
         onInvited(invite);
       },
       onError: (error) => handleFormError(error, form),
@@ -86,80 +85,73 @@ export function InviteUserDialog({
   const rolesReady = roleOptions.length > 0;
 
   return (
-    <>
-      <Button onClick={() => setOpen(true)} disabled={workspaceRoles.isLoading || !rolesReady}>
-        <MailPlusIcon data-icon="inline-start" />
-        Invite user
-      </Button>
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent>
-          <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
-            <DialogHeader>
-              <DialogTitle>Invite user</DialogTitle>
-              <DialogDescription>
-                They&apos;ll be added as pending. You&apos;ll get a one-time activation link to
-                share.
-              </DialogDescription>
-            </DialogHeader>
-            <FieldGroup>
-              <Field data-invalid={Boolean(errors.name) || undefined}>
-                <FieldLabel htmlFor="invite-name">Name</FieldLabel>
-                <Input
-                  id="invite-name"
-                  autoComplete="off"
-                  aria-invalid={Boolean(errors.name) || undefined}
-                  {...form.register('name')}
-                />
-                <FieldError errors={[errors.name]} />
-              </Field>
-              <Field data-invalid={Boolean(errors.email) || undefined}>
-                <FieldLabel htmlFor="invite-email">Email</FieldLabel>
-                <Input
-                  id="invite-email"
-                  type="email"
-                  autoComplete="off"
-                  aria-invalid={Boolean(errors.email) || undefined}
-                  {...form.register('email')}
-                />
-                <FieldError errors={[errors.email]} />
-              </Field>
-              <Field data-invalid={Boolean(errors.workspaceRoleId) || undefined}>
-                <FieldLabel htmlFor="invite-role">Workspace role</FieldLabel>
-                <Controller
-                  control={form.control}
-                  name="workspaceRoleId"
-                  render={({ field }) => (
-                    <OptionSelect
-                      id="invite-role"
-                      ariaLabel="Workspace role"
-                      value={field.value}
-                      options={roleOptions}
-                      onChange={field.onChange}
-                      disabled={roleOptions.length <= 1}
-                      invalid={Boolean(errors.workspaceRoleId)}
-                    />
-                  )}
-                />
-                <FieldError errors={[errors.workspaceRoleId]} />
-              </Field>
-            </FieldGroup>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleOpenChange(false)}
-                disabled={createUser.isPending}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={createUser.isPending || !rolesReady}>
-                {createUser.isPending && <Spinner data-icon="inline-start" />}
-                Send invite
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent>
+        <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
+          <DialogHeader>
+            <DialogTitle>Invite user</DialogTitle>
+            <DialogDescription>
+              They&apos;ll be added as pending. You&apos;ll get a one-time activation link to share.
+            </DialogDescription>
+          </DialogHeader>
+          <FieldGroup>
+            <Field data-invalid={Boolean(errors.name) || undefined}>
+              <FieldLabel htmlFor="invite-name">Name</FieldLabel>
+              <Input
+                id="invite-name"
+                autoComplete="off"
+                aria-invalid={Boolean(errors.name) || undefined}
+                {...form.register('name')}
+              />
+              <FieldError errors={[errors.name]} />
+            </Field>
+            <Field data-invalid={Boolean(errors.email) || undefined}>
+              <FieldLabel htmlFor="invite-email">Email</FieldLabel>
+              <Input
+                id="invite-email"
+                type="email"
+                autoComplete="off"
+                aria-invalid={Boolean(errors.email) || undefined}
+                {...form.register('email')}
+              />
+              <FieldError errors={[errors.email]} />
+            </Field>
+            <Field data-invalid={Boolean(errors.workspaceRoleId) || undefined}>
+              <FieldLabel htmlFor="invite-role">Workspace role</FieldLabel>
+              <Controller
+                control={form.control}
+                name="workspaceRoleId"
+                render={({ field }) => (
+                  <OptionSelect
+                    id="invite-role"
+                    ariaLabel="Workspace role"
+                    value={field.value}
+                    options={roleOptions}
+                    onChange={field.onChange}
+                    disabled={roleOptions.length <= 1}
+                    invalid={Boolean(errors.workspaceRoleId)}
+                  />
+                )}
+              />
+              <FieldError errors={[errors.workspaceRoleId]} />
+            </Field>
+          </FieldGroup>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleOpenChange(false)}
+              disabled={createUser.isPending}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={createUser.isPending || !rolesReady}>
+              {createUser.isPending && <Spinner data-icon="inline-start" />}
+              Send invite
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
