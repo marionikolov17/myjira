@@ -63,8 +63,8 @@ export function can(
 
   switch (action) {
     case 'me.read':
-    case 'projects.list':
       return true;
+    case 'projects.list':
     case 'users.list':
     case 'users.getById':
       return hasWorkspaceRole(actor, 'Owner', 'Admin', 'Developer');

@@ -61,12 +61,15 @@ Typical **write** path:
 
 - Route `page.tsx` files stay thin (metadata + render a feature `*View`). Prefer server
   pages that import a `'use client'` View.
-- **UI / features never import transport.** Always go through `lib/api/client/*`.
+- **UI / features never import transport.** Always go through `lib/api/client/*` (enforced by
+  ESLint `no-restricted-imports`).
 - Zod API/form contracts live in `lib/api/schemas`. Features import them; they do not
   re-export or duplicate schemas.
-- Shared components (`components/common`, `components/ui`) never import `features/*`.
-  Put shared display maps in `lib/labels/`. Features and shared UI import labels from
-  `@/lib/labels/*` directly — do **not** re-export labels from feature `options.ts`.
+- Shared components (`components/common`, `components/ui`) never import `features/*`
+  (enforced by ESLint `no-restricted-imports`).
+  Put shared display maps in `lib/labels/` (layout is the sanctioned exception).
+  Features and shared UI import labels from `@/lib/labels/*` directly — do **not**
+  re-export labels from feature `options.ts`.
 
 ## Feature Module Shapes
 
@@ -128,6 +131,11 @@ navigation does not clash. Do not reuse Issues param names on the board.
 
 - `can()`, `useCan()`, `<PermissionGate>` decide what to **show** (hide/disable + reasons).
 - **Never treat client checks as security** — the backend enforces every rule.
+- The matrix in `lib/authz/can.ts` mirrors the server's declarative matrix at
+  `server/src/common/authorization/authorization-matrix.ts` (behavior:
+  `openspec/specs/authorization`). When permissions change, update **both** — the server
+  matrix is the source of truth. Server-only actions (e.g. the subtask actions) are added
+  here only once the UI gains a surface for them.
 - Gate create/invite/role-change actions with `PermissionGate` / `can()` the same way
   existing Views do.
 

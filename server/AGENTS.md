@@ -24,16 +24,23 @@ server/
 │   ├── app.ts               # express app: middleware order + controller mounting
 │   ├── server.ts            # entrypoint
 │   ├── config/              # env parsing/typing + feature config
+│   ├── generated/           # Prisma-generated client (do not edit)
 │   ├── common/
-│   │   ├── middlewares/     # authentication, require-authentication, logger-request, error
+│   │   ├── activation-token/ # activation-token facade + types
+│   │   ├── authorization/   # declarative authz matrix + guard (source of truth for authz)
 │   │   ├── errors/          # AppError taxonomy + error-codes (see below)
 │   │   ├── interfaces/      # shared interfaces (IRepository, actor context, ...)
-│   │   ├── logger/          # Winston facade
-│   │   ├── token-service/   # JWT facade
-│   │   ├── password-hasher/ # bcrypt facade
 │   │   ├── lib/prisma.ts    # Prisma client
-│   │   └── utils/           # map-prisma-error, map-zod-error, is-plain-object, create-test-app
-│   └── modules/             # auth, users, workspace, workspace-roles, project-members
+│   │   ├── logger/          # Winston facade
+│   │   ├── middlewares/     # authentication, require-authentication, logger-request, error
+│   │   ├── password-hasher/ # bcrypt facade
+│   │   ├── query/           # list-query engine: parse page/sort/filter → Prisma queries
+│   │   ├── schema/          # shared Zod schemas (id)
+│   │   ├── token-service/   # JWT facade
+│   │   ├── types/           # ambient type declarations (express.d.ts)
+│   │   ├── unit-of-work/    # transactional unit of work over Prisma
+│   │   └── utils/           # map-prisma-error, map-zod-error, is-plain-object, create-test-app, redact-token-query-param
+│   └── modules/             # auth, issues, project-members, project-roles, projects, users, workspace, workspace-roles
 └── tests/{unit,integration}/
 ```
 
@@ -45,9 +52,15 @@ Each module in `src/modules/<name>/` contains:
 - `<name>.service.ts` — business logic.
 - `<name>.repository.ts` — Prisma persistence (implements `IRepository`, exposes `resourceName`).
 - `<name>.schema.ts` — Zod schemas for request validation.
+- `<name>.query-config.ts` — declarative list-query config (sortable/filterable fields, page sizes) consumed by `common/query` (list-bearing resources only: `users`, `projects`, `issues`).
 - `<name>.interface.ts` — interfaces for the above (mock/inject against these, never concrete classes).
 - `<name>.types.ts` — domain/DTO types.
 - `index.ts` — wires dependencies (DI) and exports singletons (see below).
+
+Resource modules carry the full set; service-only modules (`auth`, `workspace`) and role
+catalogs (`workspace-roles`, `project-roles`) omit the roles they don't need (repository,
+types, query-config). `auth` additionally hosts the actor-context service
+(`actor-context.service.ts` + `actor-context.interface.ts`).
 
 ## Architecture & Conventions
 
@@ -66,11 +79,13 @@ export { authController };
 - **Validation**: in the controller, guard non-objects with `isPlainObject`, then `Schema.parse(body)`. Do not validate in services.
 - **Responses**: success responses use `{ data: ... }`. Never send errors from controllers — `catch (error) { next(error); }` and let `errorMiddleware` handle them.
 - **Errors**: throw the typed errors from `@/common/errors` (`ConflictError`, `AuthorizationError`, `AuthenticationError`, `ResourceNotFoundError`, `ValidationError`, `BusinessRuleViolationError`, `InvalidLoginCredentialsError`). Map external failures with `map-prisma-error` / `map-zod-error`. Do not throw raw `Error`.
+- **Authorization**: services enforce access via the injected `IAuthorizationGuard` — `authorize({ actor, scope, action, resource })`. Allowed roles are declarative data in `common/authorization/authorization-matrix.ts`; unconfigured actions are denied by default (see `openspec/specs/authorization`). Add new actions to the matrix, never as inline checks.
+- **List queries**: paginated/filterable/sortable endpoints use the shared engine in `common/query` (parser → Prisma mapper), configured per resource via `<name>.query-config.ts`; repositories return `Paginated<T>` (see `.cursor/rules/backend/repository-paginated-list.mdc`).
 
 ## Naming
 
 - Interfaces are `I`-prefixed (`IUserRepository`, `IAuthService`).
-- Files are kebab-case with a role suffix: `.controller.ts`, `.service.ts`, `.repository.ts`, `.schema.ts`, `.interface.ts`, `.types.ts`.
+- Files are kebab-case with a role suffix: `.controller.ts`, `.service.ts`, `.repository.ts`, `.schema.ts`, `.query-config.ts`, `.interface.ts`, `.types.ts`.
 
 ## Code Style
 

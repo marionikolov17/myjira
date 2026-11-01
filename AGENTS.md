@@ -31,7 +31,7 @@ Server OpenAPI (`server/docs/openapi.json`) and server Zod own the API. Frontend
 ## Local run (short)
 
 1. In `server/`: `npm install` → `compose:up` → `db:migrate` → `db:seed` → `npm run dev`
-2. In `app/`: `npm install` → copy `.env.example` → `.env.local` → `npm run dev`
+2. In `app/`: `npm install` → copy `.env.sample` → `.env.local` → `npm run dev`
 
 Seed users: `OWNER_EMAIL` / `ADMIN_EMAIL` / `DEVELOPER_EMAIL` (and passwords) in `server/.env.local`.
 
