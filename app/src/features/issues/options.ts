@@ -7,8 +7,6 @@ import {
 } from '@/lib/api/schemas';
 import { ISSUE_STATUS_LABELS, PRIORITY_ICONS, STATUS_ICONS } from '@/lib/labels/issues';
 
-export { ISSUE_STATUS_LABELS } from '@/lib/labels/issues';
-
 export const STATUS_OPTIONS: SelectOption<IssueStatus>[] = ISSUE_STATUSES.map((status) => ({
   value: status,
   label: ISSUE_STATUS_LABELS[status],
