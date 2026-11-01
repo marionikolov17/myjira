@@ -1,5 +1,5 @@
-import { WorkspaceRoleName } from '@/modules/workspace-roles';
-import { ProjectRoleName } from '@/modules/project-roles';
+import { WorkspaceRoleName } from '@/modules/workspace-roles/workspace-role.schema';
+import { ProjectRoleName } from '@/modules/project-roles/project-role.schema';
 
 export interface ActorWorkspaceRole {
   id: string;

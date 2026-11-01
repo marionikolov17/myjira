@@ -1,8 +1,11 @@
 import express from 'express';
+import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import { rateLimit, MINUTE } from 'express-rate-limit';
 import { errorMiddleware, loggerRequestMiddleware } from '@/common/middlewares';
 import { workspaceController } from '@/modules/workspace';
+import { workspaceRoleController } from '@/modules/workspace-roles';
+import { projectRoleController } from '@/modules/project-roles';
 import { authController, authenticationMiddleware } from '@/modules/auth';
 import { usersController } from '@/modules/users';
 import { projectsController } from '@/modules/projects';
@@ -14,6 +17,7 @@ const app = express();
 
 app.set('query parser', 'extended');
 
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 app.use(
   rateLimit({
@@ -31,6 +35,8 @@ app.use('/docs', swaggerUi.serve);
 app.get('/docs', swaggerUi.setup(openapiSpec));
 
 app.use('/api/v1/workspace', workspaceController.router);
+app.use('/api/v1/workspace-roles', workspaceRoleController.router);
+app.use('/api/v1/project-roles', projectRoleController.router);
 app.use('/api/v1/auth', authController.router);
 app.use('/api/v1/users', usersController.router);
 app.use('/api/v1/projects', projectsController.router);

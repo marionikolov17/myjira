@@ -332,7 +332,12 @@
                         "status": 400,
                         "message": "Validation error",
                         "details": {
-                          "fields": [{ "name": "email", "message": "Invalid email address" }]
+                          "fields": [
+                            {
+                              "name": "email",
+                              "message": "Invalid email address"
+                            }
+                          ]
                         }
                       }
                     }
@@ -412,7 +417,11 @@
         "summary": "Get the authenticated caller's actor context",
         "description": "Returns the actor context for the authenticated caller. The actor context is derived from the Bearer token: the token's `userId`, the caller's workspace role (id and name), and one entry per project membership with the project role (id and name).\n\nThe global authentication middleware runs passively on every request and populates the actor context when a valid Bearer token is present. This route is then guarded so that requests without an actor context are rejected with `401 AUTHENTICATION_REQUIRED`. Any missing, invalid, expired, or malformed token (or a non-`Bearer` scheme) results in the same `401` response.",
         "tags": ["Users"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "The authenticated caller's actor context.",
@@ -489,7 +498,11 @@
         "summary": "Create a workspace user and issue an activation link",
         "description": "Creates a new workspace user in the `Pending` state and returns a one-time activation link the invitee can use to set their own password. The caller must present a valid Bearer token and hold a privileged workspace role: only `Owner` and `Admin` may create users. A `Developer` (or any other non-privileged role) is rejected with `403 FORBIDDEN`.\n\nThe new user is assigned the workspace role identified by `workspaceRoleId`. That role must already exist and must not be the `Owner` role — the Workspace Owner role cannot be assigned to a workspace user. The caller does not supply a password: the account is created without one (it is `null` at rest), stored as `Pending`, and only the hash of the generated activation token is persisted. The response therefore never includes a password or any activation-token hash; the raw activation token is returned exactly once, embedded as the `token` query parameter of `activation.url`.\n\nValidation runs before authorization, which runs before the business-rule checks, which run before persistence. In other words a malformed body yields `400` regardless of the caller's role, an unprivileged caller with a valid body yields `403`, and a privileged caller with a valid body that names a missing or non-assignable role yields `422`.",
         "tags": ["Users"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -585,7 +598,12 @@
                         "status": 400,
                         "message": "Validation error",
                         "details": {
-                          "fields": [{ "name": "email", "message": "Invalid email address" }]
+                          "fields": [
+                            {
+                              "name": "email",
+                              "message": "Invalid email address"
+                            }
+                          ]
                         }
                       }
                     }
@@ -757,7 +775,11 @@
         "summary": "List workspace users",
         "description": "Lists workspace users in the workspace with pagination, filtering, and sorting. The caller must present a valid Bearer token and hold a privileged workspace role: only `Owner`, `Developer` and `Admin` may list users. Any other non-privileged role is rejected with `403 FORBIDDEN`.",
         "tags": ["Users"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Returns the list of users with the applied filters, sorting, and pagination.",
@@ -785,7 +807,7 @@
                     "meta": {
                       "pagination": {
                         "pageSize": 10,
-                        "pageNumber": 1,
+                        "page": 1,
                         "totalItems": 1,
                         "totalPages": 1
                       }
@@ -954,7 +976,11 @@
         "summary": "Retrieve a workspace user by id",
         "description": "Returns a single workspace user by id. The caller must present a valid Bearer token and hold a workspace role permitted to read users: `Workspace Owner`, `Workspace Admin`, and `Developer` are allowed. Any other role is rejected with `403 FORBIDDEN`.\n\nAuthentication runs before validation, which runs before authorization, which runs before the target lookup. In other words a missing token yields `401`, a non-UUID `{id}` yields `400`, an unprivileged caller yields `403`, and an authorized caller for a well-formed but unknown id yields `404`.\n\nThe response reuses the safe-fields user resource and never exposes credential or activation material.",
         "tags": ["Users"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "id",
@@ -1126,7 +1152,11 @@
         "summary": "Update a workspace user's role",
         "description": "Updates the workspace role of an existing workspace user. The caller must present a valid Bearer token and hold the `Workspace Owner` role; any other role is rejected with `403 FORBIDDEN`.\n\nOnly the transitions between `Developer` and `Workspace Admin` are permitted. The target user's current role must not be `Workspace Owner`, and the requested `workspaceRoleId` must reference an existing workspace role that is not the `Workspace Owner` role. When the requested role equals the target's current role, the request is treated as an idempotent no-op and returns the unchanged user resource with a `200` status.\n\nAuthentication runs before validation, which runs before authorization, which runs before the target lookup, which runs before the business-rule checks. In other words a missing token yields `401`, a malformed body yields `400`, an unprivileged caller yields `403`, an unknown target id yields `404`, and a privileged caller whose requested role is missing or non-assignable yields `422`.\n\nThe response reuses the safe-fields user resource and never exposes credential or activation material.",
         "tags": ["Users"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "id",
@@ -1366,16 +1396,25 @@
         "summary": "Create a project",
         "description": "Creates a new project and atomically enrolls the acting user as a `Project Owner` member. The caller must present a valid Bearer token and hold either the `Workspace Owner` or `Workspace Admin` role; any other role is rejected with `403 FORBIDDEN`.\n\nAuthentication runs before validation, which runs before authorization, which runs before persistence. In other words a missing token yields `401`, a malformed body yields `400`, and an unprivileged caller yields `403`. If the project row persists but the owner-member write fails, both writes roll back and `500` is returned.\n\nThe body is validated with a strict schema, so unrecognized fields (including client-supplied `id`, `creatorId`, timestamps, or membership fields) are rejected.",
         "tags": ["Projects"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/CreateProjectRequest" },
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectRequest"
+              },
               "examples": {
                 "valid": {
                   "summary": "Valid project creation",
-                  "value": { "name": "Payments", "description": "Payments integration workstream" }
+                  "value": {
+                    "name": "Payments",
+                    "description": "Payments integration workstream"
+                  }
                 }
               }
             }
@@ -1386,7 +1425,9 @@
             "description": "The project was created and the acting user was enrolled as its `Project Owner`.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ProjectResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                },
                 "examples": {
                   "created": {
                     "summary": "Created project",
@@ -1409,7 +1450,9 @@
             "description": "The request body failed validation. `details.fields` lists each offending field.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
               }
             }
           },
@@ -1417,7 +1460,9 @@
             "description": "The request did not carry a valid Bearer token. No project is created.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                }
               }
             }
           },
@@ -1425,7 +1470,9 @@
             "description": "The caller is authenticated but not permitted to create projects. No project is created.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                }
               }
             }
           },
@@ -1433,7 +1480,9 @@
             "description": "An unexpected error occurred, or the owner-member write failed and the whole creation was rolled back. No project is created.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
               }
             }
           }
@@ -1444,25 +1493,41 @@
         "summary": "List projects",
         "description": "Returns a paginated list of projects. The caller must present a valid Bearer token and hold a workspace role permitted to list projects: `Workspace Owner`, `Workspace Admin`, and `Developer` are all allowed. The returned set is scoped by the caller's workspace role: `Workspace Owner` and `Workspace Admin` see every project; `Developer` sees only projects where they are a project member. Scoping is applied before pagination, so `meta.pagination` reflects the scoped total.\n\nSupported query parameters:\n\n- `page`, `pageSize` (defaults: `page=1`, `pageSize=10`; `pageSize` max 100)\n- `sort`: one of `name`, `createdAt`, `updatedAt`, optionally prefixed with `-` for descending\n- `filter[creatorId]` with operators `eq`, `ne`, `in`\n- `filter[createdAt]`, `filter[updatedAt]` with operators `eq`, `gt`, `gte`, `lt`, `lte`\n\n`name` is sortable but not filterable. `description` is neither sortable nor filterable.",
         "tags": ["Projects"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "page",
             "in": "query",
             "required": false,
-            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
           },
           {
             "name": "pageSize",
             "in": "query",
             "required": false,
-            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 10 }
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            }
           },
           {
             "name": "sort",
             "in": "query",
             "required": false,
-            "schema": { "type": "string", "example": "-createdAt" }
+            "schema": {
+              "type": "string",
+              "example": "-createdAt"
+            }
           }
         ],
         "responses": {
@@ -1470,7 +1535,9 @@
             "description": "A page of projects, scoped by the caller's workspace role.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ListProjectsResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ListProjectsResponse"
+                }
               }
             }
           },
@@ -1478,7 +1545,9 @@
             "description": "A query parameter failed validation (unknown sort field, disallowed filter field or operator, `pageSize` above the cap, non-integer `page`/`pageSize`, etc.).",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
               }
             }
           },
@@ -1486,7 +1555,9 @@
             "description": "The request did not carry a valid Bearer token.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                }
               }
             }
           },
@@ -1494,7 +1565,9 @@
             "description": "The caller's workspace role is not permitted to list projects.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                }
               }
             }
           },
@@ -1502,7 +1575,9 @@
             "description": "An unexpected error occurred while processing the request.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
               }
             }
           }
@@ -1515,14 +1590,21 @@
         "summary": "Retrieve a project by id",
         "description": "Returns a single project by id. The caller must present a valid Bearer token. The authorization decision for the `getProjectById` action is: callers whose workspace role is `Workspace Owner` or `Workspace Admin` are permitted regardless of project membership (workspace bypass); otherwise the caller must hold a project role on the target project among `Project Owner`, `Project Admin`, or `Developer`.\n\nAuthentication runs before validation, which runs before authorization, which runs before the target lookup. A missing token yields `401`, a non-UUID `{id}` yields `400`, an unauthorized caller yields `403`, and an authorized caller for a well-formed but unknown id yields `404`.",
         "tags": ["Projects"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
             "description": "The identifier of the target project.",
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
@@ -1530,7 +1612,9 @@
             "description": "The target project.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ProjectResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
               }
             }
           },
@@ -1538,7 +1622,9 @@
             "description": "The `{id}` path parameter is not a UUID.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
               }
             }
           },
@@ -1546,7 +1632,9 @@
             "description": "The request did not carry a valid Bearer token.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                }
               }
             }
           },
@@ -1554,7 +1642,9 @@
             "description": "The caller is authenticated but not permitted to read the target project.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                }
               }
             }
           },
@@ -1562,7 +1652,9 @@
             "description": "No project exists for the supplied `{id}`.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceNotFoundErrorResponse"
+                }
               }
             }
           },
@@ -1570,7 +1662,9 @@
             "description": "An unexpected error occurred while processing the request.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
               }
             }
           }
@@ -1581,30 +1675,49 @@
         "summary": "Update a project",
         "description": "Partially updates a project's `name` and/or `description`. At least one of the two must be present in the body; unspecified fields are left unchanged. The caller must present a valid Bearer token. Authorization: callers whose workspace role is `Workspace Owner` are permitted regardless of project membership (workspace bypass); otherwise the caller must hold the `Project Owner` project role on the target project. `Workspace Admin`, `Project Admin`, and `Developer` are not permitted to update projects in this iteration.\n\nThe body is validated with a strict schema, so unrecognized fields are rejected. Empty-string values for `name` or `description` are rejected.",
         "tags": ["Projects"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
             "description": "The identifier of the target project.",
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/UpdateProjectRequest" },
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProjectRequest"
+              },
               "examples": {
-                "renameOnly": { "summary": "Rename only", "value": { "name": "Payments v2" } },
+                "renameOnly": {
+                  "summary": "Rename only",
+                  "value": {
+                    "name": "Payments v2"
+                  }
+                },
                 "retargetDescription": {
                   "summary": "Change description only",
-                  "value": { "description": "Expanded scope" }
+                  "value": {
+                    "description": "Expanded scope"
+                  }
                 },
                 "both": {
                   "summary": "Update both",
-                  "value": { "name": "Payments v2", "description": "Expanded scope" }
+                  "value": {
+                    "name": "Payments v2",
+                    "description": "Expanded scope"
+                  }
                 }
               }
             }
@@ -1615,7 +1728,9 @@
             "description": "The updated project.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ProjectResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
               }
             }
           },
@@ -1623,7 +1738,9 @@
             "description": "The body or path parameter failed validation (missing both fields, empty-string field, unrecognized field, non-UUID `{id}`, etc.).",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
               }
             }
           },
@@ -1631,7 +1748,9 @@
             "description": "The request did not carry a valid Bearer token.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                }
               }
             }
           },
@@ -1639,7 +1758,9 @@
             "description": "The caller is authenticated but not permitted to update the target project.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                }
               }
             }
           },
@@ -1647,7 +1768,9 @@
             "description": "No project exists for the supplied `{id}`.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceNotFoundErrorResponse"
+                }
               }
             }
           },
@@ -1655,7 +1778,9 @@
             "description": "An unexpected error occurred while processing the request. No project is modified.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
               }
             }
           }
@@ -1666,23 +1791,34 @@
         "summary": "Delete a project",
         "description": "Hard-deletes a project. The deletion cascades at the database level to the project's `project_members`, its `issues`, and the subtasks of those issues. The caller must present a valid Bearer token. Authorization matches `PATCH /projects/{id}`: `Workspace Owner` bypass, otherwise the caller must hold the `Project Owner` project role on the target.\n\nOn success the response is `204 No Content` with an empty body.",
         "tags": ["Projects"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
             "description": "The identifier of the target project.",
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
-          "204": { "description": "The project was deleted. The response body is empty." },
+          "204": {
+            "description": "The project was deleted. The response body is empty."
+          },
           "400": {
             "description": "The `{id}` path parameter is not a UUID.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
               }
             }
           },
@@ -1690,7 +1826,9 @@
             "description": "The request did not carry a valid Bearer token.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                }
               }
             }
           },
@@ -1698,7 +1836,9 @@
             "description": "The caller is authenticated but not permitted to delete the target project.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                }
               }
             }
           },
@@ -1706,7 +1846,9 @@
             "description": "No project exists for the supplied `{id}`.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceNotFoundErrorResponse"
+                }
               }
             }
           },
@@ -1714,7 +1856,9 @@
             "description": "An unexpected error occurred while processing the request. No project is deleted.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
               }
             }
           }
@@ -1727,21 +1871,30 @@
         "summary": "Add a user to a project",
         "description": "Adds a user as a member of the target project with the supplied project role. The caller must present a valid Bearer token and be authorized to `addProjectMember`: callers whose workspace role is `Workspace Owner` are permitted regardless of project membership (workspace bypass); otherwise the caller must hold either the `Project Owner` or `Project Admin` project role on the target project.\n\nAuthentication runs before validation, which runs before authorization, which runs before business-rule checks. A missing token yields `401`, a non-object body / missing or malformed fields / unrecognized fields / non-UUID `{projectId}` yield `400`, an unauthorized caller yields `403`, a well-formed but unknown `{projectId}` yields `404`, a duplicate `(projectId, userId)` yields `409`, and the following business-rule violations yield `422`: `userId` references no existing user; `projectRoleId` references no existing project role; `projectRoleId` resolves to the `Project Owner` role (the project owner is bootstrapped once at project creation and cannot be added or promoted via this endpoint); the acting Project Admin tries to add a Project Admin target (the target-role ladder restricts a Project Admin to Developer targets).",
         "tags": ["Project members"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "projectId",
             "in": "path",
             "required": true,
             "description": "The identifier of the target project.",
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/AddProjectMemberRequest" },
+              "schema": {
+                "$ref": "#/components/schemas/AddProjectMemberRequest"
+              },
               "examples": {
                 "addDeveloper": {
                   "summary": "Add a Developer member",
@@ -1759,7 +1912,9 @@
             "description": "The user was added to the project. The response contains the newly created project-member row with the user and project-role joined.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ProjectMemberResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectMemberResponse"
+                }
               }
             }
           },
@@ -1767,7 +1922,9 @@
             "description": "The body or path parameter failed validation (missing or malformed `userId`/`projectRoleId`, unrecognized field, non-object body, non-UUID `{projectId}`).",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                },
                 "examples": {
                   "missingFields": {
                     "summary": "Required body fields missing",
@@ -1817,7 +1974,9 @@
             "description": "The request did not carry a valid Bearer token. No member is added.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                },
                 "examples": {
                   "authenticationRequired": {
                     "summary": "No valid token provided",
@@ -1837,7 +1996,9 @@
             "description": "The caller is authenticated but not permitted to add members to the target project. No member is added.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                },
                 "examples": {
                   "forbidden": {
                     "summary": "Caller lacks addProjectMember permission",
@@ -1857,7 +2018,9 @@
             "description": "No project exists for the supplied `{projectId}`. No member is added.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceNotFoundErrorResponse"
+                },
                 "examples": {
                   "projectNotFound": {
                     "summary": "Target project does not exist",
@@ -1882,7 +2045,9 @@
             "description": "The target user is already a member of the project. No member is added.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ConflictErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictErrorResponse"
+                },
                 "examples": {
                   "duplicateMembership": {
                     "summary": "User is already a project member",
@@ -1902,7 +2067,9 @@
             "description": "A business rule rejected the request: `userId` references no existing user, `projectRoleId` references no existing project role, `projectRoleId` resolves to the `Project Owner` role, or a Project Admin caller attempted to add a Project Admin target (ladder).",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse"
+                },
                 "examples": {
                   "unknownUser": {
                     "summary": "`userId` references no existing user",
@@ -1952,7 +2119,9 @@
             "description": "An unexpected error occurred while processing the request. No member is added.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                },
                 "examples": {
                   "internalServerError": {
                     "summary": "Unexpected failure",
@@ -1975,14 +2144,21 @@
         "summary": "List project members",
         "description": "Returns every member of the target project. The response is NOT paginated: the full list is returned under `data` and `meta.pagination` is omitted. The entries are ordered by the stable `id` ascending.\n\nThe caller must present a valid Bearer token and be authorized to `listProjectMembers`: callers whose workspace role is `Workspace Owner` or `Workspace Admin` are permitted regardless of project membership (workspace bypass); otherwise the caller must hold one of the `Project Owner`, `Project Admin`, or `Developer` project roles on the target project.\n\nThis endpoint does not accept `?page`, `?pageSize`, `?sort`, or `?filter[...]` query parameters; any such parameter yields `400`.",
         "tags": ["Project members"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "projectId",
             "in": "path",
             "required": true,
             "description": "The identifier of the target project.",
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
@@ -1990,7 +2166,9 @@
             "description": "Every member of the project, each with the user and project-role joined. The response is NOT paginated and has no `meta.pagination`.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ListProjectMembersResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ListProjectMembersResponse"
+                }
               }
             }
           },
@@ -1998,7 +2176,9 @@
             "description": "The `{projectId}` path parameter is not a UUID, or the request includes a disallowed query parameter such as `?page`, `?pageSize`, `?sort`, or `?filter[...]`.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                },
                 "examples": {
                   "unsupportedQueryParameter": {
                     "summary": "Disallowed query parameter",
@@ -2044,7 +2224,9 @@
             "description": "The request did not carry a valid Bearer token.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                },
                 "examples": {
                   "authenticationRequired": {
                     "summary": "No valid token provided",
@@ -2064,7 +2246,9 @@
             "description": "The caller is authenticated but not permitted to list members of the target project.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                },
                 "examples": {
                   "forbidden": {
                     "summary": "Caller lacks listProjectMembers permission",
@@ -2084,7 +2268,9 @@
             "description": "No project exists for the supplied `{projectId}`.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceNotFoundErrorResponse"
+                },
                 "examples": {
                   "projectNotFound": {
                     "summary": "Target project does not exist",
@@ -2109,7 +2295,9 @@
             "description": "An unexpected error occurred while processing the request.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                },
                 "examples": {
                   "internalServerError": {
                     "summary": "Unexpected failure",
@@ -2134,28 +2322,40 @@
         "summary": "Update a project member's role",
         "description": "Replaces the target member's project role with the supplied `projectRoleId`. The caller must present a valid Bearer token and be authorized to `updateProjectMemberRole`: callers whose workspace role is `Workspace Owner` are permitted regardless of project membership (workspace bypass); otherwise the caller must hold the `Project Owner` project role on the target project. `Workspace Admin`, `Project Admin`, and `Developer` are not permitted.\n\nAuthentication runs before validation, which runs before authorization, which runs before the target lookup, which runs before business-rule checks. A missing token yields `401`, a malformed `{projectId}` / `{memberId}` or malformed body yields `400`, an unauthorized caller yields `403`, a `{memberId}` that does not exist OR belongs to a different project than `{projectId}` yields `404`, and the following business-rule violations yield `422`: the target is the `Project Owner` (owner-immutable); the target is the caller themselves (self-mutation); `projectRoleId` references no existing project role; `projectRoleId` resolves to the `Project Owner` role.",
         "tags": ["Project members"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "projectId",
             "in": "path",
             "required": true,
             "description": "The identifier of the target project.",
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           },
           {
             "name": "memberId",
             "in": "path",
             "required": true,
             "description": "The identifier of the project-member row to update.",
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/UpdateProjectMemberRoleRequest" },
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProjectMemberRoleRequest"
+              },
               "examples": {
                 "promoteToAdmin": {
                   "summary": "Promote a Developer to Project Admin",
@@ -2172,7 +2372,9 @@
             "description": "The target member's role was updated. The response contains the updated project-member row with the user and project-role joined.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ProjectMemberResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectMemberResponse"
+                }
               }
             }
           },
@@ -2180,7 +2382,9 @@
             "description": "The body or path parameters failed validation (missing or malformed `projectRoleId`, unrecognized field, non-object body, non-UUID `{projectId}` or `{memberId}`).",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                },
                 "examples": {
                   "missingProjectRoleId": {
                     "summary": "Required `projectRoleId` missing",
@@ -2226,7 +2430,9 @@
             "description": "The request did not carry a valid Bearer token. No member is modified.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                },
                 "examples": {
                   "authenticationRequired": {
                     "summary": "No valid token provided",
@@ -2246,7 +2452,9 @@
             "description": "The caller is authenticated but not permitted to update members of the target project. No member is modified.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                },
                 "examples": {
                   "forbidden": {
                     "summary": "Caller lacks updateProjectMemberRole permission",
@@ -2266,7 +2474,9 @@
             "description": "No member row exists for the supplied `{memberId}`, or the row exists but belongs to a project other than `{projectId}`. No member is modified.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceNotFoundErrorResponse"
+                },
                 "examples": {
                   "memberNotFound": {
                     "summary": "Target project member does not exist",
@@ -2291,7 +2501,9 @@
             "description": "A business rule rejected the request: the target is the `Project Owner` (owner-immutable), the target is the caller themselves (self-mutation), `projectRoleId` references no existing project role, or `projectRoleId` resolves to the `Project Owner` role.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse"
+                },
                 "examples": {
                   "ownerImmutable": {
                     "summary": "Project Owner member role cannot be changed",
@@ -2341,7 +2553,9 @@
             "description": "An unexpected error occurred while processing the request. No member is modified.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                },
                 "examples": {
                   "internalServerError": {
                     "summary": "Unexpected failure",
@@ -2364,30 +2578,44 @@
         "summary": "Remove a user from a project",
         "description": "Removes the target member from the project. The caller must present a valid Bearer token and be authorized to `removeProjectMember`: callers whose workspace role is `Workspace Owner` are permitted regardless of project membership (workspace bypass); otherwise the caller must hold either the `Project Owner` or `Project Admin` project role on the target project.\n\nAuthentication runs before validation, which runs before authorization, which runs before the target lookup, which runs before business-rule checks. A missing token yields `401`, a non-UUID `{projectId}` or `{memberId}` yields `400`, an unauthorized caller yields `403`, a `{memberId}` that does not exist OR belongs to a different project than `{projectId}` yields `404`, and the following business-rule violations yield `422`: the target is the `Project Owner` (owner-protection); the target is the caller themselves (self-mutation); the acting `Project Admin` tries to remove a `Project Admin` target (the target-role ladder restricts a Project Admin to Developer targets).\n\nOn success the response is `204 No Content` with an empty body.",
         "tags": ["Project members"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "projectId",
             "in": "path",
             "required": true,
             "description": "The identifier of the target project.",
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           },
           {
             "name": "memberId",
             "in": "path",
             "required": true,
             "description": "The identifier of the project-member row to remove.",
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
-          "204": { "description": "The project member was removed. The response body is empty." },
+          "204": {
+            "description": "The project member was removed. The response body is empty."
+          },
           "400": {
             "description": "The `{projectId}` or `{memberId}` path parameter is not a UUID.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                },
                 "examples": {
                   "malformedMemberId": {
                     "summary": "Path `{memberId}` is not a UUID",
@@ -2415,7 +2643,9 @@
             "description": "The request did not carry a valid Bearer token. No member is removed.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                },
                 "examples": {
                   "authenticationRequired": {
                     "summary": "No valid token provided",
@@ -2435,7 +2665,9 @@
             "description": "The caller is authenticated but not permitted to remove members from the target project. No member is removed.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                },
                 "examples": {
                   "forbidden": {
                     "summary": "Caller lacks removeProjectMember permission",
@@ -2455,7 +2687,9 @@
             "description": "No member row exists for the supplied `{memberId}`, or the row exists but belongs to a project other than `{projectId}`. No member is removed.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceNotFoundErrorResponse"
+                },
                 "examples": {
                   "memberNotFound": {
                     "summary": "Target project member does not exist",
@@ -2480,7 +2714,9 @@
             "description": "A business rule rejected the request: the target is the `Project Owner` (owner-protection), the target is the caller themselves (self-mutation), or an acting Project Admin tried to remove a Project Admin target (ladder).",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse"
+                },
                 "examples": {
                   "ownerProtection": {
                     "summary": "Project Owner cannot be removed",
@@ -2520,7 +2756,9 @@
             "description": "An unexpected error occurred while processing the request. No member is removed.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" },
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                },
                 "examples": {
                   "internalServerError": {
                     "summary": "Unexpected failure",
@@ -2545,21 +2783,30 @@
         "summary": "Create an issue in a project",
         "description": "Creates a new issue in the target project. The caller must present a valid Bearer token and be authorized to `createIssue`: there is NO workspace bypass for creation; the caller must hold one of the `Project Owner`, `Project Admin`, or `Developer` project roles on the target project.\n\nThe body is validated as a strict object accepting `title` and `description` (both required, non-empty strings), `priority` (optional, defaults to `Medium`), and `assigneeId` (optional UUID; defaults to the acting actor's user id). The `status` field is forbidden on create — the server always sets it to `ToDo`. Any additional field is rejected as a validation error.\n\nWhen `assigneeId` is explicitly supplied, the service verifies that the referenced user is a current project member of the target project; a non-member assignee yields `422`.",
         "tags": ["Issues"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "projectId",
             "in": "path",
             "required": true,
             "description": "The identifier of the target project.",
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/CreateIssueRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/CreateIssueRequest"
+              }
             }
           }
         },
@@ -2568,7 +2815,9 @@
             "description": "The issue was created. The response contains the newly created issue with its expanded `creator` and `assignee` objects.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/IssueResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/IssueResponse"
+                }
               }
             }
           },
@@ -2576,7 +2825,9 @@
             "description": "The body or path parameter failed validation (missing or malformed `title`/`description`, unknown `priority`, malformed `assigneeId`, forbidden `status` field, unrecognized field, non-object body, non-UUID `{projectId}`).",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
               }
             }
           },
@@ -2584,7 +2835,9 @@
             "description": "The request did not carry a valid Bearer token. No issue is created.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                }
               }
             }
           },
@@ -2592,7 +2845,9 @@
             "description": "The caller is authenticated but not permitted to create an issue in the target project. No issue is created.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                }
               }
             }
           },
@@ -2600,7 +2855,9 @@
             "description": "No project exists for the supplied `{projectId}`. No issue is created.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceNotFoundErrorResponse"
+                }
               }
             }
           },
@@ -2608,7 +2865,9 @@
             "description": "A business rule rejected the request: the supplied `assigneeId` references a user who is not a current project member of the target project, or references a well-formed but unknown user id.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse"
+                }
               }
             }
           },
@@ -2616,7 +2875,9 @@
             "description": "An unexpected error occurred while processing the request. No issue is created.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
               }
             }
           }
@@ -2627,32 +2888,51 @@
         "summary": "List the issues of a project",
         "description": "Returns a paginated page of the target project's issues, each with its expanded `creator` and `assignee` objects. Only issues whose `projectId` equals the path project identifier are included; cross-project scoping is enforced at the repository.\n\nThe caller must present a valid Bearer token and be authorized to `listIssues`: callers whose workspace role is `Workspace Owner` or `Workspace Admin` are permitted regardless of project membership (workspace bypass); otherwise the caller must hold one of the `Project Owner`, `Project Admin`, or `Developer` project roles on the target project.\n\nSupports standard pagination (`page`, `pageSize`), sorting (`sort`) and filtering (`filter[field][op]`).\n\n- Sortable fields: `createdAt`, `updatedAt`, `title`, `priority`, `status`. Pagination is stabilized by a trailing `id ASC` tiebreaker.\n- Filterable fields and operators: `status` (`eq`, `ne`, `in`), `priority` (`eq`, `ne`, `in`), `assigneeId` (`eq`, `ne`, `in`), `creatorId` (`eq`, `ne`, `in`), `createdAt` (`eq`, `gt`, `gte`, `lt`, `lte`), `updatedAt` (`eq`, `gt`, `gte`, `lt`, `lte`).",
         "tags": ["Issues"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "projectId",
             "in": "path",
             "required": true,
             "description": "The identifier of the target project.",
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           },
           {
             "name": "page",
             "in": "query",
             "required": false,
-            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
           },
           {
             "name": "pageSize",
             "in": "query",
             "required": false,
-            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 10 }
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            }
           },
           {
             "name": "sort",
             "in": "query",
             "required": false,
-            "schema": { "type": "string", "example": "-createdAt" }
+            "schema": {
+              "type": "string",
+              "example": "-createdAt"
+            }
           }
         ],
         "responses": {
@@ -2660,7 +2940,9 @@
             "description": "A page of the project's issues, with pagination metadata.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ListIssuesResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ListIssuesResponse"
+                }
               }
             }
           },
@@ -2668,7 +2950,9 @@
             "description": "The `{projectId}` path parameter is not a UUID, or a `sort` targets a field outside the sortable set, or a `filter[field]` targets a field or operator outside the configured set.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
               }
             }
           },
@@ -2676,7 +2960,9 @@
             "description": "The request did not carry a valid Bearer token.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                }
               }
             }
           },
@@ -2684,7 +2970,9 @@
             "description": "The caller is authenticated but not permitted to list the project's issues.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                }
               }
             }
           },
@@ -2692,7 +2980,9 @@
             "description": "No project exists for the supplied `{projectId}`.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceNotFoundErrorResponse"
+                }
               }
             }
           },
@@ -2700,7 +2990,9 @@
             "description": "An unexpected error occurred while processing the request.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
               }
             }
           }
@@ -2713,21 +3005,31 @@
         "summary": "Retrieve a single issue",
         "description": "Retrieves a single issue scoped to the target project. The caller must present a valid Bearer token and be authorized to `getIssueById`: callers whose workspace role is `Workspace Owner` or `Workspace Admin` are permitted regardless of project membership (workspace bypass); otherwise the caller must hold one of the `Project Owner`, `Project Admin`, or `Developer` project roles on the target project.\n\nIf the issue exists but belongs to a different project than `{projectId}`, the response is `404` — never `403` or the foreign resource — so cross-project identifier guessing cannot leak existence.",
         "tags": ["Issues"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "projectId",
             "in": "path",
             "required": true,
             "description": "The identifier of the target project.",
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           },
           {
             "name": "id",
             "in": "path",
             "required": true,
             "description": "The identifier of the issue.",
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
@@ -2735,7 +3037,9 @@
             "description": "The issue, with its expanded `creator` and `assignee` objects.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/IssueResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/IssueResponse"
+                }
               }
             }
           },
@@ -2743,7 +3047,9 @@
             "description": "The `{projectId}` or `{id}` path parameter is not a UUID.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
               }
             }
           },
@@ -2751,7 +3057,9 @@
             "description": "The request did not carry a valid Bearer token.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                }
               }
             }
           },
@@ -2759,7 +3067,9 @@
             "description": "The caller is authenticated but not permitted to retrieve issues from the target project.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                }
               }
             }
           },
@@ -2767,7 +3077,9 @@
             "description": "No issue with `{id}` exists in `{projectId}` — either the id is unknown or the issue belongs to a different project.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceNotFoundErrorResponse"
+                }
               }
             }
           },
@@ -2775,7 +3087,9 @@
             "description": "An unexpected error occurred while processing the request.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
               }
             }
           }
@@ -2786,28 +3100,40 @@
         "summary": "Partially update an issue",
         "description": "Partially updates an issue. The body is validated as a strict object accepting any subset of `title`, `description`, `status`, `priority`, and `assigneeId`, with at least one of those fields present. Any additional field is rejected. Status transitions are free — any value may transition to any other value; there is no transition graph.\n\nThe caller must present a valid Bearer token and be authorized to `updateIssue`: there is NO workspace bypass for update; the caller must hold one of the `Project Owner`, `Project Admin`, or `Developer` project roles on the target project. A single `updateIssue` authorization decision governs any subset of fields in the same request.\n\nWhen `assigneeId` is supplied, the service verifies that the referenced user is a current project member of the issue's project; a non-member assignee yields `422`. An update that does NOT include `assigneeId` leaves any existing stale assignee untouched.\n\nIf the issue exists but belongs to a different project than `{projectId}`, the response is `404`.",
         "tags": ["Issues"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "projectId",
             "in": "path",
             "required": true,
             "description": "The identifier of the target project.",
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           },
           {
             "name": "id",
             "in": "path",
             "required": true,
             "description": "The identifier of the issue.",
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/UpdateIssueRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIssueRequest"
+              }
             }
           }
         },
@@ -2816,7 +3142,9 @@
             "description": "The updated issue, with its expanded `creator` and `assignee` objects.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/IssueResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/IssueResponse"
+                }
               }
             }
           },
@@ -2824,7 +3152,9 @@
             "description": "The body or path parameter failed validation (empty body, empty `title`/`description`, unknown `status` or `priority`, malformed `assigneeId`, unrecognized field, non-object body, non-UUID path parameter).",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
               }
             }
           },
@@ -2832,7 +3162,9 @@
             "description": "The request did not carry a valid Bearer token. No issue is modified.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                }
               }
             }
           },
@@ -2840,7 +3172,9 @@
             "description": "The caller is authenticated but not permitted to update issues in the target project. No issue is modified.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                }
               }
             }
           },
@@ -2848,7 +3182,9 @@
             "description": "No issue with `{id}` exists in `{projectId}` — either the id is unknown or the issue belongs to a different project. No issue is modified.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceNotFoundErrorResponse"
+                }
               }
             }
           },
@@ -2856,7 +3192,9 @@
             "description": "A business rule rejected the request: the supplied `assigneeId` references a user who is not a current project member of the issue's project.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessRuleViolationErrorResponse"
+                }
               }
             }
           },
@@ -2864,7 +3202,9 @@
             "description": "An unexpected error occurred while processing the request. No issue is modified.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
               }
             }
           }
@@ -2875,21 +3215,31 @@
         "summary": "Delete an issue",
         "description": "Deletes an issue. The caller must present a valid Bearer token and be authorized to `deleteIssue`: there is NO workspace bypass for deletion; the caller must hold one of the `Project Owner`, `Project Admin`, or `Developer` project roles on the target project.\n\nDeletion is a hard delete and cascades to the issue's subtasks (`onDelete: Cascade` on `Subtask.issueId`).\n\nIf the issue exists but belongs to a different project than `{projectId}`, the response is `404` and no row is deleted.",
         "tags": ["Issues"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "projectId",
             "in": "path",
             "required": true,
             "description": "The identifier of the target project.",
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           },
           {
             "name": "id",
             "in": "path",
             "required": true,
             "description": "The identifier of the issue.",
-            "schema": { "type": "string", "format": "uuid" }
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
@@ -2900,7 +3250,9 @@
             "description": "The `{projectId}` or `{id}` path parameter is not a UUID.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
               }
             }
           },
@@ -2908,7 +3260,9 @@
             "description": "The request did not carry a valid Bearer token. No issue is deleted.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthenticationErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                }
               }
             }
           },
@@ -2916,7 +3270,9 @@
             "description": "The caller is authenticated but not permitted to delete issues in the target project. No issue is deleted.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ForbiddenErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                }
               }
             }
           },
@@ -2924,7 +3280,9 @@
             "description": "No issue with `{id}` exists in `{projectId}` — either the id is unknown or the issue belongs to a different project. No issue is deleted.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ResourceNotFoundErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceNotFoundErrorResponse"
+                }
               }
             }
           },
@@ -2932,7 +3290,197 @@
             "description": "An unexpected error occurred while processing the request. No issue is deleted.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/InternalServerErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workspace-roles": {
+      "get": {
+        "operationId": "listWorkspaceRoles",
+        "summary": "List workspace roles",
+        "description": "Returns the fixed set of workspace roles (`Owner`, `Admin`, `Developer`) with their server-generated identifiers. The caller must present a valid Bearer token and hold a workspace role permitted to `listWorkspaceRoles`: `Owner`, `Admin`, and `Developer` are allowed. Any other role is rejected with `403 FORBIDDEN`. Intended to let clients populate role pickers (e.g. the invite-user dialog) with real role UUIDs instead of hardcoding them.",
+        "tags": ["Workspace Roles"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The workspace roles configured for the workspace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListWorkspaceRolesResponse"
+                },
+                "examples": {
+                  "workspaceRoles": {
+                    "summary": "The three workspace roles",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c0d",
+                          "name": "Owner",
+                          "createdAt": "2026-01-01T00:00:00.000Z",
+                          "updatedAt": "2026-01-01T00:00:00.000Z"
+                        },
+                        {
+                          "id": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+                          "name": "Admin",
+                          "createdAt": "2026-01-01T00:00:00.000Z",
+                          "updatedAt": "2026-01-01T00:00:00.000Z"
+                        },
+                        {
+                          "id": "c2d3e4f5-a6b7-4c8d-9e0f-1a2b3c4d5e6f",
+                          "name": "Developer",
+                          "createdAt": "2026-01-01T00:00:00.000Z",
+                          "updatedAt": "2026-01-01T00:00:00.000Z"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but does not hold a workspace role permitted to list workspace roles. Only `Owner`, `Admin`, and `Developer` may call this endpoint; any other role is rejected. No roles are returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Non-privileged caller",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "status": 403,
+                        "message": "Forbidden"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/project-roles": {
+      "get": {
+        "operationId": "listProjectRoles",
+        "summary": "List project roles",
+        "description": "Returns the fixed set of project roles (`ProjectOwner`, `ProjectAdmin`, `Developer`) with their server-generated identifiers. The caller must present a valid Bearer token and hold a workspace role permitted to `listProjectRoles`: `Owner`, `Admin`, and `Developer` are allowed. Any other role is rejected with `403 FORBIDDEN`. Intended to let clients populate role pickers (e.g. the add-member dialog) with real role UUIDs instead of hardcoding them.",
+        "tags": ["Project Roles"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The project roles configured for the workspace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListProjectRolesResponse"
+                },
+                "examples": {
+                  "projectRoles": {
+                    "summary": "The three project roles",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "9c0d1e2f-3a4b-4c5d-8e6f-7a8b9c0d1e2f",
+                          "name": "ProjectOwner",
+                          "createdAt": "2026-01-01T00:00:00.000Z",
+                          "updatedAt": "2026-01-01T00:00:00.000Z"
+                        },
+                        {
+                          "id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+                          "name": "ProjectAdmin",
+                          "createdAt": "2026-01-01T00:00:00.000Z",
+                          "updatedAt": "2026-01-01T00:00:00.000Z"
+                        },
+                        {
+                          "id": "7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c0d",
+                          "name": "Developer",
+                          "createdAt": "2026-01-01T00:00:00.000Z",
+                          "updatedAt": "2026-01-01T00:00:00.000Z"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but does not hold a workspace role permitted to list project roles. Only `Owner`, `Admin`, and `Developer` may call this endpoint; any other role is rejected. No roles are returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "Non-privileged caller",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "status": 403,
+                        "message": "Forbidden"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
               }
             }
           }
@@ -3265,8 +3813,14 @@
             "format": "uuid",
             "description": "The identifier of the project."
           },
-          "name": { "type": "string", "description": "The project's display name." },
-          "description": { "type": "string", "description": "The project's description." },
+          "name": {
+            "type": "string",
+            "description": "The project's display name."
+          },
+          "description": {
+            "type": "string",
+            "description": "The project's description."
+          },
           "creatorId": {
             "type": "string",
             "format": "uuid",
@@ -3327,7 +3881,9 @@
         "type": "object",
         "required": ["data"],
         "properties": {
-          "data": { "$ref": "#/components/schemas/Project" }
+          "data": {
+            "$ref": "#/components/schemas/Project"
+          }
         }
       },
       "AddProjectMemberRequest": {
@@ -3383,9 +3939,17 @@
             "required": ["id", "name", "email"],
             "description": "The joined user resource, limited to the fields relevant to membership.",
             "properties": {
-              "id": { "type": "string", "format": "uuid" },
-              "name": { "type": "string" },
-              "email": { "type": "string", "format": "email" }
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              }
             }
           },
           "projectRole": {
@@ -3393,7 +3957,10 @@
             "required": ["id", "name"],
             "description": "The joined project role.",
             "properties": {
-              "id": { "type": "string", "format": "uuid" },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
               "name": {
                 "type": "string",
                 "enum": ["ProjectOwner", "ProjectAdmin", "Developer"],
@@ -3407,7 +3974,9 @@
         "type": "object",
         "required": ["data"],
         "properties": {
-          "data": { "$ref": "#/components/schemas/ProjectMember" }
+          "data": {
+            "$ref": "#/components/schemas/ProjectMember"
+          }
         }
       },
       "ListProjectMembersResponse": {
@@ -3417,7 +3986,9 @@
         "properties": {
           "data": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/ProjectMember" }
+            "items": {
+              "$ref": "#/components/schemas/ProjectMember"
+            }
           }
         }
       },
@@ -3452,10 +4023,20 @@
             "format": "uuid",
             "description": "The identifier of the issue."
           },
-          "title": { "type": "string", "description": "The issue's title." },
-          "description": { "type": "string", "description": "The issue's description." },
-          "status": { "$ref": "#/components/schemas/IssueStatus" },
-          "priority": { "$ref": "#/components/schemas/IssuePriority" },
+          "title": {
+            "type": "string",
+            "description": "The issue's title."
+          },
+          "description": {
+            "type": "string",
+            "description": "The issue's description."
+          },
+          "status": {
+            "$ref": "#/components/schemas/IssueStatus"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/IssuePriority"
+          },
           "projectId": {
             "type": "string",
             "format": "uuid",
@@ -3466,9 +4047,17 @@
             "required": ["id", "name", "email"],
             "description": "The joined creator user resource.",
             "properties": {
-              "id": { "type": "string", "format": "uuid" },
-              "name": { "type": "string" },
-              "email": { "type": "string", "format": "email" }
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              }
             }
           },
           "assignee": {
@@ -3476,9 +4065,17 @@
             "required": ["id", "name", "email"],
             "description": "The joined assignee user resource. A stale assignee (a user no longer a member of the project) is preserved and returned as-is.",
             "properties": {
-              "id": { "type": "string", "format": "uuid" },
-              "name": { "type": "string" },
-              "email": { "type": "string", "format": "email" }
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              }
             }
           },
           "createdAt": {
@@ -3512,7 +4109,11 @@
             "example": "Reproduces on prod when the user submits with no items."
           },
           "priority": {
-            "allOf": [{ "$ref": "#/components/schemas/IssuePriority" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IssuePriority"
+              }
+            ],
             "description": "The initial priority. Optional; defaults to `Medium` when omitted."
           },
           "assigneeId": {
@@ -3540,11 +4141,19 @@
             "description": "The new description."
           },
           "status": {
-            "allOf": [{ "$ref": "#/components/schemas/IssueStatus" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IssueStatus"
+              }
+            ],
             "description": "The new status. Transitions are free — any value may transition to any other value."
           },
           "priority": {
-            "allOf": [{ "$ref": "#/components/schemas/IssuePriority" }],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IssuePriority"
+              }
+            ],
             "description": "The new priority."
           },
           "assigneeId": {
@@ -3559,7 +4168,9 @@
         "type": "object",
         "required": ["data"],
         "properties": {
-          "data": { "$ref": "#/components/schemas/Issue" }
+          "data": {
+            "$ref": "#/components/schemas/Issue"
+          }
         }
       },
       "ListIssuesResponse": {
@@ -3568,9 +4179,13 @@
         "properties": {
           "data": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/Issue" }
+            "items": {
+              "$ref": "#/components/schemas/Issue"
+            }
           },
-          "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
         }
       },
       "ListProjectsResponse": {
@@ -3579,9 +4194,13 @@
         "properties": {
           "data": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/Project" }
+            "items": {
+              "$ref": "#/components/schemas/Project"
+            }
           },
-          "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
         }
       },
       "PaginationMeta": {
@@ -3595,13 +4214,13 @@
       },
       "Pagination": {
         "type": "object",
-        "required": ["pageSize", "pageNumber", "totalItems", "totalPages"],
+        "required": ["pageSize", "page", "totalItems", "totalPages"],
         "properties": {
           "pageSize": {
             "type": "integer",
             "description": "The number of items per page."
           },
-          "pageNumber": {
+          "page": {
             "type": "integer",
             "description": "The current page number."
           },
@@ -3828,7 +4447,95 @@
             }
           }
         }
+      },
+      "WorkspaceRole": {
+        "type": "object",
+        "required": ["id", "name", "createdAt", "updatedAt"],
+        "description": "A workspace-level role. The set of workspace roles is fixed by the server and seeded on bootstrap.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The identifier of the workspace role."
+          },
+          "name": {
+            "type": "string",
+            "enum": ["Owner", "Admin", "Developer"],
+            "description": "The name of the workspace role."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the workspace role was created."
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the workspace role was last updated."
+          }
+        }
+      },
+      "ListWorkspaceRolesResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceRole"
+            }
+          }
+        }
+      },
+      "ProjectRole": {
+        "type": "object",
+        "required": ["id", "name", "createdAt", "updatedAt"],
+        "description": "A project-level role. The set of project roles is fixed by the server and shared across every project.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The identifier of the project role."
+          },
+          "name": {
+            "type": "string",
+            "enum": ["ProjectOwner", "ProjectAdmin", "Developer"],
+            "description": "The name of the project role."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the project role was created."
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the project role was last updated."
+          }
+        }
+      },
+      "ListProjectRolesResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectRole"
+            }
+          }
+        }
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "name": "Workspace Roles",
+      "description": "Lookup endpoints for the fixed set of workspace roles."
+    },
+    {
+      "name": "Project Roles",
+      "description": "Lookup endpoints for the fixed set of project roles."
+    }
+  ]
 }

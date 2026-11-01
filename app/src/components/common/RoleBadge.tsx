@@ -1,0 +1,39 @@
+import { CodeIcon, CrownIcon, ShieldIcon, type LucideIcon } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import type { ProjectRoleName, WorkspaceRoleName } from '@/lib/api/schemas';
+import { PROJECT_ROLE_LABELS, WORKSPACE_ROLE_LABELS } from '@/lib/labels/roles';
+
+type RoleBadgeProps =
+  { scope: 'workspace'; role: WorkspaceRoleName } | { scope: 'project'; role: ProjectRoleName };
+
+type Tier = 'owner' | 'admin' | 'developer';
+
+const TIER_ICON: Record<Tier, LucideIcon> = {
+  owner: CrownIcon,
+  admin: ShieldIcon,
+  developer: CodeIcon,
+};
+const TIER_VARIANT: Record<Tier, 'default' | 'secondary' | 'outline'> = {
+  owner: 'default',
+  admin: 'secondary',
+  developer: 'outline',
+};
+
+function tierOf(role: WorkspaceRoleName | ProjectRoleName): Tier {
+  if (role === 'Owner' || role === 'ProjectOwner') return 'owner';
+  if (role === 'Admin' || role === 'ProjectAdmin') return 'admin';
+  return 'developer';
+}
+
+export function RoleBadge(props: RoleBadgeProps) {
+  const tier = tierOf(props.role);
+  const Icon = TIER_ICON[tier];
+  const label =
+    props.scope === 'project' ? PROJECT_ROLE_LABELS[props.role] : WORKSPACE_ROLE_LABELS[props.role];
+  return (
+    <Badge variant={TIER_VARIANT[tier]}>
+      <Icon data-icon="inline-start" aria-hidden="true" />
+      {label}
+    </Badge>
+  );
+}

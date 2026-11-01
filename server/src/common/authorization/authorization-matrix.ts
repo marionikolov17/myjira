@@ -1,5 +1,5 @@
-import { WorkspaceRoleName } from '@/modules/workspace-roles';
-import { ProjectRoleName } from '@/modules/project-roles';
+import { WorkspaceRoleName } from '@/modules/workspace-roles/workspace-role.schema';
+import { ProjectRoleName } from '@/modules/project-roles/project-role.schema';
 import { AuthorizationAction, AuthorizationScope } from './authorization.types';
 
 export type ProjectActionConfig =
@@ -13,6 +13,16 @@ export interface AuthorizationMatrix {
 
 export const authorizationMatrix: AuthorizationMatrix = {
   [AuthorizationScope.Workspace]: {
+    listWorkspaceRoles: [
+      WorkspaceRoleName.OWNER,
+      WorkspaceRoleName.ADMIN,
+      WorkspaceRoleName.DEVELOPER,
+    ],
+    listProjectRoles: [
+      WorkspaceRoleName.OWNER,
+      WorkspaceRoleName.ADMIN,
+      WorkspaceRoleName.DEVELOPER,
+    ],
     createUser: [WorkspaceRoleName.OWNER, WorkspaceRoleName.ADMIN],
     listUsers: [WorkspaceRoleName.OWNER, WorkspaceRoleName.ADMIN, WorkspaceRoleName.DEVELOPER],
     getUserById: [WorkspaceRoleName.OWNER, WorkspaceRoleName.ADMIN, WorkspaceRoleName.DEVELOPER],
