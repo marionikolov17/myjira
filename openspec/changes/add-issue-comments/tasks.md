@@ -55,16 +55,35 @@
 
 - [ ] 5.1 Read `.cursor/rules/backend/integration-tests-pattern.mdc` first (mandatory per
   `server/AGENTS.md`), then create `tests/integration/modules/comments/comment.controller.fixtures.ts`
-  (test context wiring the real comment repository/service/controller; reuse shared fixtures like
-  `seedProject` instead of duplicating them) and `comment.controller.assertions.ts` (comment
-  response-shape and persisted-state helpers). Verify: `npm run build` in `server/` succeeds.
-- [ ] 5.2 Write `comment.controller.test.ts` with one describe per route: `POST /` (success across
-  the role matrix including workspace Owner/Admin without a project role; malformed-body matrix →
-  400 with no row persisted; 404 nonexistent issue; 403 non-viewer; 401 auth failures), `GET /`
-  (oldest-first ordering, 200 shape, 403/404/401), `DELETE /:commentId` (author gets 204 and the
-  row is gone; another viewer's attempt → 403 with the row unchanged; author who lost project
-  access → 403; unknown commentId → 404), and deleting an issue cascades its comments. Reuse the
-  shared error assertions. Verify: `npm run test:integration` in `server/` is green.
+  (test context wiring the real comment repository/service/controller, exposing the wired-in
+  `commentRepository` on the context per the `NB!` convention so the route 500 cases can
+  `jest.spyOn` it; reuse shared fixtures like `seedProject` instead of duplicating them) and
+  `comment.controller.assertions.ts` (comment response-shape and persisted-state helpers).
+  Verify: `npm run build` in `server/` succeeds.
+- [ ] 5.2 Write `comment.controller.test.ts` with one describe per route and, inside each, the
+  scenario describes in ascending status-code order (`on success` → `on validation failure (400)`
+  → `on unauthenticated request (401)` → `on authorization failures (403)` → `on not found (404)`
+  → `on unexpected dependency failure (500)`), matching the issue controller suite's ordering and
+  phrasing:
+  `POST /` — 201 success as an `it.each` role matrix across every authorized actor (including
+  workspace Owner/Admin without a project role; each case asserts the full response shape and the
+  persisted row); 400 malformed-body matrix (missing/empty/blank/wrong-type body, non-object body,
+  extra fields) plus path-param validation, with no row persisted; 401 unauthenticated; 403
+  non-viewer; 404 unknown issue; 500 with `jest.spyOn(ctx.commentRepository, 'createComment')`
+  rejecting.
+  `GET /` — 200 success (oldest-first ordering, cross-issue scoping, full shape); 400 path-param
+  validation; 401; 403; 404 unknown issue; 500 with the comment repository list method rejecting
+  (hand-written — the shared list-endpoint suite doesn't apply to the unpaginated comments route).
+  `DELETE /:commentId` — 204 success (author deletes own comment, row gone from the DB); 400
+  path-param validation; 401; 403 (another viewer's comment — row unchanged; author who lost
+  project access — row unchanged); 404 unknown commentId; 500 with
+  `getCommentById`/`deleteComment` rejecting.
+  Reuse the shared error assertions everywhere. Verify: `npm run test:integration` in `server/`
+  is green.
+- [ ] 5.3 Extend the issues module's `DELETE /:issueId` integration suite with an issue-comments
+  cascade case, mirroring the existing subtasks cascade case (seed comments via Prisma, delete the
+  issue through the API, assert zero comments remain). It belongs there because the comments test
+  app doesn't mount the issue router. Verify: `npm run test:integration` in `server/` is green.
 
 ## 6. API contract and docs
 
@@ -79,9 +98,12 @@
 
 ## 7. Frontend: contract layer
 
-- [ ] 7.1 Create `app/src/lib/api/schemas/comments.ts` (`commentSchema` mirroring the server Zod,
-  `createCommentInputSchema`, `commentBody` with `COMMENT_BODY_MAX_LENGTH = 5000`) and export it
-  from `app/src/lib/api/schemas/index.ts`. Verify: `npx tsc --noEmit` in `app/` passes.
+- [ ] 7.1 Create `app/src/lib/api/schemas/comments.ts` — `commentSchema` mirroring the server Zod,
+  and `createCommentInputSchema = z.object({ body: commentBody })` where the wire property `body`
+  matches the server one-to-one and `commentBody` is the reusable field-level validator
+  (`z.string().trim().min(1).max(5000)`, with `COMMENT_BODY_MAX_LENGTH = 5000`), mirroring
+  `issueTitle`/`issueDescription` in the issues schemas — and export it from
+  `app/src/lib/api/schemas/index.ts`. Verify: `npx tsc --noEmit` in `app/` passes.
 - [ ] 7.2 Add `listComments` (`Collection<Comment>`), `createComment` (`Envelope<Comment>`), and
   `deleteComment` (void) to the `Transport` interface and `httpTransport` implementation per
   design D6. Verify: `npx tsc --noEmit` passes.

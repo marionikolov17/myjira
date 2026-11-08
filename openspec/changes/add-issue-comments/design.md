@@ -105,10 +105,14 @@ because it is a permission boundary, not a malformed-state business rule.
 ### D5 — Validation parity with issues
 
 Server: `CreateCommentRequestParamsSchema = z.strictObject({ body: z.string().min(1) })`.
-Client: `commentBody = z.string().trim().min(1).max(5000)` with `COMMENT_BODY_MAX_LENGTH = 5000`
-exported from the client schema, mirroring how issue title/description are split (server enforces
-min; client enforces trim + max). Introducing a server-side max only for comments would diverge
-from every existing resource.
+Client: `createCommentInputSchema = z.object({ body: commentBody })` — the wire property is
+`body`, one-to-one with the server. `commentBody` is only the reusable field-level validator
+(`z.string().trim().min(1).max(5000)`, with `COMMENT_BODY_MAX_LENGTH = 5000`), exactly like the
+issues module's `issueTitle`/`issueDescription` validators backing
+`createIssueInputSchema = z.object({ title: issueTitle, description: issueDescription, ... })`;
+the composer form reuses it the same way the issue UI reuses `issueTitle`. Server enforces min;
+client enforces trim + max — introducing a server-side max only for comments would diverge from
+every existing resource.
 
 ### D6 — Frontend wiring
 
@@ -145,9 +149,13 @@ Backend only (frontend has a no-test policy):
   author-without-access).
 - Integration: `tests/integration/modules/comments/` with the three co-located files
   (`comment.controller.test.ts`, fixtures, assertions) following the integration pattern — route
-  describes per endpoint, role-matrix `it.each` across actors, malformed-body matrices, auth
-  failures, error helpers from shared assertions, plus persisted-state checks (created/removed
-  rows; rejected requests leave no rows). Cascade: deleting an issue removes its comments.
+  describes per endpoint with scenario describes in ascending status-code order (success → 400 →
+  401 → 403 → 404 → 500), role-matrix `it.each` across actors, malformed-body matrices, auth
+  failures, an `on unexpected dependency failure (500)` block per route (repository spies on the
+  wired-in comment repository), error helpers from shared assertions, plus persisted-state checks
+  (created/removed rows; rejected requests leave no rows). The issue-deletion cascade is asserted
+  in the issues module's own DELETE suite — the comments test app doesn't mount the issue router —
+  mirroring the existing subtasks cascade case.
 
 ## Risks / Trade-offs
 
