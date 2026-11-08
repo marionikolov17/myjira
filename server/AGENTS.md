@@ -79,7 +79,7 @@ export { authController };
 - **Validation**: in the controller, guard non-objects with `isPlainObject`, then `Schema.parse(body)`. Do not validate in services.
 - **Responses**: success responses use `{ data: ... }`. Never send errors from controllers — `catch (error) { next(error); }` and let `errorMiddleware` handle them.
 - **Errors**: throw the typed errors from `@/common/errors` (`ConflictError`, `AuthorizationError`, `AuthenticationError`, `ResourceNotFoundError`, `ValidationError`, `BusinessRuleViolationError`, `InvalidLoginCredentialsError`). Map external failures with `map-prisma-error` / `map-zod-error`. Do not throw raw `Error`.
-- **Authorization**: services enforce access via the injected `IAuthorizationGuard` — `authorize({ actor, scope, action, resource })`. Allowed roles are declarative data in `common/authorization/authorization-matrix.ts`; unconfigured actions are denied by default (see `openspec/specs/authorization`). Add new actions to the matrix, never as inline checks.
+- **Authorization**: services enforce access via the injected `IAuthorizationGuard` — `authorize({ actor, scope, action, resource })`. Allowed roles are declarative data in `common/authorization/authorization-matrix.ts`; unconfigured actions are denied by default. Add new actions to the matrix, never as inline checks.
 - **List queries**: paginated/filterable/sortable endpoints use the shared engine in `common/query` (parser → Prisma mapper), configured per resource via `<name>.query-config.ts`; repositories return `Paginated<T>` (see `.cursor/rules/backend/repository-paginated-list.mdc`).
 
 ## Naming

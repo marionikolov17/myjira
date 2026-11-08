@@ -132,10 +132,9 @@ navigation does not clash. Do not reuse Issues param names on the board.
 - `can()`, `useCan()`, `<PermissionGate>` decide what to **show** (hide/disable + reasons).
 - **Never treat client checks as security** — the backend enforces every rule.
 - The matrix in `lib/authz/can.ts` mirrors the server's declarative matrix at
-  `server/src/common/authorization/authorization-matrix.ts` (behavior:
-  `openspec/specs/authorization`). When permissions change, update **both** — the server
-  matrix is the source of truth. Server-only actions (e.g. the subtask actions) are added
-  here only once the UI gains a surface for them.
+  `server/src/common/authorization/authorization-matrix.ts`. When permissions change,
+  update **both** — the server matrix is the source of truth. Server-only actions (e.g.
+  the subtask actions) are added here only once the UI gains a surface for them.
 - Gate create/invite/role-change actions with `PermissionGate` / `can()` the same way
   existing Views do.
 
@@ -176,9 +175,7 @@ contract in this order:
 
 1. `server/docs/openapi.json` (and `/docs` when the API is running) — paths, bodies, status codes
 2. Zod in `server/src/modules/<resource>/` — if OpenAPI lags the code
-3. `openspec/specs/<capability>/spec.md` — behavior / authz intent  
-   (`projects`, `issues`, `project-members`, `user-management`, `authorization`, `query-parameters`)
-4. `docs/04-api/api-design.md` and domain docs under `docs/` — only when product meaning is unclear
+3. `docs/04-api/api-design.md` and domain docs under `docs/` — only when product meaning is unclear
 
 Then update frontend schemas/clients to match. Server OpenAPI + server Zod own the API.
 
