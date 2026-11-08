@@ -61,14 +61,6 @@ export function expectCommentListResponse(
   });
 }
 
-/**
- * Asserts a 204 No Content response with an empty body.
- */
-export function expectNoContentResponse(response: supertest.Response): void {
-  expect(response.status).toBe(204);
-  expect(response.body).toEqual({});
-}
-
 export async function expectCommentPersisted(
   commentId: string,
   expected: { issueId: string; creatorId: string; body: string },

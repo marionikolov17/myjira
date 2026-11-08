@@ -23,6 +23,7 @@ import {
   expectResourceNotFoundError,
   expectValidationError,
 } from '../../assertions/errors.assertions';
+import { expectNoContentResponse } from '../../assertions/http.assertions';
 
 import {
   CommentsTestContext,
@@ -43,7 +44,6 @@ import {
   expectCommentStillExists,
   expectNoCommentsOnIssue,
   expectNoCommentWithId,
-  expectNoContentResponse,
 } from './comment.controller.assertions';
 
 const WELL_FORMED_UNKNOWN_UUID = '11111111-1111-4111-8111-111111111111';

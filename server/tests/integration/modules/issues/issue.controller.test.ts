@@ -13,6 +13,7 @@ import { createTestUsers } from '../../fixtures/users.fixtures';
 import { ensureWorkspaceRolesSeeded } from '../../fixtures/workspace-roles.fixtures';
 import { ensureProjectRolesSeeded } from '../../fixtures/project-roles.fixtures';
 import { seedProject } from '../../fixtures/projects.fixtures';
+import { SeededIssue, seedIssue, wipeIssueGraph } from '../../fixtures/issues.fixtures';
 import {
   requireTestUser,
   tokenFor,
@@ -27,6 +28,7 @@ import {
   expectResourceNotFoundError,
   expectValidationError,
 } from '../../assertions/errors.assertions';
+import { expectNoContentResponse } from '../../assertions/http.assertions';
 
 import { describeListEndpoint } from '../../suites/list-endpoint.suite';
 
@@ -35,11 +37,8 @@ import {
   IssuesTestContext,
   IssueWorkspaceActors,
   loadIssueWorkspaceActors,
-  seedIssue,
   seedStandardIssueProject,
-  SeededIssue,
   testUsers,
-  wipeIssueGraph,
   wipeUsers,
 } from './issue.controller.fixtures';
 import {
@@ -47,7 +46,6 @@ import {
   expectIssueResource,
   expectIssueStillExists,
   expectIssueUnchanged,
-  expectNoContentResponse,
   expectNoIssuesInProject,
   expectNoIssueWithId,
 } from './issue.controller.assertions';

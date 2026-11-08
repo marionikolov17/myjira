@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { UserReferenceSchema } from '@/common/schema';
+
 export enum IssueStatus {
   ToDo = 'ToDo',
   InProgress = 'InProgress',
@@ -22,16 +24,8 @@ export const IssueSchema = z.object({
   status: IssueStatusSchema,
   priority: IssuePrioritySchema,
   projectId: z.uuid(),
-  creator: z.object({
-    id: z.uuid(),
-    name: z.string(),
-    email: z.email(),
-  }),
-  assignee: z.object({
-    id: z.uuid(),
-    name: z.string(),
-    email: z.email(),
-  }),
+  creator: UserReferenceSchema,
+  assignee: UserReferenceSchema,
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });

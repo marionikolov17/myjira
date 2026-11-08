@@ -1,14 +1,12 @@
 import { z } from 'zod';
 
+import { UserReferenceSchema } from '@/common/schema';
+
 export const CommentSchema = z.object({
   id: z.uuid(),
   body: z.string(),
   issueId: z.uuid(),
-  creator: z.object({
-    id: z.uuid(),
-    name: z.string(),
-    email: z.email(),
-  }),
+  creator: UserReferenceSchema,
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });

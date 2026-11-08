@@ -31,11 +31,6 @@ import {
 import { seedProject } from '../../fixtures/projects.fixtures';
 import { seedProjectMembership } from '../../fixtures/project-members.fixtures';
 import { fetchProjectRoleIdByName } from '../../fixtures/project-roles.fixtures';
-import { SeededIssue, seedIssue, wipeIssueGraph } from '../../fixtures/issues.fixtures';
-
-export { seedIssue, wipeIssueGraph };
-export type { SeededIssue };
-
 export const SECRET_KEY = 'issues-test-secret-key';
 export const TOKEN_EXPIRES_IN_SECONDS = 3600;
 
