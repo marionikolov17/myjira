@@ -54,6 +54,7 @@ import {
 
 const WELL_FORMED_UNKNOWN_UUID = '11111111-1111-4111-8111-111111111111';
 const WELL_FORMED_UNKNOWN_UUID_2 = '22222222-2222-4222-8222-222222222222';
+const OVER_LENGTH_DESCRIPTION = 'x'.repeat(5001);
 
 const ORIGINAL_ISSUE = {
   title: 'Original title',
@@ -270,6 +271,11 @@ describe('Issues Controller', () => {
         {
           case: 'description is empty',
           body: { title: 'title', description: '' },
+          expectedFields: ['description'],
+        },
+        {
+          case: 'description exceeds the 5000-character maximum',
+          body: { title: 'title', description: OVER_LENGTH_DESCRIPTION },
           expectedFields: ['description'],
         },
         {
@@ -1180,6 +1186,11 @@ describe('Issues Controller', () => {
         {
           case: 'empty description',
           body: { description: '' },
+          expectedFields: ['description'],
+        },
+        {
+          case: 'description exceeds the 5000-character maximum',
+          body: { description: OVER_LENGTH_DESCRIPTION },
           expectedFields: ['description'],
         },
         {

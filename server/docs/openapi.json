@@ -4105,7 +4105,8 @@
           "description": {
             "type": "string",
             "minLength": 1,
-            "description": "A non-empty issue description.",
+            "maxLength": 5000,
+            "description": "A non-empty issue description of at most 5000 characters.",
             "example": "Reproduces on prod when the user submits with no items."
           },
           "priority": {
@@ -4138,7 +4139,8 @@
           "description": {
             "type": "string",
             "minLength": 1,
-            "description": "The new description."
+            "maxLength": 5000,
+            "description": "The new description. At most 5000 characters."
           },
           "status": {
             "allOf": [

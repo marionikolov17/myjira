@@ -2,6 +2,8 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
+@plugin '@tailwindcss/typography';
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -114,6 +116,117 @@
   --sidebar-accent-foreground: oklch(0.94 0.02 275);
   --sidebar-border: oklch(1 0 0 / 9%);
   --sidebar-ring: oklch(0.62 0.1 275);
+}
+
+/* --- Markdown code-highlight token palette (rehype-highlight / lowlight) ---
+   One token stylesheet whose colors are CSS variables, re-mapped under `.dark`
+   (D5: no dual static theme imports). The `:root` block must stay above the
+   `.dark` block so dark values win when both match <html class="dark">. */
+:root {
+  --hljs-comment: oklch(0.52 0.012 270);
+  --hljs-keyword: oklch(0.45 0.16 285);
+  --hljs-string: oklch(0.42 0.11 150);
+  --hljs-number: oklch(0.55 0.14 60);
+  --hljs-title: oklch(0.42 0.13 250);
+  --hljs-attr: oklch(0.45 0.09 200);
+  --hljs-builtin: oklch(0.5 0.16 30);
+  --hljs-meta: oklch(0.45 0.05 270);
+}
+
+.dark {
+  --hljs-comment: oklch(0.62 0.012 270);
+  --hljs-keyword: oklch(0.7 0.14 285);
+  --hljs-string: oklch(0.72 0.12 150);
+  --hljs-number: oklch(0.78 0.13 70);
+  --hljs-title: oklch(0.7 0.12 250);
+  --hljs-attr: oklch(0.72 0.09 195);
+  --hljs-builtin: oklch(0.7 0.15 30);
+  --hljs-meta: oklch(0.62 0.04 270);
+}
+
+.prose .hljs-comment,
+.prose .hljs-quote {
+  color: var(--hljs-comment);
+  font-style: italic;
+}
+
+.prose .hljs-keyword,
+.prose .hljs-selector-tag,
+.prose .hljs-subst,
+.prose .hljs-literal,
+.prose .hljs-doctag,
+.prose .hljs-meta-keyword,
+.prose [class*='hljs-variable'] {
+  color: var(--hljs-keyword);
+}
+
+.prose .hljs-string,
+.prose .hljs-regexp,
+.prose .hljs-meta-string,
+.prose .hljs-addition {
+  color: var(--hljs-string);
+}
+
+.prose .hljs-number,
+.prose .hljs-symbol,
+.prose .hljs-bullet,
+.prose .hljs-link {
+  color: var(--hljs-number);
+}
+
+/* `[class*='hljs-title']` also catches the dotted sub-scopes highlight.js 11
+   emits for granular scopes (e.g. `hljs-title.function_`). */
+.prose [class*='hljs-title'],
+.prose .hljs-section,
+.prose .hljs-name,
+.prose .hljs-selector-id,
+.prose .hljs-selector-class {
+  color: var(--hljs-title);
+}
+
+.prose .hljs-attr,
+.prose .hljs-attribute,
+.prose .hljs-type,
+.prose .hljs-property,
+.prose .hljs-params,
+.prose .hljs-operator,
+.prose .hljs-template-variable,
+.prose .hljs-selector-attr,
+.prose .hljs-selector-pseudo {
+  color: var(--hljs-attr);
+}
+
+.prose .hljs-built_in,
+.prose .hljs-builtin-name {
+  color: var(--hljs-builtin);
+}
+
+.prose .hljs-meta,
+.prose .hljs-tag {
+  color: var(--hljs-meta);
+}
+
+.prose .hljs-deletion {
+  color: var(--destructive);
+}
+
+.prose .hljs-strong {
+  font-weight: 600;
+}
+
+.prose .hljs-emphasis {
+  font-style: italic;
+}
+
+/* GFM task lists render as non-interactive checkboxes: hide the list bullet
+   and align the checkbox the way GitHub does. */
+.prose li.task-list-item {
+  list-style: none;
+}
+
+.prose li.task-list-item input[type='checkbox'] {
+  accent-color: var(--primary);
+  margin-inline-end: 0.5em;
 }
 
 @layer base {

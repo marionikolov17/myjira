@@ -2,10 +2,11 @@
 
 import { PencilIcon } from 'lucide-react';
 import { useState } from 'react';
+import { MarkdownEditor } from '@/components/common/MarkdownEditor';
+import { MarkdownView } from '@/components/common/MarkdownView';
 import { Button } from '@/components/ui/button';
-import { Field, FieldError, FieldLabel } from '@/components/ui/field';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Spinner } from '@/components/ui/spinner';
-import { Textarea } from '@/components/ui/textarea';
 import { ISSUE_DESCRIPTION_MAX_LENGTH } from '@/lib/api/schemas';
 
 type DescriptionEditorProps = {
@@ -14,6 +15,12 @@ type DescriptionEditorProps = {
   onSave: (next: string) => Promise<boolean>;
 };
 
+/**
+ * Thin wrapper over the shared markdown surfaces: the saved view renders via
+ * `MarkdownView`, editing delegates the Write/Preview + toolbar experience to
+ * `MarkdownEditor`. This component owns the draft, the save contract, and the
+ * `canEdit` gate.
+ */
 export function DescriptionEditor({ value, canEdit, onSave }: DescriptionEditorProps) {
   const [draft, setDraft] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -33,24 +40,17 @@ export function DescriptionEditor({ value, canEdit, onSave }: DescriptionEditorP
     return (
       <Field data-invalid={tooLong || undefined}>
         <FieldLabel htmlFor="issue-description">Description</FieldLabel>
-        <Textarea
+        <MarkdownEditor
           id="issue-description"
           value={draft}
+          maxLength={ISSUE_DESCRIPTION_MAX_LENGTH}
           onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') setDraft(null);
-            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) void save();
-          }}
-          rows={8}
+          ariaInvalid={tooLong}
+          disabled={saving}
           autoFocus
-          aria-invalid={tooLong || undefined}
-          className="min-h-40"
+          onEscape={() => setDraft(null)}
+          onSaveShortcut={() => void save()}
         />
-        {tooLong && (
-          <FieldError>
-            Description must be {ISSUE_DESCRIPTION_MAX_LENGTH} characters or fewer
-          </FieldError>
-        )}
         <div className="flex items-center justify-end gap-2">
           <Button variant="ghost" onClick={() => setDraft(null)} disabled={saving}>
             Cancel
@@ -78,7 +78,7 @@ export function DescriptionEditor({ value, canEdit, onSave }: DescriptionEditorP
         )}
       </div>
       {value ? (
-        <p className="text-sm leading-relaxed text-pretty whitespace-pre-wrap">{value}</p>
+        <MarkdownView>{value}</MarkdownView>
       ) : (
         <p className="text-sm text-muted-foreground italic">No description provided.</p>
       )}

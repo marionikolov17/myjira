@@ -39,7 +39,7 @@ export type Issue = z.infer<typeof IssueSchema>;
 
 export const CreateIssueRequestParamsSchema = z.strictObject({
   title: z.string().min(1),
-  description: z.string().min(1),
+  description: z.string().min(1).max(5000),
   priority: IssuePrioritySchema.optional(),
   assigneeId: z.uuid().optional(),
 });
@@ -48,7 +48,7 @@ export type CreateIssueRequestParams = z.infer<typeof CreateIssueRequestParamsSc
 export const UpdateIssueRequestParamsSchema = z
   .strictObject({
     title: z.string().min(1).optional(),
-    description: z.string().min(1).optional(),
+    description: z.string().min(1).max(5000).optional(),
     status: IssueStatusSchema.optional(),
     priority: IssuePrioritySchema.optional(),
     assigneeId: z.uuid().optional(),

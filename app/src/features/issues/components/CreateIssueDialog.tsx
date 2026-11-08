@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
+import { MarkdownEditor } from '@/components/common/MarkdownEditor';
 import { OptionSelect } from '@/components/common/OptionSelect';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,8 +18,12 @@ import {
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
-import { Textarea } from '@/components/ui/textarea';
-import { createIssueInputSchema, type CreateIssueInput, type UserRef } from '@/lib/api/schemas';
+import {
+  ISSUE_DESCRIPTION_MAX_LENGTH,
+  createIssueInputSchema,
+  type CreateIssueInput,
+  type UserRef,
+} from '@/lib/api/schemas';
 import { useMe } from '@/features/auth/queries';
 import { handleFormError } from '@/lib/forms/handleFormError';
 import { useCreateIssue } from '../mutations';
@@ -51,6 +56,7 @@ export function CreateIssueDialog({ projectId, open, onOpenChange }: CreateIssue
     defaultValues: emptyForm(me?.userId ?? ''),
   });
   const { errors } = form.formState;
+  const description = form.watch('description');
 
   useEffect(() => {
     if (open && me?.userId) {
@@ -104,11 +110,13 @@ export function CreateIssueDialog({ projectId, open, onOpenChange }: CreateIssue
             </Field>
             <Field data-invalid={Boolean(errors.description) || undefined}>
               <FieldLabel htmlFor="issue-description">Description</FieldLabel>
-              <Textarea
+              <MarkdownEditor
                 id="issue-description"
+                value={description}
+                registration={form.register('description')}
+                maxLength={ISSUE_DESCRIPTION_MAX_LENGTH}
                 rows={5}
-                aria-invalid={Boolean(errors.description) || undefined}
-                {...form.register('description')}
+                ariaInvalid={Boolean(errors.description) || undefined}
               />
               <FieldError errors={[errors.description]} />
             </Field>
