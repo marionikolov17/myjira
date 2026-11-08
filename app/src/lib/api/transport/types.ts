@@ -2,6 +2,8 @@ import type {
   ActorContext,
   AddProjectMemberInput,
   Collection,
+  Comment,
+  CreateCommentInput,
   CreateIssueInput,
   CreateProjectInput,
   CreateUserInput,
@@ -68,6 +70,15 @@ export interface Transport {
     input: UpdateIssueInput,
   ): Promise<Envelope<Issue>>;
   deleteIssue(projectId: string, issueId: string): Promise<void>;
+
+  // comments
+  listComments(projectId: string, issueId: string): Promise<Collection<Comment>>;
+  createComment(
+    projectId: string,
+    issueId: string,
+    input: CreateCommentInput,
+  ): Promise<Envelope<Comment>>;
+  deleteComment(projectId: string, issueId: string, commentId: string): Promise<void>;
 }
 
 export type TransportOptions = {

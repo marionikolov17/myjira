@@ -113,5 +113,29 @@ export const authorizationMatrix: AuthorizationMatrix = {
       ProjectRoleName.PROJECT_ADMIN,
       ProjectRoleName.DEVELOPER,
     ],
+    listComments: {
+      projectRoles: [
+        ProjectRoleName.PROJECT_OWNER,
+        ProjectRoleName.PROJECT_ADMIN,
+        ProjectRoleName.DEVELOPER,
+      ],
+      workspaceBypass: [WorkspaceRoleName.OWNER, WorkspaceRoleName.ADMIN],
+    },
+    createComment: {
+      projectRoles: [
+        ProjectRoleName.PROJECT_OWNER,
+        ProjectRoleName.PROJECT_ADMIN,
+        ProjectRoleName.DEVELOPER,
+      ],
+      workspaceBypass: [WorkspaceRoleName.OWNER, WorkspaceRoleName.ADMIN],
+    },
+    deleteComment: {
+      projectRoles: [
+        ProjectRoleName.PROJECT_OWNER,
+        ProjectRoleName.PROJECT_ADMIN,
+        ProjectRoleName.DEVELOPER,
+      ],
+      workspaceBypass: [WorkspaceRoleName.OWNER, WorkspaceRoleName.ADMIN],
+    },
   },
 };

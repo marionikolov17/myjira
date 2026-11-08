@@ -1478,6 +1478,35 @@ describe('Issues Controller', () => {
         const orphanSubtasks = await prisma.subtask.findMany({ where: { issueId } });
         expect(orphanSubtasks).toHaveLength(0);
       });
+
+      it('cascades the delete to the issue comments', async () => {
+        // Seed two comments referencing the issue.
+        await prisma.comment.createMany({
+          data: [
+            {
+              body: 'c1',
+              creatorId: workspaceOwnerActor.userId,
+              issueId,
+            },
+            {
+              body: 'c2',
+              creatorId: workspaceAdminActor.userId,
+              issueId,
+            },
+          ],
+        });
+
+        const response = await deleteIssueRequest(
+          projectId,
+          issueId,
+          tokenFor(ctx.tokenService, projectOwnerActor),
+        );
+
+        expectNoContentResponse(response);
+        await expectNoIssueWithId(issueId);
+        const orphanComments = await prisma.comment.findMany({ where: { issueId } });
+        expect(orphanComments).toHaveLength(0);
+      });
     });
 
     describe('on validation failure (400)', () => {

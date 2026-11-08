@@ -27,6 +27,10 @@ export const queryKeys = {
     detail: (projectId: string, issueId: string) =>
       ['issues', projectId, 'detail', issueId] as const,
   },
+  comments: {
+    all: () => ['comments'] as const,
+    issue: (projectId: string, issueId: string) => ['comments', projectId, issueId] as const,
+  },
   roles: {
     workspace: () => ['roles', 'workspace'] as const,
     project: () => ['roles', 'project'] as const,

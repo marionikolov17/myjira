@@ -80,6 +80,7 @@ model User {
   assignedIssues   Issue[]         @relation("IssueAssignee")
   createdSubtasks  Subtask[]       @relation("SubtaskCreator")
   assignedSubtasks Subtask[]       @relation("SubtaskAssignee")
+  createdComments  Comment[]       @relation("CommentCreator")
 
   @@index([workspaceRoleId])
   @@index([activationTokenHash])
@@ -151,6 +152,7 @@ model Issue {
   project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   assignee User      @relation("IssueAssignee", fields: [assigneeId], references: [id])
   subtasks Subtask[]
+  comments Comment[]
 
   @@index([projectId])
   @@index([assigneeId])
@@ -178,4 +180,20 @@ model Subtask {
   @@index([issueId])
   @@index([assigneeId])
   @@map("subtasks")
+}
+
+model Comment {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  body      String
+  issueId   String   @map("issue_id") @db.Uuid
+  creatorId String   @map("creator_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  creator User  @relation("CommentCreator", fields: [creatorId], references: [id])
+  issue   Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@index([issueId])
+  @@map("comments")
 }

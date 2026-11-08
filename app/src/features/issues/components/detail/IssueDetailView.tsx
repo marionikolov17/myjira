@@ -30,6 +30,7 @@ import { useDeleteIssue, useUpdateIssue } from '../../mutations';
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from '../../options';
 import { useIssue } from '../../queries';
 import { AssigneeSelect } from '../AssigneeSelect';
+import { CommentsSection } from './CommentsSection';
 import { DescriptionEditor } from './DescriptionEditor';
 
 function MetaRow({
@@ -148,6 +149,8 @@ export function IssueDetailView({ projectId, issueId }: { projectId: string; iss
             canEdit={canUpdate}
             onSave={(description) => save({ description })}
           />
+          <Separator />
+          <CommentsSection projectId={projectId} issueId={issueId} />
         </article>
 
         <aside className="flex flex-col gap-4" aria-label="Issue details">

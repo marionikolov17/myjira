@@ -28,7 +28,10 @@ export type AuthorizationAction =
   | 'deleteIssue'
   | 'createSubtask'
   | 'assignSubtask'
-  | 'updateSubtaskStatus';
+  | 'updateSubtaskStatus'
+  | 'listComments'
+  | 'createComment'
+  | 'deleteComment';
 
 export type AuthorizeInput =
   | {

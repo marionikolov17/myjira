@@ -3299,6 +3299,308 @@
         }
       }
     },
+    "/projects/{projectId}/issues/{issueId}/comments": {
+      "get": {
+        "operationId": "listComments",
+        "summary": "List every comment of an issue, oldest first",
+        "description": "Lists every comment posted on the target issue, ordered oldest first (ties broken by id). The response is NOT paginated — `meta.pagination` is intentionally absent.\n\nThe caller must present a valid Bearer token and be authorized to `listComments`: callers whose workspace role is `Workspace Owner` or `Workspace Admin` are permitted regardless of project membership (workspace bypass); otherwise the caller must hold one of the `Project Owner`, `Project Admin`, or `Developer` project roles on the target project.\n\nIf `{issueId}` does not reference an issue inside `{projectId}`, the response is `404` — never `403` or a foreign resource — so identifier guessing cannot leak existence.",
+        "tags": ["Comments"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the target project.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "issueId",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the issue whose comments are targeted.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every comment of the issue, each with its expanded `creator` object, ordered oldest first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListCommentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The `{projectId}` or `{issueId}` path parameter is not a UUID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to view the target issue (no project role on the target project and no workspace bypass).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No issue with `{issueId}` exists in `{projectId}` — either the id is unknown or the issue belongs to a different project.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceNotFoundErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createComment",
+        "summary": "Post a comment on an issue",
+        "description": "Stores a comment attributed to the calling user and returns it with its expanded `creator` object.\n\nThe caller must present a valid Bearer token and be authorized to `createComment`: callers whose workspace role is `Workspace Owner` or `Workspace Admin` are permitted regardless of project membership (workspace bypass); otherwise the caller must hold one of the `Project Owner`, `Project Admin`, or `Developer` project roles on the target project.\n\nThe body is validated as a strict object with a single required `body` string. It must be non-empty and not blank (whitespace-only); any additional field is rejected.\n\nIf `{issueId}` does not reference an issue inside `{projectId}`, the response is `404` and no comment is stored.",
+        "tags": ["Comments"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the target project.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "issueId",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the issue whose comments are targeted.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCommentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created comment, attributed to the caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body or a path parameter failed validation (missing/empty/blank/wrong-type `body`, unrecognized field, non-object body, non-UUID path parameter). No comment is stored.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token. No comment is stored.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not permitted to view the target issue. No comment is stored.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No issue with `{issueId}` exists in `{projectId}`. No comment is stored.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceNotFoundErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request. No comment is stored.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/issues/{issueId}/comments/{commentId}": {
+      "delete": {
+        "operationId": "deleteComment",
+        "summary": "Delete a comment (author only)",
+        "description": "Deletes a comment from the target issue. Only the comment's author may delete it: the caller must first be authorized to `deleteComment` (callers whose workspace role is `Workspace Owner` or `Workspace Admin` are permitted regardless of project membership; otherwise the caller must hold one of the `Project Owner`, `Project Admin`, or `Developer` project roles on the target project) and must additionally be the comment's creator. A viewer attempting to delete another user's comment receives `403` and the comment remains; an author who can no longer view the issue (removed from the project, without a workspace bypass) also receives `403`.\n\nDeleting an issue removes its comments via database cascade (see the issue deletion endpoint).",
+        "tags": ["Comments"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the target project.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "issueId",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the issue whose comments are targeted.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "commentId",
+            "in": "path",
+            "required": true,
+            "description": "The identifier of the comment.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The comment was deleted. The response has no content."
+          },
+          "400": {
+            "description": "The `{projectId}`, `{issueId}`, or `{commentId}` path parameter is not a UUID. The comment is not deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request did not carry a valid Bearer token. The comment is not deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but is not the comment author, or can no longer view the issue. The comment is not deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No comment with `{commentId}` exists on the issue — either the id is unknown, the comment belongs to a different issue, or the issue does not exist in `{projectId}`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceNotFoundErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected error occurred while processing the request. The comment is not deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/workspace-roles": {
       "get": {
         "operationId": "listWorkspaceRoles",
@@ -4185,6 +4487,92 @@
           },
           "meta": {
             "$ref": "#/components/schemas/PaginationMeta"
+          }
+        }
+      },
+      "Comment": {
+        "type": "object",
+        "required": ["id", "body", "issueId", "creator", "createdAt", "updatedAt"],
+        "description": "A comment posted on an issue. Every endpoint that returns a comment returns the expanded resource with its `creator` object; the raw `creatorId` scalar foreign key is intentionally not exposed on the output.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The identifier of the comment."
+          },
+          "body": {
+            "type": "string",
+            "description": "The comment's text."
+          },
+          "issueId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The identifier of the issue the comment belongs to."
+          },
+          "creator": {
+            "type": "object",
+            "required": ["id", "name", "email"],
+            "description": "The joined creator user resource.",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              }
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the comment was created."
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the comment was last updated."
+          }
+        }
+      },
+      "CreateCommentRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["body"],
+        "description": "The comment to post. The body is validated with a strict schema, so unrecognized fields are rejected.",
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "description": "The comment's text. Must be non-empty and must not be blank (whitespace-only).",
+            "example": "I can reproduce this on staging."
+          }
+        }
+      },
+      "CommentResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Comment"
+          }
+        }
+      },
+      "ListCommentsResponse": {
+        "type": "object",
+        "required": ["data"],
+        "description": "Every comment of the issue, each with the creator joined, ordered oldest first (ties broken by id). The response is NOT paginated — `meta.pagination` is intentionally absent.",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Comment"
+            }
           }
         }
       },

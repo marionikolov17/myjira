@@ -307,6 +307,48 @@ Error categories:
   - 404 -> resource not found
   - 500 -> internal server failure
 
+### 4.7 Comments
+
+- `POST` /projects/{projectId}/issues/{issueId}/comments
+
+  Posts a comment on the target issue. The caller must be able to view the issue — any project
+  member (any project role) on the issue's project, or a workspace Owner/Admin via bypass.
+
+  **Responses:**
+  - 201 Created -> success
+  - 400 -> validation error
+  - 401 -> authentication required
+  - 403 -> forbidden
+  - 404 -> resource not found
+  - 500 -> internal server failure
+
+- `GET` /projects/{projectId}/issues/{issueId}/comments
+
+  Lists every comment of the target issue, ordered oldest first. The response is NOT paginated
+  (`meta.pagination` is intentionally absent).
+
+  **Responses:**
+  - 200 -> success
+  - 400 -> validation error
+  - 401 -> authentication required
+  - 403 -> forbidden
+  - 404 -> resource not found
+  - 500 -> internal server failure
+
+- `DELETE` /projects/{projectId}/issues/{issueId}/comments/{commentId}
+
+  Deletes a comment. Only the comment's author may delete it, and only while they can still view
+  the issue. All other viewers — including other project members and workspace Owners/Admins — get
+  `403 FORBIDDEN`.
+
+  **Responses:**
+  - 204 No Content -> success
+  - 400 -> validation error
+  - 401 -> authentication required
+  - 403 -> forbidden
+  - 404 -> resource not found
+  - 500 -> internal server failure
+
 ## Issue Level
 
 ### 4.6 Subtasks

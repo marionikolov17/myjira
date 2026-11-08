@@ -104,7 +104,10 @@ because it is a permission boundary, not a malformed-state business rule.
 
 ### D5 — Validation parity with issues
 
-Server: `CreateCommentRequestParamsSchema = z.strictObject({ body: z.string().min(1) })`.
+Server: `CreateCommentRequestParamsSchema = z.strictObject({ body: z.string().min(1).refine((value) => value.trim().length > 0) })`
+— the refine implements the spec's "empty, blank, or missing" rejection scenario (a whitespace-only
+body is a validation error) while still storing the body untrimmed, so the server keeps the
+presence/min posture and never transforms stored data.
 Client: `createCommentInputSchema = z.object({ body: commentBody })` — the wire property is
 `body`, one-to-one with the server. `commentBody` is only the reusable field-level validator
 (`z.string().trim().min(1).max(5000)`, with `COMMENT_BODY_MAX_LENGTH = 5000`), exactly like the

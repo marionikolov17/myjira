@@ -56,3 +56,13 @@
 - Relationships:
   - belongs to an Issue
   - assigned to one User
+
+## Comment
+- Attributes:
+  - id
+  - body
+  - createdAt
+  - updatedAt
+- Relationships:
+  - belongs to an Issue
+  - authored by one User (creator)

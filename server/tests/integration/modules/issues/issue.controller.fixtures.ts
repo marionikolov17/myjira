@@ -18,8 +18,6 @@ import {
   IIssueRepository,
   IssueRepository,
   IssueService,
-  IssueStatus,
-  IssuePriority,
   issuesQueryConfig,
 } from '@/modules/issues';
 import { IssueController } from '@/modules/issues/issue.controller';
@@ -33,6 +31,10 @@ import {
 import { seedProject } from '../../fixtures/projects.fixtures';
 import { seedProjectMembership } from '../../fixtures/project-members.fixtures';
 import { fetchProjectRoleIdByName } from '../../fixtures/project-roles.fixtures';
+import { SeededIssue, seedIssue, wipeIssueGraph } from '../../fixtures/issues.fixtures';
+
+export { seedIssue, wipeIssueGraph };
+export type { SeededIssue };
 
 export const SECRET_KEY = 'issues-test-secret-key';
 export const TOKEN_EXPIRES_IN_SECONDS = 3600;
@@ -109,68 +111,6 @@ export function createIssuesTestContext(): IssuesTestContext {
     userRepository,
     workspaceRoleRepository,
   };
-}
-
-export interface SeededIssue {
-  id: string;
-  projectId: string;
-  creatorId: string;
-  assigneeId: string;
-  title: string;
-  description: string;
-  status: IssueStatus;
-  priority: IssuePriority;
-}
-
-/**
- * Seeds an issue row directly via Prisma (bypassing the controller/service).
- */
-export async function seedIssue(params: {
-  projectId: string;
-  creatorId: string;
-  assigneeId: string;
-  title: string;
-  description: string;
-  status?: IssueStatus;
-  priority?: IssuePriority;
-}): Promise<SeededIssue> {
-  const row = await prisma.issue.create({
-    data: {
-      projectId: params.projectId,
-      creatorId: params.creatorId,
-      assigneeId: params.assigneeId,
-      title: params.title,
-      description: params.description,
-      status: params.status ?? IssueStatus.ToDo,
-      priority: params.priority ?? IssuePriority.Medium,
-    },
-    select: {
-      id: true,
-      projectId: true,
-      creatorId: true,
-      assigneeId: true,
-      title: true,
-      description: true,
-      status: true,
-      priority: true,
-    },
-  });
-  return {
-    id: row.id,
-    projectId: row.projectId,
-    creatorId: row.creatorId,
-    assigneeId: row.assigneeId,
-    title: row.title,
-    description: row.description,
-    status: row.status as IssueStatus,
-    priority: row.priority as IssuePriority,
-  };
-}
-
-export async function wipeIssueGraph(): Promise<void> {
-  await prisma.issue.deleteMany();
-  await prisma.projectMember.deleteMany();
-  await prisma.project.deleteMany();
 }
 
 export async function wipeUsers(): Promise<void> {

@@ -4,6 +4,7 @@ import {
   actorContextSchema,
   apiErrorBodySchema,
   collectionOf,
+  commentSchema,
   createUserResponseSchema,
   envelopeOf,
   getApiErrorMessageFromCode,
@@ -196,6 +197,23 @@ export function createHttpTransport({ baseUrl, getToken }: HttpTransportOptions)
     deleteIssue: (projectId, issueId) =>
       requestVoid(
         `/projects/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueId)}`,
+        { method: 'DELETE' },
+      ),
+
+    listComments: (projectId, issueId) =>
+      request(
+        collectionOf(commentSchema),
+        `/projects/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueId)}/comments`,
+      ),
+    createComment: (projectId, issueId, input) =>
+      request(
+        envelopeOf(commentSchema),
+        `/projects/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueId)}/comments`,
+        { method: 'POST', body: input },
+      ),
+    deleteComment: (projectId, issueId, commentId) =>
+      requestVoid(
+        `/projects/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueId)}/comments/${encodeURIComponent(commentId)}`,
         { method: 'DELETE' },
       ),
   };

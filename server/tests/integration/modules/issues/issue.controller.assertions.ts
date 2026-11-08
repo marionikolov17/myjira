@@ -4,6 +4,8 @@ import supertest from 'supertest';
 import { prisma } from '@/common/lib/prisma';
 import { IssuePriority, IssueStatus } from '@/modules/issues';
 
+export { expectNoContentResponse } from '../../assertions/http.assertions';
+
 export interface ExpectedIssueResource {
   /** When set, the issue `id` must match exactly. */
   id?: string;
@@ -56,11 +58,8 @@ export function expectIssueResource(
 
 /**
  * Asserts a 204 No Content response with an empty body.
+ * Promoted to `assertions/http.assertions.ts` and re-exported here.
  */
-export function expectNoContentResponse(response: supertest.Response): void {
-  expect(response.status).toBe(204);
-  expect(response.body).toEqual({});
-}
 
 export async function expectNoIssueWithId(issueId: string): Promise<void> {
   const row = await prisma.issue.findUnique({ where: { id: issueId } });

@@ -27,6 +27,9 @@ export const ACTIONS = [
   'issues.getById',
   'issues.update',
   'issues.delete',
+  'comments.list',
+  'comments.create',
+  'comments.delete',
 ] as const;
 
 export type Action = (typeof ACTIONS)[number];
@@ -77,6 +80,9 @@ export function can(
     case 'members.list':
     case 'issues.list':
     case 'issues.getById':
+    case 'comments.list':
+    case 'comments.create':
+    case 'comments.delete':
       return isOwnerOrAdmin || projectRole !== undefined;
     case 'projects.update':
     case 'projects.delete':

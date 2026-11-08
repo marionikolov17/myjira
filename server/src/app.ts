@@ -11,6 +11,7 @@ import { usersController } from '@/modules/users';
 import { projectsController } from '@/modules/projects';
 import { projectMemberController } from '@/modules/project-members';
 import { issueController } from '@/modules/issues';
+import { commentController } from '@/modules/comments';
 import openapiSpec from '../docs/openapi.json';
 
 const app = express();
@@ -42,6 +43,7 @@ app.use('/api/v1/users', usersController.router);
 app.use('/api/v1/projects', projectsController.router);
 app.use('/api/v1/projects/:projectId/members', projectMemberController.router);
 app.use('/api/v1/projects/:projectId/issues', issueController.router);
+app.use('/api/v1/projects/:projectId/issues/:issueId/comments', commentController.router);
 
 app.use(errorMiddleware);
 
